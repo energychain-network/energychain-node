@@ -1,0 +1,13 @@
+syntax = "proto3";
+package energychain.audit.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/audit/v1/types.proto";
+
+option go_package = "energychain/x/audit/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated AuditLog logs = 2 [(gogoproto.nullable) = false];
+  uint64 counter = 3;
+}

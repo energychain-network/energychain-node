@@ -1,0 +1,34 @@
+syntax = "proto3";
+package energychain.oracle.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/oracle/types";
+
+// OracleData represents a single oracle data submission.
+message OracleData {
+  string category = 1;
+  string value = 2;
+  string metadata = 3;
+  int64 timestamp = 4;
+  string submitter = 5;
+  int64 block_height = 6;
+}
+
+// OracleInfo describes an authorized oracle node.
+message OracleInfo {
+  string address = 1;
+  string name = 2;
+  bool active = 3;
+  repeated string authorized_categories = 4;
+}
+
+// Params defines the oracle module parameters.
+//
+// max_metadata_size caps the byte length of MsgSubmitData.metadata to prevent
+// authorized oracles from inflating chain state with arbitrarily long blobs.
+message Params {
+  uint32 min_submissions = 1;
+  int64 data_max_age = 2;
+  uint32 max_metadata_size = 3;
+}

@@ -1,0 +1,53 @@
+syntax = "proto3";
+package energychain.oracle.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "energychain/oracle/v1/types.proto";
+
+option go_package = "energychain/x/oracle/types";
+
+service Query {
+  rpc LatestData(QueryLatestDataRequest) returns (QueryLatestDataResponse);
+  rpc DataHistory(QueryDataHistoryRequest) returns (QueryDataHistoryResponse);
+  rpc Oracle(QueryOracleRequest) returns (QueryOracleResponse);
+  rpc AllOracles(QueryAllOraclesRequest) returns (QueryAllOraclesResponse);
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+}
+
+message QueryLatestDataRequest { string category = 1; }
+message QueryLatestDataResponse {
+  OracleData data = 1 [(gogoproto.nullable) = false];
+  bool stale = 2;
+}
+
+// from_time/to_time inclusive timestamp filter; if both are 0 the entire
+// retained history for the category is returned (subject to pagination).
+message QueryDataHistoryRequest {
+  string category = 1;
+  int64 from_time = 2;
+  int64 to_time = 3;
+  cosmos.base.query.v1beta1.PageRequest pagination = 4;
+}
+message QueryDataHistoryResponse {
+  repeated OracleData data = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryOracleRequest { string address = 1; }
+message QueryOracleResponse {
+  OracleInfo oracle = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryAllOraclesRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+message QueryAllOraclesResponse {
+  repeated OracleInfo oracles = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse {
+  Params params = 1 [(gogoproto.nullable) = false];
+}

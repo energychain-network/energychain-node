@@ -1,0 +1,32 @@
+syntax = "proto3";
+package energychain.audit.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/audit/types";
+
+// AuditLog is a single audit trail entry persisted on-chain.
+message AuditLog {
+  uint64 id = 1 [(gogoproto.customname) = "ID"];
+  string event_type = 2;
+  string actor = 3;
+  string target = 4;
+  string action = 5;
+  string data = 6;
+  int64 block_height = 7;
+  int64 timestamp = 8;
+  string tx_hash = 9;
+}
+
+// Params defines the configurable parameters for the audit module.
+//
+// max_audits_per_block_per_creator limits the number of MsgRecordAudit txs a
+// single creator can land in one block (0 disables the limit).
+message Params {
+  uint64 large_transfer_threshold = 1;
+  int64 retention_blocks = 2;
+  repeated string allowed_auditors = 3;
+  uint32 max_data_size = 4;
+  bool permissionless = 5;
+  uint32 max_audits_per_block_per_creator = 6;
+}

@@ -1,0 +1,12 @@
+syntax = "proto3";
+package energychain.identity.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/identity/v1/types.proto";
+
+option go_package = "energychain/x/identity/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated Identity identities = 2 [(gogoproto.nullable) = false];
+}

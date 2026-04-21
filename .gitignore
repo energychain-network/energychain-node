@@ -1,0 +1,25 @@
+# Go build artifacts
+chain/build/
+chain/dist/
+chain/vendor/
+chain/energychaind
+*.exe
+*.test
+*.out
+*.prof
+
+# Local node state
+.energychaind/
+chain/data/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

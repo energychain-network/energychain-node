@@ -1,0 +1,50 @@
+syntax = "proto3";
+package energychain.energy.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/energy/types";
+
+// EnergyData represents a single on-chain energy data attestation.
+message EnergyData {
+  string id = 1 [(gogoproto.customname) = "ID"];
+  string category = 2;
+  string submitter = 3;
+  string data_hash = 4;
+  string metadata = 5;
+  int64 block_height = 6;
+  int64 timestamp = 7;
+}
+
+// BatchSubmission records a batch of energy data submissions grouped
+// under one merkle root.
+message BatchSubmission {
+  string id = 1 [(gogoproto.customname) = "ID"];
+  string submitter = 2;
+  string category = 3;
+  uint32 data_count = 4;
+  string merkle_root = 5;
+  int64 timestamp = 6;
+}
+
+// Params defines the configurable parameters for the energy module.
+//
+// max_metadata_size caps the byte length of MsgSubmitEnergyData.metadata and
+// each BatchItem.metadata to prevent attackers from inflating chain state.
+//
+// max_submissions_per_block_per_submitter limits the number of single
+// SubmitEnergyData txs (BatchSubmit counts as 1 regardless of item count) a
+// single submitter can land in one block. 0 disables the limit.
+message Params {
+  uint32 max_batch_size = 1;
+  repeated string allowed_submitters = 2;
+  bool permissionless = 3;
+  uint32 max_metadata_size = 4;
+  uint32 max_submissions_per_block_per_submitter = 5;
+}
+
+// BatchItem is a single record inside a batch submission.
+message BatchItem {
+  string data_hash = 1;
+  string metadata = 2;
+}

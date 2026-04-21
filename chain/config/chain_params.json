@@ -1,0 +1,95 @@
+{
+  "chain_id": "energychain_9001-1",
+  "chain_name": "Energy Chain",
+  "denom": {
+    "base": "uecy",
+    "display": "ecy",
+    "name": "Energy Chain Token",
+    "symbol": "ECY",
+    "exponent": 18
+  },
+  "total_supply": {
+    "amount": "1000000000000000000000000000",
+    "display_amount": "1000000000",
+    "denom": "uecy",
+    "display_denom": "ecy",
+    "description": "1 billion ECY"
+  },
+  "token_distribution": {
+    "team": {
+      "percentage": 15,
+      "amount": "150000000000000000000000000",
+      "display_amount": "150000000 ECY"
+    },
+    "ecosystem": {
+      "percentage": 30,
+      "amount": "300000000000000000000000000",
+      "display_amount": "300000000 ECY"
+    },
+    "treasury": {
+      "percentage": 20,
+      "amount": "200000000000000000000000000",
+      "display_amount": "200000000 ECY"
+    },
+    "validators": {
+      "percentage": 10,
+      "amount": "100000000000000000000000000",
+      "display_amount": "100000000 ECY"
+    },
+    "circulation": {
+      "percentage": 25,
+      "amount": "250000000000000000000000000",
+      "display_amount": "250000000 ECY"
+    }
+  },
+  "block_time": "2s",
+  "bech32_prefix": "energy",
+  "initial_validators": 4,
+  "staking": {
+    "max_validators": 100,
+    "unbonding_time": "1209600s",
+    "bond_denom": "uecy",
+    "min_self_delegation": "1000000000000000000000000",
+    "description": "min_self_delegation = 1,000,000 ECY in uecy"
+  },
+  "slashing": {
+    "slash_fraction_double_sign": "0.050000",
+    "slash_fraction_downtime": "0.000100",
+    "downtime_jail_duration": "600s",
+    "signed_blocks_window": 10000,
+    "min_signed_per_window": "0.050000"
+  },
+  "mint": {
+    "inflation": "0.080000",
+    "inflation_max": "0.080000",
+    "inflation_min": "0.020000",
+    "inflation_rate_change": "0.060000",
+    "goal_bonded": "0.670000",
+    "blocks_per_year": 15768000,
+    "mint_denom": "uecy"
+  },
+  "distribution": {
+    "community_tax": "0.100000",
+    "base_proposer_reward": "0.010000",
+    "bonus_proposer_reward": "0.040000",
+    "withdraw_addr_enabled": true
+  },
+  "gov": {
+    "min_deposit": {
+      "amount": "10000000000000000000000",
+      "denom": "uecy",
+      "description": "10,000 ECY in uecy"
+    },
+    "max_deposit_period": "172800s",
+    "voting_period": "604800s",
+    "quorum": "0.334000",
+    "threshold": "0.500000",
+    "veto_threshold": "0.334000"
+  },
+  "gas": {
+    "min_gas_prices": "0.025uecy"
+  },
+  "evm": {
+    "eip155_chain_id": 9001
+  }
+}

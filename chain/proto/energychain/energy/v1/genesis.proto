@@ -1,0 +1,15 @@
+syntax = "proto3";
+package energychain.energy.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/energy/v1/types.proto";
+
+option go_package = "energychain/x/energy/types";
+
+// GenesisState defines the energy module's genesis state.
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated EnergyData data_records = 2 [(gogoproto.nullable) = false];
+  repeated BatchSubmission batches = 3 [(gogoproto.nullable) = false];
+  uint64 next_id = 4 [(gogoproto.customname) = "NextID"];
+}

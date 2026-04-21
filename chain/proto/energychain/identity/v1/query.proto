@@ -1,0 +1,38 @@
+syntax = "proto3";
+package energychain.identity.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "energychain/identity/v1/types.proto";
+
+option go_package = "energychain/x/identity/types";
+
+service Query {
+  rpc Identity(QueryIdentityRequest) returns (QueryIdentityResponse);
+  rpc IdentitiesByRole(QueryIdentitiesByRoleRequest) returns (QueryIdentitiesByRoleResponse);
+  rpc AllIdentities(QueryAllIdentitiesRequest) returns (QueryAllIdentitiesResponse);
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+}
+
+message QueryIdentityRequest { string address = 1; }
+message QueryIdentityResponse { Identity identity = 1 [(gogoproto.nullable) = false]; }
+
+message QueryIdentitiesByRoleRequest {
+  string role = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryIdentitiesByRoleResponse {
+  repeated Identity identities = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryAllIdentitiesRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+message QueryAllIdentitiesResponse {
+  repeated Identity identities = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }

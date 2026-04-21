@@ -1,0 +1,13 @@
+syntax = "proto3";
+package energychain.oracle.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/oracle/v1/types.proto";
+
+option go_package = "energychain/x/oracle/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated OracleInfo oracles = 2 [(gogoproto.nullable) = false];
+  repeated OracleData data = 3 [(gogoproto.nullable) = false];
+}
