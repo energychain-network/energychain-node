@@ -8,6 +8,9 @@ option go_package = "energychain/x/oracle/types";
 
 message GenesisState {
   Params params = 1 [(gogoproto.nullable) = false];
-  repeated OracleInfo oracles = 2 [(gogoproto.nullable) = false];
-  repeated OracleData data = 3 [(gogoproto.nullable) = false];
+  repeated Topic topics = 2 [(gogoproto.nullable) = false];
+  repeated Provider providers = 3 [(gogoproto.nullable) = false];
+  repeated Submission submissions = 4 [(gogoproto.nullable) = false];
+  repeated AggregatedValue aggregated = 5 [(gogoproto.nullable) = false];
+  repeated ReserveAttestation reserve_attestations = 6 [(gogoproto.nullable) = false];
 }

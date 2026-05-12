@@ -24,9 +24,12 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type GenesisState struct {
-	Params  Params       `protobuf:"bytes,1,opt,name=params,proto3" json:"params"`
-	Oracles []OracleInfo `protobuf:"bytes,2,rep,name=oracles,proto3" json:"oracles"`
-	Data    []OracleData `protobuf:"bytes,3,rep,name=data,proto3" json:"data"`
+	Params              Params               `protobuf:"bytes,1,opt,name=params,proto3" json:"params"`
+	Topics              []Topic              `protobuf:"bytes,2,rep,name=topics,proto3" json:"topics"`
+	Providers           []Provider           `protobuf:"bytes,3,rep,name=providers,proto3" json:"providers"`
+	Submissions         []Submission         `protobuf:"bytes,4,rep,name=submissions,proto3" json:"submissions"`
+	Aggregated          []AggregatedValue    `protobuf:"bytes,5,rep,name=aggregated,proto3" json:"aggregated"`
+	ReserveAttestations []ReserveAttestation `protobuf:"bytes,6,rep,name=reserve_attestations,json=reserveAttestations,proto3" json:"reserve_attestations"`
 }
 
 func (m *GenesisState) Reset()         { *m = GenesisState{} }
@@ -69,16 +72,37 @@ func (m *GenesisState) GetParams() Params {
 	return Params{}
 }
 
-func (m *GenesisState) GetOracles() []OracleInfo {
+func (m *GenesisState) GetTopics() []Topic {
 	if m != nil {
-		return m.Oracles
+		return m.Topics
 	}
 	return nil
 }
 
-func (m *GenesisState) GetData() []OracleData {
+func (m *GenesisState) GetProviders() []Provider {
 	if m != nil {
-		return m.Data
+		return m.Providers
+	}
+	return nil
+}
+
+func (m *GenesisState) GetSubmissions() []Submission {
+	if m != nil {
+		return m.Submissions
+	}
+	return nil
+}
+
+func (m *GenesisState) GetAggregated() []AggregatedValue {
+	if m != nil {
+		return m.Aggregated
+	}
+	return nil
+}
+
+func (m *GenesisState) GetReserveAttestations() []ReserveAttestation {
+	if m != nil {
+		return m.ReserveAttestations
 	}
 	return nil
 }
@@ -92,22 +116,28 @@ func init() {
 }
 
 var fileDescriptor_736d0168f07b1a71 = []byte{
-	// 234 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x52, 0x4e, 0xcd, 0x4b, 0x2d,
-	0x4a, 0xaf, 0x4c, 0xce, 0x48, 0xcc, 0xcc, 0xd3, 0xcf, 0x2f, 0x4a, 0x4c, 0xce, 0x49, 0xd5, 0x2f,
-	0x33, 0xd4, 0x4f, 0x4f, 0xcd, 0x4b, 0x2d, 0xce, 0x2c, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17,
-	0x12, 0x45, 0x52, 0xa4, 0x07, 0x51, 0xa4, 0x57, 0x66, 0x28, 0x25, 0x92, 0x9e, 0x9f, 0x9e, 0x0f,
-	0x56, 0xa1, 0x0f, 0x62, 0x41, 0x14, 0x4b, 0x29, 0x62, 0x37, 0xb1, 0xa4, 0xb2, 0x20, 0x15, 0x6a,
-	0x9e, 0xd2, 0x69, 0x46, 0x2e, 0x1e, 0x77, 0x88, 0x0d, 0xc1, 0x25, 0x89, 0x25, 0xa9, 0x42, 0xd6,
-	0x5c, 0x6c, 0x05, 0x89, 0x45, 0x89, 0xb9, 0xc5, 0x12, 0x8c, 0x0a, 0x8c, 0x1a, 0xdc, 0x46, 0xb2,
-	0x7a, 0x58, 0x6d, 0xd4, 0x0b, 0x00, 0x2b, 0x72, 0x62, 0x39, 0x71, 0x4f, 0x9e, 0x21, 0x08, 0xaa,
-	0x45, 0xc8, 0x91, 0x8b, 0x1d, 0xa2, 0xa2, 0x58, 0x82, 0x49, 0x81, 0x59, 0x83, 0xdb, 0x48, 0x11,
-	0x87, 0x6e, 0x7f, 0x30, 0xcb, 0x33, 0x2f, 0x2d, 0x1f, 0x6a, 0x02, 0x4c, 0x9f, 0x90, 0x35, 0x17,
-	0x4b, 0x4a, 0x62, 0x49, 0xa2, 0x04, 0x33, 0x11, 0xfa, 0x5d, 0x12, 0x4b, 0x12, 0xa1, 0xfa, 0xc1,
-	0x9a, 0x9c, 0x4c, 0x4e, 0x3c, 0x92, 0x63, 0xbc, 0xf0, 0x48, 0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6,
-	0x09, 0x8f, 0xe5, 0x18, 0x2e, 0x3c, 0x96, 0x63, 0xb8, 0xf1, 0x58, 0x8e, 0x21, 0x4a, 0x0a, 0x39,
-	0x28, 0x2a, 0x60, 0x81, 0x01, 0x0e, 0x89, 0x24, 0x36, 0x70, 0x50, 0x18, 0x03, 0x02, 0x00, 0x00,
-	0xff, 0xff, 0x0a, 0xd8, 0xdc, 0xac, 0x81, 0x01, 0x00, 0x00,
+	// 334 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x92, 0x31, 0x4f, 0xc2, 0x40,
+	0x18, 0x86, 0x5b, 0xc1, 0x26, 0x1e, 0x4e, 0x27, 0x26, 0x0d, 0xd1, 0x02, 0x9a, 0x18, 0x5c, 0xda,
+	0x80, 0x4e, 0x3a, 0x81, 0x83, 0x31, 0x71, 0x30, 0x60, 0x1c, 0x5c, 0xcc, 0x01, 0x5f, 0xce, 0x26,
+	0xd0, 0x6b, 0xee, 0x3b, 0x1a, 0xf9, 0x17, 0xfe, 0x2c, 0xdc, 0x18, 0x9d, 0x8c, 0x81, 0x3f, 0x62,
+	0xb8, 0x1e, 0xd0, 0x44, 0xba, 0x35, 0xe9, 0xf3, 0x3c, 0xdf, 0x0d, 0x2f, 0x39, 0x87, 0x08, 0x24,
+	0x9f, 0x0e, 0xde, 0x59, 0x18, 0x05, 0x42, 0xb2, 0xc1, 0x08, 0x82, 0xa4, 0x19, 0x70, 0x88, 0x00,
+	0x43, 0xf4, 0x63, 0x29, 0x94, 0xa0, 0xc7, 0x19, 0xc8, 0x4f, 0x21, 0x3f, 0x69, 0x56, 0xca, 0x5c,
+	0x70, 0xa1, 0x89, 0x60, 0xf5, 0x95, 0xc2, 0x95, 0xfa, 0xee, 0xa2, 0x9a, 0xc6, 0x60, 0x7a, 0x67,
+	0x5f, 0x05, 0x72, 0x78, 0x9f, 0x5e, 0xe8, 0x29, 0xa6, 0x80, 0xde, 0x12, 0x27, 0x66, 0x92, 0x8d,
+	0xd1, 0xb5, 0x6b, 0x76, 0xa3, 0xd4, 0x3a, 0xf5, 0x77, 0x5e, 0xf4, 0x9f, 0x34, 0xd4, 0x29, 0xce,
+	0x7e, 0xaa, 0x56, 0xd7, 0x28, 0xf4, 0x86, 0x38, 0x4a, 0xc4, 0xe1, 0x00, 0xdd, 0xbd, 0x5a, 0xa1,
+	0x51, 0x6a, 0x9d, 0xe4, 0xc8, 0xcf, 0x2b, 0x68, 0xed, 0xa6, 0x06, 0xbd, 0x23, 0x07, 0xb1, 0x14,
+	0x49, 0x38, 0x04, 0x89, 0x6e, 0x41, 0xeb, 0xd5, 0xbc, 0xdb, 0x86, 0x33, 0x85, 0xad, 0x47, 0x1f,
+	0x48, 0x09, 0x27, 0xfd, 0x71, 0x88, 0x18, 0x8a, 0x08, 0xdd, 0xa2, 0xce, 0xd4, 0x73, 0x32, 0xbd,
+	0x0d, 0x69, 0x42, 0x59, 0x97, 0x3e, 0x12, 0xc2, 0x38, 0x97, 0xc0, 0x99, 0x82, 0xa1, 0xbb, 0xaf,
+	0x4b, 0x17, 0x39, 0xa5, 0xf6, 0x06, 0x7c, 0x61, 0xa3, 0x09, 0x98, 0x5c, 0xc6, 0xa7, 0x7d, 0x52,
+	0x96, 0x80, 0x20, 0x13, 0x78, 0x63, 0x4a, 0x01, 0x2a, 0xa6, 0xf4, 0x0b, 0x1d, 0xdd, 0xbd, 0xcc,
+	0xe9, 0x76, 0x53, 0xa5, 0xbd, 0x35, 0x4c, 0xfa, 0x48, 0xfe, 0xfb, 0x83, 0x9d, 0xeb, 0xd9, 0xc2,
+	0xb3, 0xe7, 0x0b, 0xcf, 0xfe, 0x5d, 0x78, 0xf6, 0xe7, 0xd2, 0xb3, 0xe6, 0x4b, 0xcf, 0xfa, 0x5e,
+	0x7a, 0xd6, 0x6b, 0x25, 0x3b, 0x84, 0x8f, 0xf5, 0x14, 0xf4, 0x0e, 0xfa, 0x8e, 0x1e, 0xc2, 0xd5,
+	0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x71, 0xb6, 0x68, 0x42, 0x7f, 0x02, 0x00, 0x00,
 }
 
 func (m *GenesisState) Marshal() (dAtA []byte, err error) {
@@ -130,10 +160,52 @@ func (m *GenesisState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Data) > 0 {
-		for iNdEx := len(m.Data) - 1; iNdEx >= 0; iNdEx-- {
+	if len(m.ReserveAttestations) > 0 {
+		for iNdEx := len(m.ReserveAttestations) - 1; iNdEx >= 0; iNdEx-- {
 			{
-				size, err := m.Data[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				size, err := m.ReserveAttestations[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenesis(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x32
+		}
+	}
+	if len(m.Aggregated) > 0 {
+		for iNdEx := len(m.Aggregated) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Aggregated[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenesis(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if len(m.Submissions) > 0 {
+		for iNdEx := len(m.Submissions) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Submissions[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenesis(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
+		}
+	}
+	if len(m.Providers) > 0 {
+		for iNdEx := len(m.Providers) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Providers[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
@@ -144,10 +216,10 @@ func (m *GenesisState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0x1a
 		}
 	}
-	if len(m.Oracles) > 0 {
-		for iNdEx := len(m.Oracles) - 1; iNdEx >= 0; iNdEx-- {
+	if len(m.Topics) > 0 {
+		for iNdEx := len(m.Topics) - 1; iNdEx >= 0; iNdEx-- {
 			{
-				size, err := m.Oracles[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				size, err := m.Topics[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
@@ -190,14 +262,32 @@ func (m *GenesisState) Size() (n int) {
 	_ = l
 	l = m.Params.Size()
 	n += 1 + l + sovGenesis(uint64(l))
-	if len(m.Oracles) > 0 {
-		for _, e := range m.Oracles {
+	if len(m.Topics) > 0 {
+		for _, e := range m.Topics {
 			l = e.Size()
 			n += 1 + l + sovGenesis(uint64(l))
 		}
 	}
-	if len(m.Data) > 0 {
-		for _, e := range m.Data {
+	if len(m.Providers) > 0 {
+		for _, e := range m.Providers {
+			l = e.Size()
+			n += 1 + l + sovGenesis(uint64(l))
+		}
+	}
+	if len(m.Submissions) > 0 {
+		for _, e := range m.Submissions {
+			l = e.Size()
+			n += 1 + l + sovGenesis(uint64(l))
+		}
+	}
+	if len(m.Aggregated) > 0 {
+		for _, e := range m.Aggregated {
+			l = e.Size()
+			n += 1 + l + sovGenesis(uint64(l))
+		}
+	}
+	if len(m.ReserveAttestations) > 0 {
+		for _, e := range m.ReserveAttestations {
 			l = e.Size()
 			n += 1 + l + sovGenesis(uint64(l))
 		}
@@ -275,7 +365,7 @@ func (m *GenesisState) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Oracles", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Topics", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -302,14 +392,14 @@ func (m *GenesisState) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Oracles = append(m.Oracles, OracleInfo{})
-			if err := m.Oracles[len(m.Oracles)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.Topics = append(m.Topics, Topic{})
+			if err := m.Topics[len(m.Topics)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Providers", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -336,8 +426,110 @@ func (m *GenesisState) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Data = append(m.Data, OracleData{})
-			if err := m.Data[len(m.Data)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.Providers = append(m.Providers, Provider{})
+			if err := m.Providers[len(m.Providers)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Submissions", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenesis
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenesis
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenesis
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Submissions = append(m.Submissions, Submission{})
+			if err := m.Submissions[len(m.Submissions)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Aggregated", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenesis
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenesis
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenesis
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Aggregated = append(m.Aggregated, AggregatedValue{})
+			if err := m.Aggregated[len(m.Aggregated)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ReserveAttestations", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenesis
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenesis
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenesis
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ReserveAttestations = append(m.ReserveAttestations, ReserveAttestation{})
+			if err := m.ReserveAttestations[len(m.ReserveAttestations)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

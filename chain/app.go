@@ -564,7 +564,7 @@ func NewEnergyChainApp(
 	)
 
 	// Custom energy-chain keepers
-	app.OracleKeeper = oraclekeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[oracletypes.StoreKey]), authAddr)
+	app.OracleKeeper = oraclekeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[oracletypes.StoreKey]), authAddr, app.BankKeeper)
 	// AuditKeeper accepts an optional DIDKeeper (gates view-key grants).
 	// Wired to nil here; the M1 wiring milestone (appgo TODO) replaces
 	// nil with the real x/did keeper once all M1 modules are assembled.

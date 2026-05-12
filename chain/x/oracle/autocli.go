@@ -4,52 +4,72 @@ import (
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 )
 
-// AutoCLIOptions exposes oracle queries and txs through the autocli command
-// tree. Resulting commands:
+// AutoCLIOptions exposes oracle queries and the simpler positional tx
+// commands. Messages with nested payloads (RegisterTopic, UpdateTopic,
+// RegisterProvider, SubmitReserveAttestation) live in client/cli/tx.go.
 //
-//	energychaind query oracle latest [category]
-//	energychaind query oracle history [category] --from-time --to-time
-//	energychaind query oracle oracle [address]
-//	energychaind query oracle all-oracles
+//	energychaind query oracle topic [id]
+//	energychaind query oracle topics
+//	energychaind query oracle provider [address]
+//	energychaind query oracle providers [--status=ACTIVE]
+//	energychaind query oracle submission [topic-id] [provider]
+//	energychaind query oracle submissions [--topic-id=...]
+//	energychaind query oracle aggregated [topic-id]
+//	energychaind query oracle all-aggregated
+//	energychaind query oracle reserve-attestation [id]
+//	energychaind query oracle reserve-attestations [--asset=USDC]
 //	energychaind query oracle params
 //
-//	energychaind tx oracle submit-data [category] [value] [metadata] [timestamp]
-//	energychaind tx oracle add-oracle-proposal [oracle-address] [name] [...categories]      # gov
-//	energychaind tx oracle remove-oracle-proposal [oracle-address]                          # gov
-//	energychaind tx oracle update-params-proposal [params-json]                              # gov
+//	energychaind tx oracle pause-topic [topic-id] [reason]
+//	energychaind tx oracle resume-topic [topic-id]
+//	energychaind tx oracle suspend-provider [address] [until-unix] [reason]
+//	energychaind tx oracle request-withdraw-bond
+//	energychaind tx oracle withdraw-bond
+//	energychaind tx oracle submit-value [topic-id] [value] [timestamp] [metadata]
 func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 	return &autocliv1.ModuleOptions{
 		Query: &autocliv1.ServiceCommandDescriptor{
 			Service: "energychain.oracle.v1.Query",
 			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
 				{
-					RpcMethod:      "LatestData",
-					Use:            "latest [category]",
-					Short:          "Query the most recent oracle datapoint for a category",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "category"}},
+					RpcMethod:      "Topic",
+					Use:            "topic [id]",
+					Short:          "Query a topic by id",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
 				},
+				{RpcMethod: "Topics", Use: "topics", Short: "List paginated topics"},
 				{
-					RpcMethod:      "DataHistory",
-					Use:            "history [category]",
-					Short:          "Query historical oracle datapoints for a category",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "category"}},
-				},
-				{
-					RpcMethod:      "Oracle",
-					Use:            "oracle [address]",
-					Short:          "Query a single registered oracle by address",
+					RpcMethod:      "Provider",
+					Use:            "provider [address]",
+					Short:          "Query a provider by address",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "address"}},
 				},
+				{RpcMethod: "Providers", Use: "providers", Short: "List paginated providers (filter --status=...)"},
 				{
-					RpcMethod: "AllOracles",
-					Use:       "all-oracles",
-					Short:     "List every registered oracle (paginated)",
+					RpcMethod: "Submission",
+					Use:       "submission [topic-id] [provider]",
+					Short:     "Query a single submission",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
+						{ProtoField: "topic_id"},
+						{ProtoField: "provider"},
+					},
 				},
+				{RpcMethod: "Submissions", Use: "submissions", Short: "List submissions (filter --topic-id=...)"},
 				{
-					RpcMethod: "Params",
-					Use:       "params",
-					Short:     "Query the current oracle module parameters",
+					RpcMethod:      "Aggregated",
+					Use:            "aggregated [topic-id]",
+					Short:          "Query the latest aggregated value for a topic",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "topic_id"}},
 				},
+				{RpcMethod: "AllAggregated", Use: "all-aggregated", Short: "List paginated aggregated values"},
+				{
+					RpcMethod:      "ReserveAttestation",
+					Use:            "reserve-attestation [id]",
+					Short:          "Query a single reserve attestation",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "id"}},
+				},
+				{RpcMethod: "ReserveAttestations", Use: "reserve-attestations", Short: "List reserve attestations (filter --asset=...)"},
+				{RpcMethod: "Params", Use: "params", Short: "Query the current oracle module parameters"},
 			},
 		},
 		Tx: &autocliv1.ServiceCommandDescriptor{
@@ -57,33 +77,42 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 			EnhanceCustomCommand: true,
 			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
 				{
-					RpcMethod: "SubmitData",
-					Use:       "submit-data [category] [value] [metadata] [timestamp]",
-					Short:     "Submit a new oracle datapoint",
+					RpcMethod: "PauseTopic",
+					Use:       "pause-topic [topic-id] [reason]",
+					Short:     "Pause a topic (governance only)",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
-						{ProtoField: "category"},
-						{ProtoField: "value"},
-						{ProtoField: "metadata"},
-						{ProtoField: "timestamp"},
-					},
-				},
-				{
-					RpcMethod: "AddOracle",
-					Use:       "add-oracle-proposal [oracle-address] [name] [authorized-categories...]",
-					Short:     "Submit a governance proposal to register a new oracle",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
-						{ProtoField: "oracle_address"},
-						{ProtoField: "name"},
-						{ProtoField: "authorized_categories", Varargs: true},
+						{ProtoField: "topic_id"},
+						{ProtoField: "reason"},
 					},
 					GovProposal: true,
 				},
 				{
-					RpcMethod:      "RemoveOracle",
-					Use:            "remove-oracle-proposal [oracle-address]",
-					Short:          "Submit a governance proposal to remove an oracle",
-					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "oracle_address"}},
+					RpcMethod:      "ResumeTopic",
+					Use:            "resume-topic [topic-id]",
+					Short:          "Resume a paused topic (governance only)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "topic_id"}},
 					GovProposal:    true,
+				},
+				{
+					RpcMethod: "SuspendProvider",
+					Use:       "suspend-provider [address] [until-unix] [reason]",
+					Short:     "Suspend a provider until the given unix time (governance only)",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
+						{ProtoField: "address"},
+						{ProtoField: "until"},
+						{ProtoField: "reason"},
+					},
+					GovProposal: true,
+				},
+				{
+					RpcMethod: "RequestWithdrawBond",
+					Use:       "request-withdraw-bond",
+					Short:     "Begin the bond withdrawal cooldown",
+				},
+				{
+					RpcMethod: "WithdrawBond",
+					Use:       "withdraw-bond",
+					Short:     "Complete bond withdrawal once cooldown elapses",
 				},
 				{
 					RpcMethod:      "UpdateParams",

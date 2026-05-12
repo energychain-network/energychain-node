@@ -63,6 +63,11 @@ var maccPerms = map[string][]string{
 	vmtypes.ModuleName:        {authtypes.Minter, authtypes.Burner},
 	feemarkettypes.ModuleName: nil,
 	erc20types.ModuleName:     {authtypes.Minter, authtypes.Burner},
+
+	// EnergyChain native modules. The oracle module account holds
+	// escrowed provider bonds; no minting/burning permissions are
+	// granted because bonds are user-supplied coins.
+	"oracle": nil,
 }
 
 // GetMaccPerms returns a copy of the module account permissions
