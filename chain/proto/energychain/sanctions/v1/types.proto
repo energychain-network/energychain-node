@@ -1,0 +1,156 @@
+syntax = "proto3";
+package energychain.sanctions.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/sanctions/types";
+
+// ListStatus governs which lists actively contribute to the
+// IsSanctioned hot path. ARCHIVED lists keep their entries on chain
+// for audit purposes but no longer match in IsSanctioned — useful when
+// a list is superseded (e.g. a country joins a new sanctions regime).
+enum ListStatus {
+  LIST_STATUS_UNSPECIFIED = 0;
+  LIST_STATUS_ACTIVE      = 1;
+  LIST_STATUS_DEPRECATED  = 2; // existing entries still hit; new entries refused
+  LIST_STATUS_ARCHIVED    = 3; // entries kept for audit but no longer match
+}
+
+// EntryStatus is the lifecycle of a single subject entry. Per spec
+// (audit requirement) entries are append-only — REMOVED rows are
+// retained on chain but suppressed from the IsSanctioned hot path.
+enum EntryStatus {
+  ENTRY_STATUS_UNSPECIFIED = 0;
+  ENTRY_STATUS_ACTIVE      = 1;
+  ENTRY_STATUS_REMOVED     = 2;
+}
+
+// SubjectKind tags the on-chain identifier convention. Today we
+// support raw bech32 chain addresses and DID URIs; future kinds (EVM
+// 0x address, FATF travel-rule originator) append to this enum.
+enum SubjectKind {
+  SUBJECT_KIND_UNSPECIFIED = 0;
+  SUBJECT_KIND_ADDRESS     = 1;
+  SUBJECT_KIND_DID         = 2;
+}
+
+// ProposalStatus tracks the propose-and-confirm workflow. Oracle
+// providers submit a batch of adds/removes; governance confirms or
+// rejects. The two-step flow keeps a fast off-chain feed without
+// trusting any single provider.
+enum ProposalStatus {
+  PROPOSAL_STATUS_UNSPECIFIED = 0;
+  PROPOSAL_STATUS_PENDING     = 1;
+  PROPOSAL_STATUS_APPLIED     = 2;
+  PROPOSAL_STATUS_REJECTED    = 3;
+}
+
+// SanctionList is the registry row for a single source list (OFAC
+// SDN, EU consolidated, UN, country-specific bank lists). The
+// `authority` field is the bech32 address allowed to add entries
+// without going through the propose+confirm flow; nil/empty falls
+// back to the module authority (governance).
+message SanctionList {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  // source_uri points at the off-chain authoritative document
+  // (typically an https URL with a content-addressed digest in the
+  // metadata). Up to authority to keep this fresh.
+  string source_uri = 4;
+  // jurisdiction is the ISO-3166 alpha-2 code of the issuing body
+  // (e.g. "US" for OFAC, "EU" for EU sanctions). Empty for global
+  // bodies (e.g. UN).
+  string jurisdiction = 5;
+  string authority = 6;
+  ListStatus status = 7;
+  string created_by = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+  // entry_count is denormalised for cheap queries; updated by the
+  // keeper on every add/remove. Not authoritative for hot-path checks
+  // (those use the indexed lookup).
+  uint64 entry_count = 11;
+}
+
+// SanctionEntry is a single sanctioned subject within a list. Entries
+// are append-only; removed entries flip status to REMOVED but stay on
+// chain so historic audits can answer "was this subject sanctioned at
+// height H?".
+message SanctionEntry {
+  string list_id = 1;
+  string subject = 2;
+  SubjectKind subject_kind = 3;
+  // program is the issuing body's program code (e.g. "SDGT" for OFAC's
+  // counter-terrorism program). Free-form, capped at 64 chars.
+  string program = 4;
+  string reason = 5;
+  string source_ref = 6; // upstream record id (off-chain)
+  EntryStatus status = 7;
+  int64 added_at = 8;
+  int64 removed_at = 9;
+  string added_by = 10;
+  string removed_by = 11;
+}
+
+// ProposalAction describes a single mutation a Proposal would apply.
+// Adding an existing entry is a no-op; removing an unknown one fails
+// the whole proposal at confirm time.
+message ProposalAction {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_ADD         = 1;
+    KIND_REMOVE      = 2;
+  }
+  Kind kind = 1;
+  SanctionEntry entry = 2 [(gogoproto.nullable) = false];
+}
+
+// Proposal is a batched delta submitted by an oracle provider for
+// governance confirmation. Confirmation is atomic: either every
+// action applies or none do.
+message Proposal {
+  uint64 id = 1;
+  string list_id = 2;
+  string proposer = 3;
+  ProposalStatus status = 4;
+  repeated ProposalAction actions = 5 [(gogoproto.nullable) = false];
+  string source_uri = 6;
+  string source_digest = 7;
+  int64 submitted_at = 8;
+  int64 resolved_at = 9;
+  string resolver = 10;
+  string reason = 11;
+}
+
+// SanctionHit is the append-only audit trail of every consumer
+// callback into RecordHit. We write the row even when the subject
+// has multiple matching list entries; downstream MRV reports can
+// dedupe at query time.
+message SanctionHit {
+  uint64 id = 1;
+  string subject = 2;
+  string list_id = 3;
+  string asset_class = 4; // optional: which asset module triggered the hit
+  string asset_id = 5;
+  string action = 6;      // e.g. "transfer_block", "freeze_balance"
+  int64 timestamp = 7;
+  int64 height = 8;
+}
+
+// Params caps every variable-length state collection. The hot path
+// IsSanctioned is unaffected by these caps; they only bound storage
+// growth from gov + oracle inputs.
+message Params {
+  uint32 max_lists = 1;
+  uint32 max_entries_per_list = 2;
+  uint32 max_proposal_actions = 3;
+  uint32 hits_log_max = 4;
+  uint32 max_pending_proposals = 5;
+  // require_authority_for_direct_add toggles whether direct
+  // MsgAddEntry calls are accepted. When true, direct adds are
+  // refused and providers must go through MsgProposeDelta — useful
+  // for chains that want all sanctions to leave a propose-and-
+  // confirm trail.
+  bool require_proposal_for_adds = 6;
+}

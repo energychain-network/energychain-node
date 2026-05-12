@@ -1,0 +1,134 @@
+syntax = "proto3";
+package energychain.sanctions.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/sanctions/v1/types.proto";
+
+option go_package = "energychain/x/sanctions/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc RegisterList(MsgRegisterList) returns (MsgRegisterListResponse);
+  rpc UpdateList(MsgUpdateList) returns (MsgUpdateListResponse);
+  rpc DeprecateList(MsgDeprecateList) returns (MsgDeprecateListResponse);
+  rpc ArchiveList(MsgArchiveList) returns (MsgArchiveListResponse);
+
+  rpc AddEntry(MsgAddEntry) returns (MsgAddEntryResponse);
+  rpc RemoveEntry(MsgRemoveEntry) returns (MsgRemoveEntryResponse);
+
+  rpc ProposeDelta(MsgProposeDelta) returns (MsgProposeDeltaResponse);
+  rpc ConfirmProposal(MsgConfirmProposal) returns (MsgConfirmProposalResponse);
+  rpc RejectProposal(MsgRejectProposal) returns (MsgRejectProposalResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+// ---- List lifecycle (governance) -------------------------------------------
+
+message MsgRegisterList {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string name = 3;
+  string description = 4;
+  string source_uri = 5;
+  string jurisdiction = 6;
+  // list_authority is the bech32 allowed to push direct AddEntry calls
+  // for this list. Empty -> only governance can add directly.
+  string list_authority = 7;
+}
+message MsgRegisterListResponse {}
+
+message MsgUpdateList {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string name = 3;
+  string description = 4;
+  string source_uri = 5;
+  string list_authority = 6;
+}
+message MsgUpdateListResponse {}
+
+message MsgDeprecateList {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgDeprecateListResponse {}
+
+message MsgArchiveList {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgArchiveListResponse {}
+
+// ---- Entry lifecycle -------------------------------------------------------
+
+message MsgAddEntry {
+  // Either governance OR the list_authority may sign. The keeper
+  // resolves the actual authorisation against the registered list.
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  SanctionEntry entry = 2 [(gogoproto.nullable) = false];
+}
+message MsgAddEntryResponse {}
+
+message MsgRemoveEntry {
+  // Removal always requires governance — entries are append-only and
+  // marking one REMOVED is a sensitive action (it relaxes
+  // enforcement). list_authority cannot trigger this.
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string list_id = 2;
+  string subject = 3;
+  string reason = 4;
+}
+message MsgRemoveEntryResponse {}
+
+// ---- Propose+confirm workflow ---------------------------------------------
+
+message MsgProposeDelta {
+  option (cosmos.msg.v1.signer) = "proposer";
+  string proposer = 1;
+  string list_id = 2;
+  repeated ProposalAction actions = 3 [(gogoproto.nullable) = false];
+  string source_uri = 4;
+  string source_digest = 5;
+}
+message MsgProposeDeltaResponse {
+  uint64 proposal_id = 1;
+}
+
+message MsgConfirmProposal {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 proposal_id = 2;
+}
+message MsgConfirmProposalResponse {
+  uint32 added_count = 1;
+  uint32 removed_count = 2;
+}
+
+message MsgRejectProposal {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 proposal_id = 2;
+  string reason = 3;
+}
+message MsgRejectProposalResponse {}
+
+// ---- Params ----------------------------------------------------------------
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}
