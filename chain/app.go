@@ -138,6 +138,9 @@ import (
 	auditmodule "energychain/x/audit"
 	auditkeeper "energychain/x/audit/keeper"
 	audittypes "energychain/x/audit/types"
+	metermodule "energychain/x/meter"
+	meterkeeper "energychain/x/meter/keeper"
+	metertypes "energychain/x/meter/types"
 	oraclemodule "energychain/x/oracle"
 	oraclekeeper "energychain/x/oracle/keeper"
 	oracletypes "energychain/x/oracle/types"
@@ -207,6 +210,7 @@ type EVMD struct {
 	// Custom energy-chain keepers
 	OracleKeeper oraclekeeper.Keeper
 	AuditKeeper  auditkeeper.Keeper
+	MeterKeeper  meterkeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -284,7 +288,7 @@ func NewEnergyChainApp(
 		// Cosmos EVM store keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey, erc20types.StoreKey,
 		// Custom energy-chain store keys
-		oracletypes.StoreKey, audittypes.StoreKey,
+		oracletypes.StoreKey, audittypes.StoreKey, metertypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -569,6 +573,12 @@ func NewEnergyChainApp(
 	// Wired to nil here; the M1 wiring milestone (appgo TODO) replaces
 	// nil with the real x/did keeper once all M1 modules are assembled.
 	app.AuditKeeper = auditkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[audittypes.StoreKey]), tKeys[audittypes.TStoreKey], authAddr, nil)
+	// MeterKeeper depends on x/did (owner DID gating) and x/device
+	// (attestation gating). Both are wired as nil here because those
+	// modules are not yet plumbed into app.go; the M1 wiring milestone
+	// (appgo TODO) replaces nil with the real keepers. Keeper code is
+	// nil-safe — the gates simply pass through until wired.
+	app.MeterKeeper = meterkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[metertypes.StoreKey]), authAddr, nil, nil)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
@@ -663,6 +673,7 @@ func NewEnergyChainApp(
 		// Custom energy-chain modules
 		oraclemodule.NewAppModule(appCodec, app.OracleKeeper),
 		auditmodule.NewAppModule(appCodec, app.AuditKeeper),
+		metermodule.NewAppModule(appCodec, app.MeterKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -712,7 +723,7 @@ func NewEnergyChainApp(
 		consensusparamtypes.ModuleName,
 		vestingtypes.ModuleName,
 		// Custom energy-chain modules (no-op begin blockers)
-		oracletypes.ModuleName, audittypes.ModuleName,
+		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -734,7 +745,7 @@ func NewEnergyChainApp(
 		feegrant.ModuleName, upgradetypes.ModuleName, consensusparamtypes.ModuleName,
 		vestingtypes.ModuleName,
 		// Custom energy-chain modules (no-op end blockers)
-		oracletypes.ModuleName, audittypes.ModuleName,
+		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -758,7 +769,7 @@ func NewEnergyChainApp(
 		genutiltypes.ModuleName, evidencetypes.ModuleName, authz.ModuleName,
 		feegrant.ModuleName, upgradetypes.ModuleName, vestingtypes.ModuleName,
 		// Custom energy-chain modules
-		oracletypes.ModuleName, audittypes.ModuleName,
+		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)

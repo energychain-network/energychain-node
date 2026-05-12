@@ -1,0 +1,17 @@
+syntax = "proto3";
+package energychain.meter.v1;
+
+import "gogoproto/gogo.proto";
+
+import "energychain/meter/v1/types.proto";
+
+option go_package = "energychain/x/meter/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+
+  repeated MeteringPoint metering_points = 2 [(gogoproto.nullable) = false];
+  repeated Reading readings = 3 [(gogoproto.nullable) = false];
+  repeated Batch batches = 4 [(gogoproto.nullable) = false];
+  repeated StreamAuthorization authorizations = 5 [(gogoproto.nullable) = false];
+}

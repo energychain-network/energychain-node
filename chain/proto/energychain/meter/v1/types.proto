@@ -1,0 +1,169 @@
+syntax = "proto3";
+package energychain.meter.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/meter/types";
+
+// MeasurementType classifies what a metering point reports. The chain
+// treats Reading.commitment.bytes as opaque — this enum only helps
+// off-chain consumers (MRV, billing engines) parse the units correctly.
+enum MeasurementType {
+  MEASUREMENT_TYPE_UNSPECIFIED = 0;
+  MEASUREMENT_TYPE_ACTIVE_POWER = 1;
+  MEASUREMENT_TYPE_REACTIVE_POWER = 2;
+  MEASUREMENT_TYPE_VOLTAGE = 3;
+  MEASUREMENT_TYPE_FREQUENCY = 4;
+  MEASUREMENT_TYPE_GAS_FLOW = 5;
+  MEASUREMENT_TYPE_HEAT = 6;
+  MEASUREMENT_TYPE_OTHER = 7;
+}
+
+// ReadingPeriod is the contract between submitter and consumer about
+// the cadence of readings. The chain enforces start_time + period ==
+// end_time (mod alignment) so two providers cannot disagree about
+// "what does '15 min' mean".
+enum ReadingPeriod {
+  READING_PERIOD_UNSPECIFIED = 0;
+  READING_PERIOD_15MIN = 1;
+  READING_PERIOD_1HOUR = 2;
+  READING_PERIOD_1DAY = 3;
+}
+
+// DataQualityFlag mirrors the IEC 61968 quality codes used in real meter
+// data: SETTLED is final, ESTIMATED is provider-derived, INTERPOLATED is
+// gap-filled, SUSPECT is a known anomaly, INVALID is to-be-discarded.
+enum DataQualityFlag {
+  DATA_QUALITY_UNSPECIFIED = 0;
+  DATA_QUALITY_SETTLED = 1;
+  DATA_QUALITY_ESTIMATED = 2;
+  DATA_QUALITY_INTERPOLATED = 3;
+  DATA_QUALITY_SUSPECT = 4;
+  DATA_QUALITY_INVALID = 5;
+}
+
+// CommitmentScheme mirrors internal/commitment so on-chain Reading rows
+// can name the scheme that produced their bytes. Stored as int32 in
+// Reading.commitment_scheme.
+enum CommitmentScheme {
+  COMMITMENT_SCHEME_UNSPECIFIED = 0;
+  COMMITMENT_SCHEME_PLAINTEXT_SHA256 = 1;
+  COMMITMENT_SCHEME_PEDERSEN_SECP256K1 = 2;
+}
+
+// MeteringPoint is the registered identity of a physical (or virtual)
+// meter. The id is the canonical reference all submissions use; the
+// device_did and owner_address are the two off-chain bindings the
+// chain validates against x/device and x/did at registration time.
+message MeteringPoint {
+  string id = 1;
+  string device_did = 2;
+  string owner_address = 3;
+  string grid_zone = 4;
+  string grid_operator = 5;
+  string tariff = 6;
+  MeasurementType measurement_type = 7;
+  string unit = 8;
+  string timezone = 9;
+  // metadata_uri points at an off-chain JSON document with anything
+  // not first-class on-chain (location, cabinet number, photo links,
+  // commissioning report). Hash-pinning is the writer's responsibility.
+  string metadata_uri = 10;
+  bool active = 11;
+  int64 registered_at = 12;
+  int64 updated_at = 13;
+}
+
+// Reading is a single metered observation. The plaintext value is
+// optional: when commitment_scheme is PLAINTEXT_SHA256 the writer MAY
+// expose the underlying integer in plaintext_value (for public dashboards
+// like total installed capacity). Pedersen-committed readings keep
+// plaintext_value at zero on-chain.
+message Reading {
+  string metering_point_id = 1;
+  ReadingPeriod period = 2;
+  int64 start_time = 3;
+  int64 end_time = 4;
+  CommitmentScheme commitment_scheme = 5;
+  bytes commitment_bytes = 6;
+  int64 plaintext_value = 7;
+  bytes device_signature = 8;
+  DataQualityFlag data_quality = 9;
+  string submitted_by = 10;
+  int64 submitted_at = 11;
+  int64 height = 12;
+  // batch_id, when non-empty, points at the Batch record this reading
+  // belongs to — lets consumers cross-reference batched and standalone
+  // submissions in the same query.
+  string batch_id = 13;
+}
+
+// Batch is a Merkle-rooted bundle of readings published off-chain. The
+// chain records only the digest + URI + count so verifying a batch is a
+// matter of fetching the URI, recomputing the merkle root, and matching
+// it against the on-chain hash.
+//
+// We deliberately do not constrain the batch's leaf structure so future
+// off-chain pipelines can choose JSON-Lines, Protobuf, or CBOR without
+// breaking on-chain compatibility. The merkle algorithm tag carries the
+// scheme so consumers can dispatch the right verifier.
+message Batch {
+  string id = 1;
+  string metering_point_id = 2;
+  string merkle_root = 3;       // hex
+  string merkle_algorithm = 4;  // "sha256" today
+  uint32 count = 5;
+  ReadingPeriod period = 6;
+  int64 start_time = 7;
+  int64 end_time = 8;
+  string uri = 9;
+  bytes device_signature = 10;
+  string submitted_by = 11;
+  int64 submitted_at = 12;
+  int64 height = 13;
+}
+
+// StreamAuthorization is the on-chain consent that a metering point's
+// owner gives to a recurring submission flow (later orchestrated by
+// x/scheduler). It binds (metering_point, device_did) to a window with
+// an explicit expiry so a one-off compromise of an off-chain agent
+// cannot keep producing data forever.
+message StreamAuthorization {
+  string id = 1;
+  string metering_point_id = 2;
+  string device_did = 3;
+  string authorized_by = 4;
+  int64 issued_at = 5;
+  int64 expires_at = 6;
+  bool revoked = 7;
+  int64 revoked_at = 8;
+  string revocation_reason = 9;
+  string metadata = 10;
+}
+
+// Params defines the configurable parameters for the meter module.
+message Params {
+  // max_metadata_uri_size caps the bytes of MeteringPoint.metadata_uri.
+  uint32 max_metadata_uri_size = 1;
+  // max_commitment_size caps the on-chain commitment_bytes payload.
+  uint32 max_commitment_size = 2;
+  // max_batch_count is the largest "count" a single MsgSubmitBatch may
+  // assert. Bounds the implicit weight a batch claims (off-chain leaves
+  // are not loaded by the chain, but downstream consumers gas-cost
+  // proportional to count).
+  uint32 max_batch_count = 3;
+  // max_signature_size caps device_signature bytes.
+  uint32 max_signature_size = 4;
+  // require_attested_device toggles the strict path: when true, every
+  // reading and batch is rejected unless the metering point's
+  // device_did is currently attested in x/device. Defaults to true on
+  // production; local dev may flip it off.
+  bool require_attested_device = 5;
+  // stream_max_validity caps the absolute window a StreamAuthorization
+  // may cover. 0 disables the cap (not recommended in production).
+  int64 stream_max_validity = 6;
+  // future_skew_seconds tolerates clock drift on the device side. Any
+  // reading or batch whose start_time is more than this many seconds in
+  // the future relative to ctx.BlockTime() is rejected.
+  int64 future_skew_seconds = 7;
+}

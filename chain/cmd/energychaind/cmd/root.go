@@ -51,6 +51,7 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
 	auditcli "energychain/x/audit/client/cli"
+	metercli "energychain/x/meter/client/cli"
 	oraclecli "energychain/x/oracle/client/cli"
 )
 
@@ -284,6 +285,7 @@ func txCommand() *cobra.Command {
 		// box. New modules from M1–M4 will be appended here as they land.
 		oraclecli.GetTxCmd(),
 		auditcli.GetTxCmd(),
+		metercli.GetTxCmd(),
 	)
 
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")

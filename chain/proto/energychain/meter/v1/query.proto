@@ -1,0 +1,89 @@
+syntax = "proto3";
+package energychain.meter.v1;
+
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/meter/v1/types.proto";
+
+option go_package = "energychain/x/meter/types";
+
+service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+
+  rpc MeteringPoint(QueryMeteringPointRequest) returns (QueryMeteringPointResponse);
+  rpc MeteringPoints(QueryMeteringPointsRequest) returns (QueryMeteringPointsResponse);
+
+  rpc Reading(QueryReadingRequest) returns (QueryReadingResponse);
+  rpc Readings(QueryReadingsRequest) returns (QueryReadingsResponse);
+
+  rpc Batch(QueryBatchRequest) returns (QueryBatchResponse);
+  rpc Batches(QueryBatchesRequest) returns (QueryBatchesResponse);
+
+  rpc StreamAuthorization(QueryStreamAuthorizationRequest) returns (QueryStreamAuthorizationResponse);
+  rpc StreamAuthorizations(QueryStreamAuthorizationsRequest) returns (QueryStreamAuthorizationsResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse {
+  Params params = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryMeteringPointRequest { string id = 1; }
+message QueryMeteringPointResponse { MeteringPoint metering_point = 1; }
+
+message QueryMeteringPointsRequest {
+  // owner_address filters by owner; empty matches everything.
+  string owner_address = 1;
+  // grid_zone filters by zone; empty matches everything.
+  string grid_zone = 2;
+  // active_only, when true, drops deactivated MPs from the response.
+  bool active_only = 3;
+  cosmos.base.query.v1beta1.PageRequest pagination = 4;
+}
+message QueryMeteringPointsResponse {
+  repeated MeteringPoint metering_points = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryReadingRequest {
+  string metering_point_id = 1;
+  int64 start_time = 2;
+}
+message QueryReadingResponse { Reading reading = 1; }
+
+message QueryReadingsRequest {
+  string metering_point_id = 1;
+  int64 start_after = 2;  // inclusive lower bound on start_time, 0 = unbounded
+  int64 end_before = 3;   // exclusive upper bound on start_time, 0 = unbounded
+  cosmos.base.query.v1beta1.PageRequest pagination = 4;
+}
+message QueryReadingsResponse {
+  repeated Reading readings = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryBatchRequest { string id = 1; }
+message QueryBatchResponse { Batch batch = 1; }
+
+message QueryBatchesRequest {
+  string metering_point_id = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryBatchesResponse {
+  repeated Batch batches = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryStreamAuthorizationRequest { string id = 1; }
+message QueryStreamAuthorizationResponse { StreamAuthorization authorization = 1; }
+
+message QueryStreamAuthorizationsRequest {
+  string metering_point_id = 1;
+  bool active_only = 2;
+  cosmos.base.query.v1beta1.PageRequest pagination = 3;
+}
+message QueryStreamAuthorizationsResponse {
+  repeated StreamAuthorization authorizations = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
