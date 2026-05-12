@@ -129,17 +129,15 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 
 	// Custom energy-chain modules
+	//
+	// Module set follows the M1 → M4 plan in docs/native-modules.md §7.
+	// New modules are appended below as each milestone lands. The legacy
+	// x/energy + x/identity modules were removed in the M1 rewrite (split
+	// into x/meter + x/eac + x/cfe247 and x/did + x/device respectively;
+	// see docs/native-modules.md §8).
 	auditmodule "energychain/x/audit"
 	auditkeeper "energychain/x/audit/keeper"
 	audittypes "energychain/x/audit/types"
-	energyprecompile "energychain/precompiles/energy"
-	identityprecompile "energychain/precompiles/identity"
-	energymodule "energychain/x/energy"
-	energykeeper "energychain/x/energy/keeper"
-	energytypes "energychain/x/energy/types"
-	identitymodule "energychain/x/identity"
-	identitykeeper "energychain/x/identity/keeper"
-	identitytypes "energychain/x/identity/types"
 	oraclemodule "energychain/x/oracle"
 	oraclekeeper "energychain/x/oracle/keeper"
 	oracletypes "energychain/x/oracle/types"
@@ -207,10 +205,8 @@ type EVMD struct {
 	promotedTxBroadcaster *promotedTxBroadcaster
 
 	// Custom energy-chain keepers
-	EnergyKeeper   energykeeper.Keeper
-	OracleKeeper   oraclekeeper.Keeper
-	IdentityKeeper identitykeeper.Keeper
-	AuditKeeper    auditkeeper.Keeper
+	OracleKeeper oraclekeeper.Keeper
+	AuditKeeper  auditkeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -288,7 +284,7 @@ func NewEnergyChainApp(
 		// Cosmos EVM store keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey, erc20types.StoreKey,
 		// Custom energy-chain store keys
-		energytypes.StoreKey, oracletypes.StoreKey, identitytypes.StoreKey, audittypes.StoreKey,
+		oracletypes.StoreKey, audittypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -296,7 +292,6 @@ func NewEnergyChainApp(
 	// rate-limit counters). They are wiped at block boundaries by CometBFT
 	// and MUST be excluded from BlockSTM's conflict-detection set.
 	tKeys := storetypes.NewTransientStoreKeys(
-		energytypes.TStoreKey,
 		audittypes.TStoreKey,
 	)
 
@@ -569,24 +564,16 @@ func NewEnergyChainApp(
 	)
 
 	// Custom energy-chain keepers
-	app.EnergyKeeper = energykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[energytypes.StoreKey]), tKeys[energytypes.TStoreKey], authAddr)
 	app.OracleKeeper = oraclekeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[oracletypes.StoreKey]), authAddr)
-	app.IdentityKeeper = identitykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[identitytypes.StoreKey]), authAddr)
 	app.AuditKeeper = auditkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[audittypes.StoreKey]), tKeys[audittypes.TStoreKey], authAddr)
 
-	// Register custom EVM precompiles. These have to be registered AFTER the
-	// custom keepers exist (the precompiles hold references to them) and
-	// BEFORE InitGenesis, since the EVM module's params include the active
-	// precompile address list. The EVM keeper validates that every address
-	// listed in params has a registered implementation behind it.
-	app.EVMKeeper.RegisterStaticPrecompile(
-		common.HexToAddress(energyprecompile.PrecompileAddress),
-		energyprecompile.NewPrecompile(app.EnergyKeeper),
-	)
-	app.EVMKeeper.RegisterStaticPrecompile(
-		common.HexToAddress(identityprecompile.PrecompileAddress),
-		identityprecompile.NewPrecompile(app.IdentityKeeper),
-	)
+	// Register custom EVM precompiles. Precompiles MUST be registered
+	// AFTER the keepers they reference exist and BEFORE InitGenesis,
+	// because the EVM module's params list the active precompile addresses
+	// and the EVM keeper validates that every listed address resolves to a
+	// registered implementation. The four precompiles emitted by M2/M3
+	// (eac, carbon, stablecoin, market) will be wired here as those
+	// modules land — see docs/native-modules.md §5 principle 5.
 
 	/*
 		Create Transfer Stack
@@ -671,9 +658,7 @@ func NewEnergyChainApp(
 		feemarket.NewAppModule(app.FeeMarketKeeper),
 		erc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
 		// Custom energy-chain modules
-		energymodule.NewAppModule(appCodec, app.EnergyKeeper),
 		oraclemodule.NewAppModule(appCodec, app.OracleKeeper),
-		identitymodule.NewAppModule(appCodec, app.IdentityKeeper),
 		auditmodule.NewAppModule(appCodec, app.AuditKeeper),
 	)
 
@@ -724,7 +709,7 @@ func NewEnergyChainApp(
 		consensusparamtypes.ModuleName,
 		vestingtypes.ModuleName,
 		// Custom energy-chain modules (no-op begin blockers)
-		energytypes.ModuleName, oracletypes.ModuleName, identitytypes.ModuleName, audittypes.ModuleName,
+		oracletypes.ModuleName, audittypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -746,7 +731,7 @@ func NewEnergyChainApp(
 		feegrant.ModuleName, upgradetypes.ModuleName, consensusparamtypes.ModuleName,
 		vestingtypes.ModuleName,
 		// Custom energy-chain modules (no-op end blockers)
-		energytypes.ModuleName, oracletypes.ModuleName, identitytypes.ModuleName, audittypes.ModuleName,
+		oracletypes.ModuleName, audittypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -770,7 +755,7 @@ func NewEnergyChainApp(
 		genutiltypes.ModuleName, evidencetypes.ModuleName, authz.ModuleName,
 		feegrant.ModuleName, upgradetypes.ModuleName, vestingtypes.ModuleName,
 		// Custom energy-chain modules
-		energytypes.ModuleName, oracletypes.ModuleName, identitytypes.ModuleName, audittypes.ModuleName,
+		oracletypes.ModuleName, audittypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)

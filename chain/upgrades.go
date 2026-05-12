@@ -37,9 +37,7 @@ func (app *EVMD) registerUpgrades() []upgradeEntry {
 				return v1_0_1.CreateUpgradeHandler(
 					app.ModuleManager,
 					app.Configurator(),
-					v1_0_1.MigrationDeps{
-						EnergyKeeper: app.EnergyKeeper,
-					},
+					v1_0_1.MigrationDeps{},
 				)
 			},
 			storeUpgrades: v1_0_1.StoreUpgrades,

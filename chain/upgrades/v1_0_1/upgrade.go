@@ -1,24 +1,17 @@
-// Package v1_0_1 demonstrates the canonical structure of an EnergyChain
-// software upgrade.
+// Package v1_0_1 is the historical upgrade snapshot retained for
+// reproducibility. The original v1.0.1 release bumped the legacy
+// `x/energy` MaxMetadataSize from 4 KiB to 8 KiB, but `x/energy` was
+// removed in the M1 rewrite (see docs/native-modules.md §8 — replaced
+// by x/meter, x/eac, x/cfe247).
 //
-// Every upgrade lives in its own subpackage of chain/upgrades/. The package
-// exports three things:
+// We keep the package compilable so historical genesis files that
+// reference the v1.0.1 plan name still resolve a handler. The handler
+// is now a no-op apart from the standard RunMigrations loop: any node
+// resync-ing past height v1.0.1 will see RunMigrations advance the
+// version map but no module-specific migration runs.
 //
-//  1. UpgradeName             - the on-chain plan name (must match the
-//                                gov-proposed UpgradePlan.Name).
-//  2. CreateUpgradeHandler    - constructs the handler invoked at the
-//                                upgrade height; performs custom state
-//                                migrations and then RunMigrations.
-//  3. StoreUpgrades           - declares any new / renamed / deleted KV
-//                                store keys; consumed by the SDK store
-//                                loader before the chain reopens databases.
-//
-// Add new upgrades by copying this package, bumping the directory and
-// constants, then registering it in chain/upgrades.go::Upgrades.
-//
-// This v1.0.1 example covers the most common patterns: bump the
-// MaxMetadataSize default for the energy module, and prove that a custom
-// migration runs before module RunMigrations executes.
+// Real schema migration into the new module set is the responsibility
+// of v1_1_0 (see chain/upgrades/v1_1_0/).
 package v1_0_1
 
 import (
@@ -26,102 +19,49 @@ import (
 	"fmt"
 
 	storetypes "cosmossdk.io/store/types"
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
-
-	energykeeper "energychain/x/energy/keeper"
+	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
-// UpgradeName is the on-chain name validators vote on. The gov MsgSoftwareUpgrade
-// proposal must carry exactly this string in plan.name.
+// UpgradeName is the on-chain plan name validators voted on at the time
+// of the v1.0.1 release.
 const UpgradeName = "v1.0.1"
 
-// StoreUpgrades is consumed by SetStoreLoader BEFORE InitChainer runs.
-// Use Added/Renamed/Deleted to evolve the multistore layout. For the v1.0.1
-// example we add no new modules, but the field shape is documented here so
-// future upgrades can copy this package wholesale.
+// StoreUpgrades is empty because no store keys changed in the original
+// v1.0.1 release (the only change was a Param value bump).
 var StoreUpgrades = storetypes.StoreUpgrades{
-	Added:   []string{}, // e.g. "x/newmodule"
+	Added:   []string{},
 	Renamed: []storetypes.StoreRename{},
 	Deleted: []string{},
 }
 
-// MigrationDeps carries every keeper a custom migration may need. Bundling
-// them in a struct keeps CreateUpgradeHandler's signature stable as new
-// modules are added.
-type MigrationDeps struct {
-	EnergyKeeper energykeeper.Keeper
-	// Add other keepers here as upgrades start to need them, e.g.:
-	// OracleKeeper   oraclekeeper.Keeper
-	// IdentityKeeper identitykeeper.Keeper
-	// AuditKeeper    auditkeeper.Keeper
-}
+// MigrationDeps is preserved as an empty struct so the call site in
+// chain/upgrades.go does not need to special-case the historical entry.
+// Future upgrades that need keepers should define their own MigrationDeps
+// in their own subpackage rather than amending this one.
+type MigrationDeps struct{}
 
-// CreateUpgradeHandler returns the function the SDK will invoke at the
-// upgrade height. The handler MUST be deterministic: every validator runs
-// it independently and they must all produce byte-identical app state.
-//
-// Pattern:
-//  1. Run any module-specific custom migrations FIRST. They can use the
-//     keepers directly because module versions in fromVM still reflect the
-//     old schema at this point.
-//  2. Call RunMigrations LAST. RunMigrations advances the per-module
-//     consensus version and runs every Module.MigrationHandler registered
-//     via cfg.RegisterMigration() (this is how the SDK knows when one
-//     module went from ConsensusVersion 1 -> 2, etc).
+// CreateUpgradeHandler returns a handler that runs only the standard
+// module-version migrations. The original behaviour (bumping
+// EnergyKeeper.Params.MaxMetadataSize) is intentionally dropped because
+// the underlying module no longer exists.
 func CreateUpgradeHandler(
 	mm *module.Manager,
 	configurator module.Configurator,
-	deps MigrationDeps,
+	_ MigrationDeps,
 ) upgradetypes.UpgradeHandler {
 	return func(ctx context.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
-		sdkCtx.Logger().Info("starting upgrade", "name", UpgradeName, "height", plan.Height)
-
-		// --- (1) Custom migrations -------------------------------------
-		//
-		// EXAMPLE: bump MaxMetadataSize from 4 KiB -> 8 KiB. This is a
-		// data migration (we update Params); it runs deterministically
-		// because every validator starts from the identical pre-upgrade
-		// state.
-		if err := bumpEnergyMetadataCap(sdkCtx, deps.EnergyKeeper); err != nil {
-			return fromVM, fmt.Errorf("v1.0.1: bump energy metadata cap: %w", err)
-		}
-
-		// --- (2) Module-version migrations -----------------------------
-		// Always last. Modules whose ConsensusVersion bumped between
-		// releases will run their RegisterMigration handlers here.
+		sdkCtx.Logger().Info("starting upgrade",
+			"name", UpgradeName,
+			"height", plan.Height,
+			"note", "x/energy removed in M1 rewrite; legacy migration is a no-op",
+		)
 		newVM, err := mm.RunMigrations(ctx, configurator, fromVM)
 		if err != nil {
 			return fromVM, fmt.Errorf("v1.0.1: RunMigrations: %w", err)
 		}
-
-		sdkCtx.Logger().Info("upgrade complete", "name", UpgradeName,
-			"old_version_map", fromVM, "new_version_map", newVM)
 		return newVM, nil
 	}
-}
-
-// bumpEnergyMetadataCap demonstrates a typical "tweak Params under
-// governance pre-approval" migration. The new value is hard-coded into the
-// upgrade so every validator applies the identical change.
-//
-// The change MUST be agreed in the upgrade proposal (the proposal is the
-// only off-chain evidence validators have that this code change matches
-// what they voted for); typically include the diff in the proposal body.
-func bumpEnergyMetadataCap(ctx sdk.Context, k energykeeper.Keeper) error {
-	const newCap uint32 = 8 * 1024 // 8 KiB
-
-	params := k.GetParams(ctx)
-	if params.MaxMetadataSize >= newCap {
-		// Already at or above target: nothing to do (idempotent).
-		return nil
-	}
-	params.MaxMetadataSize = newCap
-
-	if err := params.Validate(); err != nil {
-		return fmt.Errorf("validate new params: %w", err)
-	}
-	return k.SetParams(ctx, params)
 }

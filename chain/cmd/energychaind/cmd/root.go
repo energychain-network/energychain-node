@@ -51,8 +51,6 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
 	auditcli "energychain/x/audit/client/cli"
-	energycli "energychain/x/energy/client/cli"
-	identitycli "energychain/x/identity/client/cli"
 	oraclecli "energychain/x/oracle/client/cli"
 )
 
@@ -279,13 +277,12 @@ func txCommand() *cobra.Command {
 		authcmd.GetEncodeCommand(),
 		authcmd.GetDecodeCommand(),
 		authcmd.GetSimulateCmd(),
-		// Custom EnergyChain modules. These do not appear automatically because
-		// the repo does not generate the pulsar proto descriptors that
-		// client/v2 autocli needs to walk the Msg services. Wire them
-		// manually so operators can `tx energy ...` etc out of the box.
-		energycli.GetTxCmd(),
+		// Custom EnergyChain modules. These do not appear automatically
+		// because the repo does not generate the pulsar proto descriptors
+		// that client/v2 autocli needs to walk the Msg services. Wire
+		// them manually so operators can `tx audit ...` etc out of the
+		// box. New modules from M1–M4 will be appended here as they land.
 		oraclecli.GetTxCmd(),
-		identitycli.GetTxCmd(),
 		auditcli.GetTxCmd(),
 	)
 

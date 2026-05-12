@@ -9,9 +9,6 @@ import (
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-
-	energyprecompile "energychain/precompiles/energy"
-	identityprecompile "energychain/precompiles/identity"
 )
 
 const (
@@ -27,24 +24,37 @@ type GenesisState map[string]json.RawMessage
 
 // NewEVMGenesisState returns the default genesis state for the EVM module.
 //
-// We extend the upstream AvailableStaticPrecompiles list with our own custom
-// precompiles (energy + identity). The EVM module enforces that the active
-// precompile list be sorted lexicographically (see ValidatePrecompiles), so
-// we sort after appending.
+// The list of active precompiles starts with the upstream defaults and
+// is extended by NativePrecompileAddresses() — populated as M2/M3 land
+// the EAC, Carbon, Stablecoin and Market precompiles. The EVM module
+// enforces lexicographic ordering (see evmtypes.ValidatePrecompiles), so
+// we sort after concatenation.
 func NewEVMGenesisState() *evmtypes.GenesisState {
 	evmGenState := evmtypes.DefaultGenesisState()
 
-	active := make([]string, 0, len(evmtypes.AvailableStaticPrecompiles)+2)
+	custom := NativePrecompileAddresses()
+	active := make([]string, 0, len(evmtypes.AvailableStaticPrecompiles)+len(custom))
 	active = append(active, evmtypes.AvailableStaticPrecompiles...)
-	active = append(active,
-		energyprecompile.PrecompileAddress,
-		identityprecompile.PrecompileAddress,
-	)
+	active = append(active, custom...)
 	sort.Strings(active)
 	evmGenState.Params.ActiveStaticPrecompiles = active
 	evmGenState.Preinstalls = evmtypes.DefaultPreinstalls
 
 	return evmGenState
+}
+
+// NativePrecompileAddresses returns the EVM-side addresses of every custom
+// EnergyChain precompile registered in NewEnergyChainApp. New precompiles
+// (eac, carbon, stablecoin, market) MUST be appended here so genesis
+// surfaces them in the active set; the registration call inside app.go
+// MUST stay in sync with this list.
+//
+// Returning a fresh slice on every call avoids accidental mutation of the
+// shared state by callers that sort/append the result.
+func NativePrecompileAddresses() []string {
+	return []string{
+		// Populated as M2/M3 modules land their precompiles.
+	}
 }
 
 // NewErc20GenesisState returns the default genesis state for the ERC20 module.

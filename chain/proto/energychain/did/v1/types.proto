@@ -1,0 +1,133 @@
+syntax = "proto3";
+package energychain.did.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/did/types";
+
+// KeyType mirrors energychain/internal/cryptoid.KeyType. Renumbering is a
+// breaking change because values are persisted in DID Documents.
+enum KeyType {
+  KEY_TYPE_UNSPECIFIED = 0;
+  KEY_TYPE_SECP256K1   = 1;
+  KEY_TYPE_ED25519     = 2;
+  KEY_TYPE_P256        = 10; // reserved
+  KEY_TYPE_BLS         = 11; // reserved
+  KEY_TYPE_SM2         = 20; // reserved
+}
+
+// VerificationMethod is one entry in the DID Document's verification array.
+// Mirrors W3C DID Core 1.0 §5.2.
+message VerificationMethod {
+  // ID is a fragment relative to the parent DID, e.g. "key-1".
+  string id = 1;
+  // Controller is the bech32 address of the subject that controls the key.
+  // Usually equals the parent DID; differs for delegated keys.
+  string controller = 2;
+  KeyType key_type = 3;
+  bytes   public_key = 4;
+  // Purposes is the union of `verificationMethod`, `authentication`,
+  // `assertionMethod`, `keyAgreement`, `capabilityInvocation`,
+  // `capabilityDelegation` use-cases the key is allowed to satisfy.
+  repeated string purposes = 5;
+  // RevokedAt is the unix-second timestamp at which the key was rotated
+  // out; zero means active.
+  int64 revoked_at = 6;
+  int64 created_at = 7;
+}
+
+// ServiceEndpoint declares a network endpoint published by the DID
+// (DIDComm, OIDC4VCI issuer, registry, etc.). Mirrors W3C DID Core §6.
+message ServiceEndpoint {
+  string id = 1;
+  // Type is an opaque schema identifier, e.g.
+  // "EnergyTagIssuer", "DIDCommMessaging".
+  string type = 2;
+  string endpoint = 3;
+}
+
+// DIDDocument is the canonical on-chain identity record.
+//
+// We intentionally keep the document compact (the W3C spec is broad).
+// Anything else lives off-chain at the resolver service indicated by
+// `service` and is referenced by hash from the document.
+message DIDDocument {
+  // ID is the bech32 address of the subject; doubles as primary key.
+  string id = 1;
+  // Controllers is the set of DIDs (bech32) authorised to mutate this
+  // document — covers the W3C "controller" field, with multiple entries
+  // for multi-sig control.
+  repeated string controllers = 2;
+  repeated VerificationMethod verification = 3 [(gogoproto.nullable) = false];
+  repeated ServiceEndpoint   service       = 4 [(gogoproto.nullable) = false];
+
+  // Status is one of {active, deactivated}. `active` is the only state
+  // in which writes can happen; `deactivated` is terminal.
+  string status = 5;
+
+  int64 created_at = 6;
+  int64 updated_at = 7;
+  // Version monotonically increases on every update; lets clients detect
+  // stale reads without re-fetching the entire doc.
+  uint64 version = 8;
+}
+
+// CredentialStatus tracks the lifecycle of a single VC. We only persist
+// the *status* on-chain; the VC payload itself stays off-chain (lots of
+// PII is not a fit for public state).
+message CredentialStatus {
+  // ID is the VC identifier; format follows the issuer's chosen URN
+  // scheme (e.g. urn:uuid:...). Stored as the primary key.
+  string id = 1;
+  string issuer = 2;
+  string subject = 3;
+  // Type is the VC type from the @context (e.g. "KYCCredential").
+  string type = 4;
+  // Hash is sha256(canonical JSON-LD VC); lets verifiers prove the
+  // off-chain payload matches what the issuer signed.
+  string hash = 5;
+  // Status follows the W3C Status List 2021 enum: "valid", "revoked",
+  // "suspended". Stored as a string for forward-compat with new enum
+  // values.
+  string status = 6;
+  int64 issued_at = 7;
+  int64 expires_at = 8;
+  int64 revoked_at = 9;
+  string revocation_reason = 10;
+}
+
+// TrustAnchor is a recognised credential issuer. Two-tier: roots are
+// added through governance, intermediates are delegated by roots.
+message TrustAnchor {
+  string did = 1;
+  // Tier is "root" or "intermediate".
+  string tier = 2;
+  // ParentDID empty for roots; set to the delegating root for
+  // intermediates.
+  string parent_did = 3;
+  // CredentialTypes is the whitelist of VC types this anchor is
+  // permitted to issue. Empty list means "any type" (only sensible for
+  // roots).
+  repeated string credential_types = 4;
+  // Active flag — toggling it off is the soft-delete path; deletion
+  // would risk dangling references in CredentialStatus rows.
+  bool active = 5;
+  int64 added_at = 6;
+}
+
+// Params governs the global behaviour of the module.
+message Params {
+  // MaxControllers caps the size of DIDDocument.controllers.
+  uint32 max_controllers = 1;
+  // MaxVerificationMethods caps DIDDocument.verification length.
+  uint32 max_verification_methods = 2;
+  // MaxServiceEndpoints caps DIDDocument.service length.
+  uint32 max_service_endpoints = 3;
+  // MaxCredentialHashLen bounds CredentialStatus.hash to prevent state
+  // bloat from an issuer that uses oversized hash schemes.
+  uint32 max_credential_hash_len = 4;
+  // RevocationGracePeriod is the minimum number of seconds a credential
+  // status must remain "revoked" before its row may be garbage-collected
+  // by an end-blocker. 0 disables GC.
+  int64 revocation_grace_period = 5;
+}

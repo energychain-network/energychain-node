@@ -1,0 +1,59 @@
+syntax = "proto3";
+package energychain.device.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "energychain/device/v1/types.proto";
+
+option go_package = "energychain/x/device/types";
+
+service Query {
+  rpc Device         (QueryDeviceRequest)         returns (QueryDeviceResponse);
+  rpc DevicesByOwner (QueryDevicesByOwnerRequest) returns (QueryDevicesByOwnerResponse);
+  rpc DevicesByGrid  (QueryDevicesByGridRequest)  returns (QueryDevicesByGridResponse);
+  rpc AllDevices     (QueryAllDevicesRequest)     returns (QueryAllDevicesResponse);
+  rpc Attestation    (QueryAttestationRequest)    returns (QueryAttestationResponse);
+  rpc PendingAttestations (QueryPendingAttestationsRequest) returns (QueryPendingAttestationsResponse);
+  rpc Params         (QueryParamsRequest)         returns (QueryParamsResponse);
+}
+
+message QueryDeviceRequest  { string device_did = 1; }
+message QueryDeviceResponse { Device device = 1 [(gogoproto.nullable) = false]; }
+
+message QueryDevicesByOwnerRequest {
+  string owner = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryDevicesByOwnerResponse {
+  repeated Device devices = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryDevicesByGridRequest {
+  string grid_zone = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryDevicesByGridResponse {
+  repeated Device devices = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryAllDevicesRequest  { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryAllDevicesResponse {
+  repeated Device devices = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryAttestationRequest  { uint64 id = 1; }
+message QueryAttestationResponse { AttestationEvidence evidence = 1 [(gogoproto.nullable) = false]; }
+
+message QueryPendingAttestationsRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+message QueryPendingAttestationsResponse {
+  repeated AttestationEvidence evidence = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryParamsRequest  {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }

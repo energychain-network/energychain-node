@@ -1,0 +1,111 @@
+syntax = "proto3";
+package energychain.device.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "energychain/device/v1/types.proto";
+
+option go_package = "energychain/x/device/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc RegisterDevice    (MsgRegisterDevice)    returns (MsgRegisterDeviceResponse);
+  rpc UpdateDevice      (MsgUpdateDevice)      returns (MsgUpdateDeviceResponse);
+  rpc TransferDevice    (MsgTransferDevice)    returns (MsgTransferDeviceResponse);
+  rpc RevokeDevice      (MsgRevokeDevice)      returns (MsgRevokeDeviceResponse);
+
+  rpc SubmitAttestation (MsgSubmitAttestation) returns (MsgSubmitAttestationResponse);
+  rpc ConfirmAttestation (MsgConfirmAttestation) returns (MsgConfirmAttestationResponse);
+
+  rpc FlagFirmwareMismatch (MsgFlagFirmwareMismatch) returns (MsgFlagFirmwareMismatchResponse);
+
+  rpc UpdateParams      (MsgUpdateParams)      returns (MsgUpdateParamsResponse);
+}
+
+message MsgRegisterDevice {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  Device device = 2 [(gogoproto.nullable) = false];
+}
+message MsgRegisterDeviceResponse {}
+
+message MsgUpdateDevice {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // DeviceDID identifies which device to mutate; only owner may do this.
+  string device_did = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // Mutable fields. Empty values mean "do not change". For lat/lon,
+  // pass 0/0 explicitly when a true zero is needed (we cannot tell
+  // "unset int64" from zero in proto3).
+  string firmware_hash = 3;
+  string grid_zone = 4;
+  int64  lat_e7 = 5;
+  int64  lon_e7 = 6;
+  bool   firmware_changed = 7; // when true, status auto-flips to UNVERIFIED
+}
+message MsgUpdateDeviceResponse {}
+
+message MsgTransferDevice {
+  option (cosmos.msg.v1.signer) = "current_owner";
+
+  string current_owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string new_owner     = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string device_did    = 3 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+message MsgTransferDeviceResponse {}
+
+message MsgRevokeDevice {
+  // Either the current owner OR the gov authority may revoke.
+  option (cosmos.msg.v1.signer) = "actor";
+
+  string actor      = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string device_did = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string reason     = 3;
+}
+message MsgRevokeDeviceResponse {}
+
+// SubmitAttestation lodges an attestation evidence blob. Status stays
+// at UNVERIFIED until ConfirmAttestation lands a verdict.
+message MsgSubmitAttestation {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  string owner    = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  AttestationEvidence evidence = 2 [(gogoproto.nullable) = false];
+}
+message MsgSubmitAttestationResponse { uint64 attestation_id = 1; }
+
+// ConfirmAttestation is signed by an `attestation_verifier` listed in
+// Params. Accepted -> Device.status = ATTESTED + AttestedAt = now;
+// Rejected -> status stays UNVERIFIED + reason recorded.
+message MsgConfirmAttestation {
+  option (cosmos.msg.v1.signer) = "verifier";
+
+  string verifier        = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 attestation_id  = 2;
+  bool   accept          = 3;
+  string reason          = 4;
+}
+message MsgConfirmAttestationResponse {}
+
+// FlagFirmwareMismatch is the manual escalation path when the controller
+// detects (off-chain) that the device's firmware drift exceeds the
+// Attestation policy. Forces status -> SUSPECT immediately.
+message MsgFlagFirmwareMismatch {
+  option (cosmos.msg.v1.signer) = "actor";
+
+  string actor      = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string device_did = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string reason     = 3;
+}
+message MsgFlagFirmwareMismatchResponse {}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  Params params    = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}
