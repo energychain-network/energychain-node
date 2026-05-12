@@ -1,9 +1,11 @@
 package audit
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
+	"cosmossdk.io/core/appmodule"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -16,10 +18,11 @@ import (
 )
 
 var (
-	_ module.AppModuleBasic = AppModuleBasic{}
-	_ module.AppModule      = AppModule{}
-	_ module.HasGenesis     = AppModule{}
-	_ module.HasInvariants  = AppModule{}
+	_ module.AppModuleBasic   = AppModuleBasic{}
+	_ module.AppModule        = AppModule{}
+	_ module.HasGenesis       = AppModule{}
+	_ module.HasInvariants    = AppModule{}
+	_ appmodule.HasEndBlocker = AppModule{}
 )
 
 // ---------------------------------------------------------------------------
@@ -66,7 +69,7 @@ type AppModule struct {
 	keeper keeper.Keeper
 }
 
-func NewAppModule(cdc codec.Codec, keeper keeper.Keeper) AppModule {
+func NewAppModule(_ codec.Codec, keeper keeper.Keeper) AppModule {
 	return AppModule{
 		AppModuleBasic: AppModuleBasic{},
 		keeper:         keeper,
@@ -106,7 +109,26 @@ func (am AppModule) RegisterInvariants(ir sdk.InvariantRegistry) {
 	keeper.RegisterInvariants(ir, am.keeper)
 }
 
-func (am AppModule) ConsensusVersion() uint64 { return 1 }
+// ConsensusVersion is bumped to 2 with the M1 evolution. Older state is
+// forward-compat at the proto level (new fields default-zero) and the
+// keeper introduces no new required collections beyond the prefix-byte
+// reservations in keys.go, so no explicit migration handler is required.
+func (am AppModule) ConsensusVersion() uint64 { return 2 }
 
 func (am AppModule) IsOnePerModuleType() {}
 func (am AppModule) IsAppModule()        {}
+
+// EndBlock implements appmodule.HasEndBlocker. We sweep expired view-key
+// grants here so the chain enforces revocation deadlines without needing
+// the regulator (or governance) to remember to call MsgRevokeViewKey.
+// Errors are logged but never aborted: a sweep failure must not stop the
+// block, and the next block will retry on the same expiry index.
+func (am AppModule) EndBlock(goCtx context.Context) error {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	if n, err := am.keeper.SweepExpiredGrants(ctx); err != nil {
+		ctx.Logger().Error("audit: sweep expired grants", "err", err)
+	} else if n > 0 {
+		ctx.Logger().Info("audit: swept expired view-key grants", "count", n)
+	}
+	return nil
+}

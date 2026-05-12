@@ -565,7 +565,10 @@ func NewEnergyChainApp(
 
 	// Custom energy-chain keepers
 	app.OracleKeeper = oraclekeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[oracletypes.StoreKey]), authAddr)
-	app.AuditKeeper = auditkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[audittypes.StoreKey]), tKeys[audittypes.TStoreKey], authAddr)
+	// AuditKeeper accepts an optional DIDKeeper (gates view-key grants).
+	// Wired to nil here; the M1 wiring milestone (appgo TODO) replaces
+	// nil with the real x/did keeper once all M1 modules are assembled.
+	app.AuditKeeper = auditkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[audittypes.StoreKey]), tKeys[audittypes.TStoreKey], authAddr, nil)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,

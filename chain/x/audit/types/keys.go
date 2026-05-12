@@ -13,15 +13,28 @@ const (
 	QuerierRoute = ModuleName
 )
 
-// Persistent-store collection prefixes. Each is a 1-byte namespace owned by
-// a single collections.Map / KeySet / Item / Sequence.
+// Persistent-store collection prefixes. Each is a 1-byte namespace owned
+// by a single collections.Map / KeySet / Item / Sequence. Prefixes that
+// pre-date the M1 evolution keep their original byte values so existing
+// state migrates in place; new collections claim contiguous bytes above.
 var (
-	ParamsCollectionPrefix        = collections.NewPrefix(0x00)
-	AuditLogCollectionPrefix      = collections.NewPrefix(0x01)
-	AuditByActorCollectionPrefix  = collections.NewPrefix(0x02)
-	AuditByTypeCollectionPrefix   = collections.NewPrefix(0x03)
-	IDSequenceCollectionPrefix    = collections.NewPrefix(0x04)
-	AuditByTimeCollectionPrefix   = collections.NewPrefix(0x05)
+	ParamsCollectionPrefix       = collections.NewPrefix(0x00)
+	AuditLogCollectionPrefix     = collections.NewPrefix(0x01)
+	AuditByActorCollectionPrefix = collections.NewPrefix(0x02)
+	AuditByTypeCollectionPrefix  = collections.NewPrefix(0x03)
+	IDSequenceCollectionPrefix   = collections.NewPrefix(0x04)
+	AuditByTimeCollectionPrefix  = collections.NewPrefix(0x05)
+
+	// M1 evolution collections.
+	AuditBySeverityCollectionPrefix = collections.NewPrefix(0x06) // (severity, log_id)
+	AuditBySchemaCollectionPrefix   = collections.NewPrefix(0x07) // (schema_id, log_id)
+	SchemaCollectionPrefix          = collections.NewPrefix(0x08) // event_type → SchemaDescriptor
+	ArchiveSegmentCollectionPrefix  = collections.NewPrefix(0x09) // segment_id → ArchiveSegment
+	ArchiveIDSequencePrefix         = collections.NewPrefix(0x0A)
+	ViewKeyGrantCollectionPrefix    = collections.NewPrefix(0x0B) // grant_id → ViewKeyGrant
+	ViewKeyByGranteePrefix          = collections.NewPrefix(0x0C) // (grantee, grant_id)
+	ViewKeyByExpiryPrefix           = collections.NewPrefix(0x0D) // (expires_at, grant_id) — drives the sweep
+	GrantIDSequencePrefix           = collections.NewPrefix(0x0E)
 
 	// AuditCountByCreatorPrefix is keyed in the per-block transient store
 	// to count audit submissions by creator within the current block. The

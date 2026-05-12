@@ -33,7 +33,7 @@ func setupKeeper(t *testing.T) (keeper.Keeper, sdk.Context) {
 	registry := codectypes.NewInterfaceRegistry()
 	cdc := codec.NewProtoCodec(registry)
 
-	k := keeper.NewKeeper(cdc, runtime.NewKVStoreService(storeKey), tStoreKey, "authority")
+	k := keeper.NewKeeper(cdc, runtime.NewKVStoreService(storeKey), tStoreKey, "authority", nil)
 	ctx := sdk.NewContext(stateStore, cmtproto.Header{}, false, log.NewNopLogger())
 
 	return k, ctx

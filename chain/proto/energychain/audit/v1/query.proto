@@ -11,6 +11,14 @@ service Query {
   rpc AuditLog(QueryAuditLogRequest) returns (QueryAuditLogResponse);
   rpc AuditLogs(QueryAuditLogsRequest) returns (QueryAuditLogsResponse);
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+
+  // M1 evolution.
+  rpc Schema(QuerySchemaRequest) returns (QuerySchemaResponse);
+  rpc Schemas(QuerySchemasRequest) returns (QuerySchemasResponse);
+  rpc ArchiveSegment(QueryArchiveSegmentRequest) returns (QueryArchiveSegmentResponse);
+  rpc ArchiveSegments(QueryArchiveSegmentsRequest) returns (QueryArchiveSegmentsResponse);
+  rpc ViewKeyGrant(QueryViewKeyGrantRequest) returns (QueryViewKeyGrantResponse);
+  rpc ViewKeyGrants(QueryViewKeyGrantsRequest) returns (QueryViewKeyGrantsResponse);
 }
 
 message QueryAuditLogRequest { uint64 id = 1 [(gogoproto.customname) = "ID"]; }
@@ -18,15 +26,18 @@ message QueryAuditLogResponse {
   AuditLog log = 1 [(gogoproto.nullable) = false];
 }
 
-// Optional filters: empty actor / event_type matches all; from_timestamp /
-// to_timestamp default to 0 (no bound). Pagination is mandatory for
-// deterministic, bounded responses.
+// QueryAuditLogsRequest filters: empty string fields match everything.
+// from_timestamp / to_timestamp default to 0 (no bound). min_severity
+// promotes the severity-based subscription pattern (e.g. "WARN and
+// above"). Pagination is mandatory for deterministic, bounded responses.
 message QueryAuditLogsRequest {
   string actor = 1;
   string event_type = 2;
   int64 from_timestamp = 3;
   int64 to_timestamp = 4;
-  cosmos.base.query.v1beta1.PageRequest pagination = 5;
+  Severity min_severity = 5;
+  string schema_id = 6;
+  cosmos.base.query.v1beta1.PageRequest pagination = 7;
 }
 message QueryAuditLogsResponse {
   repeated AuditLog logs = 1 [(gogoproto.nullable) = false];
@@ -35,3 +46,45 @@ message QueryAuditLogsResponse {
 
 message QueryParamsRequest {}
 message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+
+message QuerySchemaRequest { string event_type = 1; }
+message QuerySchemaResponse {
+  SchemaDescriptor descriptor = 1 [(gogoproto.nullable) = false];
+}
+
+message QuerySchemasRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+message QuerySchemasResponse {
+  repeated SchemaDescriptor descriptors = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryArchiveSegmentRequest { uint64 id = 1 [(gogoproto.customname) = "ID"]; }
+message QueryArchiveSegmentResponse {
+  ArchiveSegment segment = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryArchiveSegmentsRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+message QueryArchiveSegmentsResponse {
+  repeated ArchiveSegment segments = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryViewKeyGrantRequest { string id = 1; }
+message QueryViewKeyGrantResponse {
+  ViewKeyGrant grant = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryViewKeyGrantsRequest {
+  // grantee filter (typically the regulator DID querying their inbox);
+  // empty matches all grantees.
+  string grantee = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryViewKeyGrantsResponse {
+  repeated ViewKeyGrant grants = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
