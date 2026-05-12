@@ -53,6 +53,7 @@ import (
 	auditcli "energychain/x/audit/client/cli"
 	metercli "energychain/x/meter/client/cli"
 	oraclecli "energychain/x/oracle/client/cli"
+	policycli "energychain/x/policy/client/cli"
 )
 
 // NewRootCmd creates a new root command for evmd. It is called once in the
@@ -286,6 +287,7 @@ func txCommand() *cobra.Command {
 		oraclecli.GetTxCmd(),
 		auditcli.GetTxCmd(),
 		metercli.GetTxCmd(),
+		policycli.GetTxCmd(),
 	)
 
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")

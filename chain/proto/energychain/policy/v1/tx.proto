@@ -1,0 +1,92 @@
+syntax = "proto3";
+package energychain.policy.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/policy/v1/types.proto";
+
+option go_package = "energychain/x/policy/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc RegisterPolicy(MsgRegisterPolicy) returns (MsgRegisterPolicyResponse);
+  rpc UpdatePolicy(MsgUpdatePolicy) returns (MsgUpdatePolicyResponse);
+  rpc DeprecatePolicy(MsgDeprecatePolicy) returns (MsgDeprecatePolicyResponse);
+  rpc DisablePolicy(MsgDisablePolicy) returns (MsgDisablePolicyResponse);
+
+  rpc BindPolicy(MsgBindPolicy) returns (MsgBindPolicyResponse);
+  rpc UnbindPolicy(MsgUnbindPolicy) returns (MsgUnbindPolicyResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+message MsgRegisterPolicy {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string name = 3;
+  string description = 4;
+  string version = 5;
+  repeated PolicyRule rules = 6 [(gogoproto.nullable) = false];
+}
+message MsgRegisterPolicyResponse {}
+
+message MsgUpdatePolicy {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  // Mutable subset; status is governed by MsgDeprecate / MsgDisable.
+  string name = 3;
+  string description = 4;
+  string version = 5;
+  repeated PolicyRule rules = 6 [(gogoproto.nullable) = false];
+}
+message MsgUpdatePolicyResponse {}
+
+message MsgDeprecatePolicy {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgDeprecatePolicyResponse {}
+
+message MsgDisablePolicy {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgDisablePolicyResponse {}
+
+// MsgBindPolicy attaches a policy to (asset_class, asset_id). The
+// `signer` is the asset-class admin (today: only governance is wired)
+// — when M2 asset modules land they will plumb their own admin keys
+// in via app.go and the existing onlyAuthority gate flips into a
+// per-class lookup.
+message MsgBindPolicy {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string asset_class = 2;
+  string asset_id = 3;
+  string policy_id = 4;
+}
+message MsgBindPolicyResponse {}
+
+message MsgUnbindPolicy {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string asset_class = 2;
+  string asset_id = 3;
+  string reason = 4;
+}
+message MsgUnbindPolicyResponse {}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

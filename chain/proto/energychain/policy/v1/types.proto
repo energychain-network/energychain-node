@@ -1,0 +1,100 @@
+syntax = "proto3";
+package energychain.policy.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/policy/types";
+
+// PolicyStatus governs a policy's role in the binding lifecycle:
+//
+//   - ACTIVE     : may be bound to new assets and is enforced for existing
+//                  bindings.
+//   - DEPRECATED : bound assets continue to enforce it; new bindings are
+//                  refused so the policy can be sunset gradually.
+//   - DISABLED   : enforcement still runs, but every evaluation fails
+//                  closed (CodeMissingCredential surrogate). Used to kill
+//                  a flawed policy without touching the bindings table.
+enum PolicyStatus {
+  POLICY_STATUS_UNSPECIFIED = 0;
+  POLICY_STATUS_ACTIVE      = 1;
+  POLICY_STATUS_DEPRECATED  = 2;
+  POLICY_STATUS_DISABLED    = 3;
+}
+
+// PolicyRule is the wire shape of internal/dsl.Rule. Kind / Side use the
+// integer values from internal/dsl so both sides can be marshalled with
+// no per-version translation table — adding a new rule kind only needs
+// the integer constant in dsl/dsl.go and (optionally) governance to
+// adjust max_param_value_size in Params.
+message PolicyRule {
+  uint32 kind = 1;
+  uint32 side = 2;
+  map<string, string> params = 3;
+}
+
+// Policy is the on-chain registered rule set. The id is the immutable
+// reference all bindings carry; name / description / version are
+// human-readable metadata that may be edited via MsgUpdatePolicy.
+message Policy {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string version = 4;
+  PolicyStatus status = 5;
+  repeated PolicyRule rules = 6 [(gogoproto.nullable) = false];
+  string created_by = 7;
+  int64 created_at = 8;
+  int64 updated_at = 9;
+}
+
+// PolicyBinding ties an asset (identified by class + asset_id) to a
+// specific policy. Asset-class strings are free-form so M3/M4 modules
+// (rwa, stablecoin, eac, carbon, …) all share a single policy module.
+// The pair (asset_class, asset_id) is unique and acts as the binding's
+// primary key.
+message PolicyBinding {
+  string asset_class = 1;
+  string asset_id = 2;
+  string policy_id = 3;
+  string bound_by = 4;
+  int64 bound_at = 5;
+}
+
+// EvaluationLog is an optional ring-buffer of denial events. Hot-path
+// transfer evaluations are not logged when the call succeeds (would
+// dominate block size); only denials are recorded so operators can
+// triage "why did this transfer fail?". Storage is bounded by
+// Params.evaluation_log_max — older entries are evicted FIFO.
+message EvaluationLog {
+  uint64 id = 1;
+  string policy_id = 2;
+  string asset_class = 3;
+  string asset_id = 4;
+  string sender = 5;
+  string receiver = 6;
+  uint64 amount = 7;
+  uint32 result_code = 8;
+  uint32 failed_rule_index = 9;
+  string detail = 10;
+  int64 timestamp = 11;
+  int64 height = 12;
+}
+
+// Params governs the shape of policies and the size of the on-chain
+// state owned by the module. Defaults are picked to be lenient enough
+// for dev / testnet but hold up under adversarial production load.
+message Params {
+  uint32 max_rules_per_policy = 1;
+  uint32 max_param_value_size = 2;
+  // max_policies caps the total number of registered policies. Hard
+  // limit so a runaway governance script cannot fill state.
+  uint32 max_policies = 3;
+  // max_bindings caps the total number of policy bindings.
+  uint32 max_bindings = 4;
+  // log_denials toggles the EvaluationLog ring-buffer; when false the
+  // hot path skips writing entirely.
+  bool log_denials = 5;
+  // evaluation_log_max bounds the ring-buffer size; older denials are
+  // evicted FIFO when the buffer fills.
+  uint32 evaluation_log_max = 6;
+}

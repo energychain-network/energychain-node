@@ -56,6 +56,12 @@ const (
 
 	CodeMissingCredential RuleCode = 5001
 	CodeRevokedCredential RuleCode = 5002
+
+	// Policy-level (rather than rule-level) failure codes. Emitted by
+	// x/policy when the binding is broken or the policy itself is
+	// administratively disabled. These codes never come from evalRule.
+	CodeBindingMissing RuleCode = 9001
+	CodePolicyDisabled RuleCode = 9002
 )
 
 // Result captures the outcome of evaluating a Policy. Success returns
