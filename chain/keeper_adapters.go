@@ -43,3 +43,19 @@ func (a eacOracleAdapter) GetAggregatedReserve(ctx sdk.Context, topicID string) 
 	}
 	return v.Value, v.ComputedTime, true
 }
+
+// carbonOracleAdapter mirrors eacOracleAdapter for x/carbon's
+// cross-registry bridge attestations (Verra, Toucan, Klima,
+// Article 6.4, etc.). The shape matches both stablecoin and EAC so
+// the same underlying x/oracle topics can be reused.
+type carbonOracleAdapter struct {
+	k oraclekeeper.Keeper
+}
+
+func (a carbonOracleAdapter) GetAggregatedReserve(ctx sdk.Context, topicID string) (value int64, timestamp int64, ok bool) {
+	v, found := a.k.GetAggregated(ctx, topicID)
+	if !found {
+		return 0, 0, false
+	}
+	return v.Value, v.ComputedTime, true
+}

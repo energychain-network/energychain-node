@@ -11,7 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"energychain/x/eac/types"
+	"energychain/x/carbon/types"
 )
 
 type Keeper struct {
@@ -19,34 +19,35 @@ type Keeper struct {
 	storeService store.KVStoreService
 	authority    string
 
-	// optional cross-module collaborators — nil-safe at call sites.
 	policy    types.PolicyKeeper
 	sanctions types.SanctionsKeeper
 	oracle    types.OracleKeeper
+	eac       types.EACKeeper
 	audit     types.AuditKeeper
 
 	Schema collections.Schema
 
-	Params      collections.Item[types.Params]
-	Issuers     collections.Map[string, types.Issuer]
-	Certificates collections.Map[uint64, types.Certificate]
-	CertByIssuer collections.KeySet[collections.Pair[string, uint64]]
-	CertIDSeq   collections.Sequence
+	Params  collections.Item[types.Params]
+	Issuers collections.Map[string, types.Issuer]
 
-	Balances     collections.Map[collections.Pair[uint64, string], uint64]
+	Assets         collections.Map[uint64, types.Asset]
+	AssetByIssuer  collections.KeySet[collections.Pair[string, uint64]]
+	AssetIDSeq     collections.Sequence
+
+	Balances       collections.Map[collections.Pair[uint64, string], uint64]
 	BalanceByOwner collections.KeySet[collections.Pair[string, uint64]]
 
 	Retirements             collections.Map[uint64, types.Retirement]
 	RetirementByBeneficiary collections.KeySet[collections.Pair[string, uint64]]
-	RetirementByCertificate collections.KeySet[collections.Pair[uint64, uint64]]
+	RetirementByAsset       collections.KeySet[collections.Pair[uint64, uint64]]
 	RetirementIDSeq         collections.Sequence
+
+	Article6Authorizations collections.Map[uint64, types.Article6Authorization]
 
 	Bridges collections.Map[uint64, types.BridgeAttestation]
 
-	// SourceSerialIndex pins (kind:int32, registry:string, serial:string)
-	// to the certificate id that owns it. Used by IssueBatch to reject
-	// double-issuance of the same upstream serial.
 	SourceSerialIndex collections.Map[collections.Triple[int32, string, string], uint64]
+	EACOffsetClaimed  collections.Map[uint64, uint64]
 }
 
 func NewKeeper(
@@ -56,10 +57,11 @@ func NewKeeper(
 	policy types.PolicyKeeper,
 	sanctions types.SanctionsKeeper,
 	oracle types.OracleKeeper,
+	eac types.EACKeeper,
 	audit types.AuditKeeper,
 ) Keeper {
 	if _, err := sdk.AccAddressFromBech32(authority); err != nil {
-		panic(fmt.Errorf("eac: invalid authority %q: %w", authority, err))
+		panic(fmt.Errorf("carbon: invalid authority %q: %w", authority, err))
 	}
 	sb := collections.NewSchemaBuilder(storeService)
 
@@ -70,27 +72,33 @@ func NewKeeper(
 		policy:       policy,
 		sanctions:    sanctions,
 		oracle:       oracle,
+		eac:          eac,
 		audit:        audit,
 
 		Params:  collections.NewItem(sb, types.ParamsCollectionPrefix, "params", codec.CollValue[types.Params](cdc)),
 		Issuers: collections.NewMap(sb, types.IssuerCollectionPrefix, "issuers", collections.StringKey, codec.CollValue[types.Issuer](cdc)),
-		Certificates: collections.NewMap(sb, types.CertificateCollectionPrefix, "certificates", collections.Uint64Key, codec.CollValue[types.Certificate](cdc)),
-		CertByIssuer: collections.NewKeySet(sb, types.CertByIssuerPrefix, "cert_by_issuer", collections.PairKeyCodec(collections.StringKey, collections.Uint64Key)),
-		CertIDSeq:    collections.NewSequence(sb, types.CertIDSeqPrefix, "cert_id_seq"),
+
+		Assets:        collections.NewMap(sb, types.AssetCollectionPrefix, "assets", collections.Uint64Key, codec.CollValue[types.Asset](cdc)),
+		AssetByIssuer: collections.NewKeySet(sb, types.AssetByIssuerPrefix, "asset_by_issuer", collections.PairKeyCodec(collections.StringKey, collections.Uint64Key)),
+		AssetIDSeq:    collections.NewSequence(sb, types.AssetIDSeqPrefix, "asset_id_seq"),
 
 		Balances:       collections.NewMap(sb, types.BalanceCollectionPrefix, "balances", collections.PairKeyCodec(collections.Uint64Key, collections.StringKey), collections.Uint64Value),
 		BalanceByOwner: collections.NewKeySet(sb, types.BalanceByOwnerPrefix, "balance_by_owner", collections.PairKeyCodec(collections.StringKey, collections.Uint64Key)),
 
 		Retirements:             collections.NewMap(sb, types.RetirementCollectionPrefix, "retirements", collections.Uint64Key, codec.CollValue[types.Retirement](cdc)),
 		RetirementByBeneficiary: collections.NewKeySet(sb, types.RetirementByBeneficiaryPrefix, "retire_by_ben", collections.PairKeyCodec(collections.StringKey, collections.Uint64Key)),
-		RetirementByCertificate: collections.NewKeySet(sb, types.RetirementByCertificatePrefix, "retire_by_cert", collections.PairKeyCodec(collections.Uint64Key, collections.Uint64Key)),
+		RetirementByAsset:       collections.NewKeySet(sb, types.RetirementByAssetPrefix, "retire_by_asset", collections.PairKeyCodec(collections.Uint64Key, collections.Uint64Key)),
 		RetirementIDSeq:         collections.NewSequence(sb, types.RetirementIDSeqPrefix, "retirement_id_seq"),
+
+		Article6Authorizations: collections.NewMap(sb, types.Article6AuthorizationPrefix, "article6_auth", collections.Uint64Key, codec.CollValue[types.Article6Authorization](cdc)),
 
 		Bridges: collections.NewMap(sb, types.BridgeCollectionPrefix, "bridges", collections.Uint64Key, codec.CollValue[types.BridgeAttestation](cdc)),
 
 		SourceSerialIndex: collections.NewMap(sb, types.SourceSerialIndexPrefix, "source_serial_idx",
 			collections.TripleKeyCodec(collections.Int32Key, collections.StringKey, collections.StringKey),
 			collections.Uint64Value),
+		EACOffsetClaimed: collections.NewMap(sb, types.EACOffsetClaimPrefix, "eac_offset_claim",
+			collections.Uint64Key, collections.Uint64Value),
 	}
 
 	schema, err := sb.Build()
@@ -101,25 +109,9 @@ func NewKeeper(
 	return k
 }
 
-func (k Keeper) GetAuthority() string { return k.authority }
-
-// GetCertificateIssuedUnits is the cross-module read used by x/carbon
-// to enforce the "1 MWh cannot be both RE-claimed and offset-claimed"
-// rule. Returns the certificate's IssuedUnits and a boolean for
-// existence; never mutates state.
-func (k Keeper) GetCertificateIssuedUnits(ctx sdk.Context, certificateID uint64) (uint64, bool) {
-	c, err := k.Certificates.Get(ctx, certificateID)
-	if err != nil {
-		return 0, false
-	}
-	return c.IssuedUnits, true
-}
-
-// SanctionsHook returns the bound x/sanctions adapter (or nil if not
-// wired). Exposed so the msg_server can run the same fail-closed
-// receiver gate at issuance / bridge-mint time, even though those
-// flows do not go through the transferCompliance pipeline.
+func (k Keeper) GetAuthority() string                { return k.authority }
 func (k Keeper) SanctionsHook() types.SanctionsKeeper { return k.sanctions }
+func (k Keeper) EACHook() types.EACKeeper             { return k.eac }
 
 // ---- params ---------------------------------------------------------------
 
@@ -154,18 +146,20 @@ func (k Keeper) CountIssuers(ctx context.Context) (uint32, error) {
 	return n, nil
 }
 
-// ---- certificate / balance plumbing --------------------------------------
+// ---- asset id seq ---------------------------------------------------------
 
-func (k Keeper) NextCertID(ctx context.Context) (uint64, error) {
-	id, err := k.CertIDSeq.Next(ctx)
+func (k Keeper) NextAssetID(ctx context.Context) (uint64, error) {
+	id, err := k.AssetIDSeq.Next(ctx)
 	if err != nil {
 		return 0, err
 	}
 	return id + 1, nil
 }
 
-func (k Keeper) GetBalance(ctx context.Context, certID uint64, holder string) (uint64, error) {
-	v, err := k.Balances.Get(ctx, collections.Join(certID, holder))
+// ---- balance plumbing -----------------------------------------------------
+
+func (k Keeper) GetBalance(ctx context.Context, assetID uint64, holder string) (uint64, error) {
+	v, err := k.Balances.Get(ctx, collections.Join(assetID, holder))
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
 			return 0, nil
@@ -175,12 +169,9 @@ func (k Keeper) GetBalance(ctx context.Context, certID uint64, holder string) (u
 	return v, nil
 }
 
-// setBalance writes amt under the (cert, holder) key. amt == 0 prunes both
-// the primary balance row and the secondary owner index, keeping state
-// minimal and the genesis invariant easy to enforce.
-func (k Keeper) setBalance(ctx context.Context, certID uint64, holder string, amt uint64) error {
-	pk := collections.Join(certID, holder)
-	ok := collections.Join(holder, certID)
+func (k Keeper) setBalance(ctx context.Context, assetID uint64, holder string, amt uint64) error {
+	pk := collections.Join(assetID, holder)
+	ok := collections.Join(holder, assetID)
 	if amt == 0 {
 		if err := k.Balances.Remove(ctx, pk); err != nil {
 			return err
@@ -193,11 +184,11 @@ func (k Keeper) setBalance(ctx context.Context, certID uint64, holder string, am
 	return k.BalanceByOwner.Set(ctx, ok)
 }
 
-func (k Keeper) creditBalance(ctx context.Context, certID uint64, holder string, amt uint64) error {
+func (k Keeper) creditBalance(ctx context.Context, assetID uint64, holder string, amt uint64) error {
 	if amt == 0 {
 		return nil
 	}
-	cur, err := k.GetBalance(ctx, certID, holder)
+	cur, err := k.GetBalance(ctx, assetID, holder)
 	if err != nil {
 		return err
 	}
@@ -205,45 +196,41 @@ func (k Keeper) creditBalance(ctx context.Context, certID uint64, holder string,
 	if err != nil {
 		return err
 	}
-	return k.setBalance(ctx, certID, holder, next)
+	return k.setBalance(ctx, assetID, holder, next)
 }
 
-func (k Keeper) debitBalance(ctx context.Context, certID uint64, holder string, amt uint64) error {
+func (k Keeper) debitBalance(ctx context.Context, assetID uint64, holder string, amt uint64) error {
 	if amt == 0 {
 		return nil
 	}
-	cur, err := k.GetBalance(ctx, certID, holder)
+	cur, err := k.GetBalance(ctx, assetID, holder)
 	if err != nil {
 		return err
 	}
 	next, err := types.SafeSub(cur, amt)
 	if err != nil {
-		return fmt.Errorf("balance underflow for cert %d holder %s: %w", certID, holder, err)
+		return fmt.Errorf("balance underflow for asset %d holder %s: %w", assetID, holder, err)
 	}
-	return k.setBalance(ctx, certID, holder, next)
+	return k.setBalance(ctx, assetID, holder, next)
 }
 
-func (k Keeper) moveBalance(ctx context.Context, certID uint64, from, to string, amt uint64) error {
-	if err := k.debitBalance(ctx, certID, from, amt); err != nil {
+func (k Keeper) moveBalance(ctx context.Context, assetID uint64, from, to string, amt uint64) error {
+	if err := k.debitBalance(ctx, assetID, from, amt); err != nil {
 		return err
 	}
-	return k.creditBalance(ctx, certID, to, amt)
+	return k.creditBalance(ctx, assetID, to, amt)
 }
 
-// ---- compliance pipeline ------------------------------------------------
+// ---- compliance pipeline -------------------------------------------------
 
-// transferCompliance is the single funnel for every transfer-or-retire
-// gate. It is fail-closed: any unexpected error from a sub-checker
-// short-circuits the operation. Order matters: cheaper / address-only
-// checks come first so we never call the (potentially expensive)
-// policy DSL for an obviously-blocked counterparty.
-func (k Keeper) transferCompliance(ctx context.Context, certID uint64, sender, receiver string, amount uint64) error {
+// transferCompliance is the unified gate for transfers and retirements.
+// Order: address-only sanctions check (cheap) → policy DSL.
+func (k Keeper) transferCompliance(ctx context.Context, assetID uint64, sender, receiver string, amount uint64) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	params, err := k.GetParams(ctx)
 	if err != nil {
 		return err
 	}
-
 	if params.RequireSanctionsClear && k.sanctions != nil {
 		if sender != "" && k.sanctions.IsSanctioned(sdkCtx, sender) {
 			return fmt.Errorf("sender %s is on the sanctions list", sender)
@@ -252,10 +239,9 @@ func (k Keeper) transferCompliance(ctx context.Context, certID uint64, sender, r
 			return fmt.Errorf("receiver %s is on the sanctions list", receiver)
 		}
 	}
-
 	if k.policy != nil {
-		assetID := strconv.FormatUint(certID, 10)
-		if err := k.policy.EvaluateTransfer(sdkCtx, "eac", assetID, sender, receiver, amount); err != nil {
+		assetIDStr := strconv.FormatUint(assetID, 10)
+		if err := k.policy.EvaluateTransfer(sdkCtx, "carbon", assetIDStr, sender, receiver, amount); err != nil {
 			return fmt.Errorf("policy denied: %w", err)
 		}
 	}
@@ -264,14 +250,10 @@ func (k Keeper) transferCompliance(ctx context.Context, certID uint64, sender, r
 
 // ---- bridge --------------------------------------------------------------
 
-// CheckBridgeMintCoverage ensures the on-chain mirror after the
-// proposed mint will not exceed the locked count attested by the
-// upstream registry (via the bound oracle topic). Fail-closed when
-// the attestation is missing or stale.
-func (k Keeper) CheckBridgeMintCoverage(ctx context.Context, cert types.Certificate, mintUnits uint64) error {
-	br, err := k.Bridges.Get(ctx, cert.Id)
+func (k Keeper) CheckBridgeMintCoverage(ctx context.Context, asset types.Asset, mintUnits uint64) error {
+	br, err := k.Bridges.Get(ctx, asset.Id)
 	if err != nil {
-		return fmt.Errorf("certificate %d has no bridge attestation", cert.Id)
+		return fmt.Errorf("asset %d has no bridge attestation", asset.Id)
 	}
 	if k.oracle == nil {
 		return fmt.Errorf("oracle keeper not wired; cannot verify bridge attestation")
@@ -289,8 +271,7 @@ func (k Keeper) CheckBridgeMintCoverage(ctx context.Context, cert types.Certific
 	if value < 0 {
 		return fmt.Errorf("attestation value %d is negative", value)
 	}
-	// Live = issued - retired ; remaining mintable = attested - live
-	live, err := types.SafeSub(cert.IssuedUnits, cert.RetiredUnits)
+	live, err := types.SafeSub(asset.IssuedUnits, asset.RetiredUnits)
 	if err != nil {
 		return err
 	}
@@ -304,14 +285,60 @@ func (k Keeper) CheckBridgeMintCoverage(ctx context.Context, cert types.Certific
 	return nil
 }
 
+// ---- EAC mutual exclusion -----------------------------------------------
+
+// reserveEACClaim adds `units` to the running tally of OFFSET units
+// referencing `eacCertID` and refuses to push the tally past the
+// EAC certificate's own IssuedUnits. Fail-closed when the EAC keeper
+// isn't wired or the referenced certificate is missing — so a chain
+// with no EAC module configured cannot accidentally bypass the rule
+// just because the link field was set.
+func (k Keeper) reserveEACClaim(ctx context.Context, eacCertID, units uint64) error {
+	if eacCertID == 0 {
+		return nil
+	}
+	if k.eac == nil {
+		return fmt.Errorf("offset references EAC certificate %d but EAC keeper not wired", eacCertID)
+	}
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	cap, ok := k.eac.GetCertificateIssuedUnits(sdkCtx, eacCertID)
+	if !ok {
+		return fmt.Errorf("EAC certificate %d not found", eacCertID)
+	}
+	cur, err := k.GetEACClaimed(ctx, eacCertID)
+	if err != nil {
+		return err
+	}
+	next, err := types.SafeAdd(cur, units)
+	if err != nil {
+		return err
+	}
+	if next > cap {
+		return fmt.Errorf("EAC %d mutual-exclusion cap: claimed %d + new %d > issued %d",
+			eacCertID, cur, units, cap)
+	}
+	return k.EACOffsetClaimed.Set(ctx, eacCertID, next)
+}
+
+func (k Keeper) GetEACClaimed(ctx context.Context, eacCertID uint64) (uint64, error) {
+	v, err := k.EACOffsetClaimed.Get(ctx, eacCertID)
+	if err != nil {
+		if errors.Is(err, collections.ErrNotFound) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return v, nil
+}
+
 // ---- audit helper -------------------------------------------------------
 
-func (k Keeper) recordAudit(ctx context.Context, certID uint64, issuerID, action, actor, beneficiary, detail string) {
+func (k Keeper) recordAudit(ctx context.Context, assetID uint64, issuerID, action, actor, beneficiary, detail string) {
 	if k.audit == nil {
 		return
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	k.audit.RecordEACAction(sdkCtx, certID, issuerID, action, actor, beneficiary, detail)
+	k.audit.RecordCarbonAction(sdkCtx, assetID, issuerID, action, actor, beneficiary, detail)
 }
 
 // ---- retirement counter --------------------------------------------------
@@ -335,28 +362,28 @@ func (k Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error {
 			return err
 		}
 	}
-	for _, c := range gs.Certificates {
-		if err := k.Certificates.Set(ctx, c.Id, c); err != nil {
+	for _, a := range gs.Assets {
+		if err := k.Assets.Set(ctx, a.Id, a); err != nil {
 			return err
 		}
-		if err := k.CertByIssuer.Set(ctx, collections.Join(c.IssuerId, c.Id)); err != nil {
+		if err := k.AssetByIssuer.Set(ctx, collections.Join(a.IssuerId, a.Id)); err != nil {
 			return err
 		}
-		if c.SourceSerial != "" {
-			key := collections.Join3(int32(c.Kind), c.SourceRegistry, c.SourceSerial)
+		if a.SourceSerial != "" {
+			key := collections.Join3(int32(a.Category), a.SourceRegistry, a.SourceSerial)
 			if has, err := k.SourceSerialIndex.Has(ctx, key); err != nil {
 				return err
 			} else if has {
-				return fmt.Errorf("genesis: duplicate source serial (kind=%s registry=%s serial=%s)",
-					c.Kind, c.SourceRegistry, c.SourceSerial)
+				return fmt.Errorf("genesis: duplicate source serial (category=%s registry=%s serial=%s)",
+					a.Category, a.SourceRegistry, a.SourceSerial)
 			}
-			if err := k.SourceSerialIndex.Set(ctx, key, c.Id); err != nil {
+			if err := k.SourceSerialIndex.Set(ctx, key, a.Id); err != nil {
 				return err
 			}
 		}
 	}
 	for _, b := range gs.Balances {
-		if err := k.setBalance(ctx, b.CertificateId, b.Account, b.Amount); err != nil {
+		if err := k.setBalance(ctx, b.AssetId, b.Account, b.Amount); err != nil {
 			return err
 		}
 	}
@@ -367,17 +394,27 @@ func (k Keeper) InitGenesis(ctx context.Context, gs *types.GenesisState) error {
 		if err := k.RetirementByBeneficiary.Set(ctx, collections.Join(r.Beneficiary, r.Id)); err != nil {
 			return err
 		}
-		if err := k.RetirementByCertificate.Set(ctx, collections.Join(r.CertificateId, r.Id)); err != nil {
+		if err := k.RetirementByAsset.Set(ctx, collections.Join(r.AssetId, r.Id)); err != nil {
+			return err
+		}
+	}
+	for _, auth := range gs.Authorizations {
+		if err := k.Article6Authorizations.Set(ctx, auth.AssetId, auth); err != nil {
 			return err
 		}
 	}
 	for _, br := range gs.Bridges {
-		if err := k.Bridges.Set(ctx, br.CertificateId, br); err != nil {
+		if err := k.Bridges.Set(ctx, br.AssetId, br); err != nil {
 			return err
 		}
 	}
-	if gs.CertificateIdSeq > 0 {
-		if err := k.CertIDSeq.Set(ctx, gs.CertificateIdSeq); err != nil {
+	for _, c := range gs.EacClaims {
+		if err := k.EACOffsetClaimed.Set(ctx, c.EacCertificateId, c.ClaimedUnits); err != nil {
+			return err
+		}
+	}
+	if gs.AssetIdSeq > 0 {
+		if err := k.AssetIDSeq.Set(ctx, gs.AssetIdSeq); err != nil {
 			return err
 		}
 	}
@@ -395,24 +432,21 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		return nil, err
 	}
 	gs := &types.GenesisState{Params: params}
-
 	if err := k.Issuers.Walk(ctx, nil, func(_ string, v types.Issuer) (bool, error) {
 		gs.Issuers = append(gs.Issuers, v)
 		return false, nil
 	}); err != nil {
 		return nil, err
 	}
-	if err := k.Certificates.Walk(ctx, nil, func(_ uint64, v types.Certificate) (bool, error) {
-		gs.Certificates = append(gs.Certificates, v)
+	if err := k.Assets.Walk(ctx, nil, func(_ uint64, v types.Asset) (bool, error) {
+		gs.Assets = append(gs.Assets, v)
 		return false, nil
 	}); err != nil {
 		return nil, err
 	}
 	if err := k.Balances.Walk(ctx, nil, func(key collections.Pair[uint64, string], v uint64) (bool, error) {
 		gs.Balances = append(gs.Balances, types.Balance{
-			CertificateId: key.K1(),
-			Account:       key.K2(),
-			Amount:        v,
+			AssetId: key.K1(), Account: key.K2(), Amount: v,
 		})
 		return false, nil
 	}); err != nil {
@@ -424,13 +458,27 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	}); err != nil {
 		return nil, err
 	}
+	if err := k.Article6Authorizations.Walk(ctx, nil, func(_ uint64, v types.Article6Authorization) (bool, error) {
+		gs.Authorizations = append(gs.Authorizations, v)
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
 	if err := k.Bridges.Walk(ctx, nil, func(_ uint64, v types.BridgeAttestation) (bool, error) {
 		gs.Bridges = append(gs.Bridges, v)
 		return false, nil
 	}); err != nil {
 		return nil, err
 	}
-	cseq, err := k.CertIDSeq.Peek(ctx)
+	if err := k.EACOffsetClaimed.Walk(ctx, nil, func(k uint64, v uint64) (bool, error) {
+		gs.EacClaims = append(gs.EacClaims, types.EACClaim{
+			EacCertificateId: k, ClaimedUnits: v,
+		})
+		return false, nil
+	}); err != nil {
+		return nil, err
+	}
+	aseq, err := k.AssetIDSeq.Peek(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +486,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 	if err != nil {
 		return nil, err
 	}
-	gs.CertificateIdSeq = cseq
+	gs.AssetIdSeq = aseq
 	gs.RetirementIdSeq = rseq
 	return gs, nil
 }

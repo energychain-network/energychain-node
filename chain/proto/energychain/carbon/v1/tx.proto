@@ -1,0 +1,228 @@
+syntax = "proto3";
+package energychain.carbon.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/carbon/v1/types.proto";
+
+option go_package = "energychain/x/carbon/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // Issuer lifecycle
+  rpc RegisterIssuer(MsgRegisterIssuer) returns (MsgRegisterIssuerResponse);
+  rpc UpdateIssuer(MsgUpdateIssuer) returns (MsgUpdateIssuerResponse);
+  rpc SuspendIssuer(MsgSuspendIssuer) returns (MsgSuspendIssuerResponse);
+  rpc RevokeIssuer(MsgRevokeIssuer) returns (MsgRevokeIssuerResponse);
+
+  // Asset lifecycle
+  rpc IssueAllowance(MsgIssueAllowance) returns (MsgIssueAllowanceResponse);
+  rpc IssueOffset(MsgIssueOffset) returns (MsgIssueOffsetResponse);
+  rpc SealAsset(MsgSealAsset) returns (MsgSealAssetResponse);
+  rpc UnsealAsset(MsgUnsealAsset) returns (MsgUnsealAssetResponse);
+
+  // Hot path
+  rpc Transfer(MsgTransfer) returns (MsgTransferResponse);
+  rpc Retire(MsgRetire) returns (MsgRetireResponse);
+
+  // Article 6 corresponding adjustment
+  rpc SetArticle6Status(MsgSetArticle6Status) returns (MsgSetArticle6StatusResponse);
+
+  // Bridge
+  rpc SetBridgeAttestation(MsgSetBridgeAttestation) returns (MsgSetBridgeAttestationResponse);
+  rpc BridgeMint(MsgBridgeMint) returns (MsgBridgeMintResponse);
+  rpc BridgeBurn(MsgBridgeBurn) returns (MsgBridgeBurnResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+// ---- Issuer ---------------------------------------------------------------
+
+message MsgRegisterIssuer {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string did = 3;
+  string display_name = 4;
+  repeated int32 categories = 5;
+  string issuer_authority = 6;
+  string admin = 7;
+}
+message MsgRegisterIssuerResponse {}
+
+message MsgUpdateIssuer {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string display_name = 3;
+  repeated int32 categories = 4;
+  string issuer_authority = 5;
+  string admin = 6;
+}
+message MsgUpdateIssuerResponse {}
+
+message MsgSuspendIssuer {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgSuspendIssuerResponse {}
+
+message MsgRevokeIssuer {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgRevokeIssuerResponse {}
+
+// ---- Asset ----------------------------------------------------------------
+
+message MsgIssueAllowance {
+  option (cosmos.msg.v1.signer) = "issuer_authority";
+  string issuer_authority = 1;
+  string issuer_id = 2;
+  string registry = 3;
+  string program = 4;        // e.g. "EUA", "CCA", "RGGI", "CCER"
+  string jurisdiction = 5;
+  uint32 vintage_year = 6;
+  string source_registry = 7;
+  string source_serial = 8;
+  uint64 units = 9;          // tCO2e
+  string recipient = 10;
+  string policy_id = 11;
+}
+message MsgIssueAllowanceResponse {
+  uint64 asset_id = 1;
+}
+
+message MsgIssueOffset {
+  option (cosmos.msg.v1.signer) = "issuer_authority";
+  string issuer_authority = 1;
+  string issuer_id = 2;
+  string registry = 3;
+  string program = 4;        // e.g. "VCU", "TREES", "ACR"
+  string project_id = 5;
+  string methodology = 6;
+  string jurisdiction = 7;
+  uint32 vintage_year = 8;
+  string source_registry = 9;
+  string source_serial = 10;
+  repeated string ccp_labels = 11;
+  // Optional: link this offset batch to a specific x/eac certificate
+  // for mutual-exclusion accounting. Set to 0 if no link.
+  uint64 linked_eac_certificate_id = 12;
+  // Article 6.4 fields. Defaults to NOT_APPLICABLE; promote later
+  // via MsgSetArticle6Status.
+  Article6Status article6_status = 13;
+  string host_country = 14;
+  string recipient_country = 15;
+  uint64 units = 16;
+  string recipient = 17;
+  string policy_id = 18;
+}
+message MsgIssueOffsetResponse {
+  uint64 asset_id = 1;
+}
+
+message MsgSealAsset {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  uint64 asset_id = 2;
+  string reason = 3;
+}
+message MsgSealAssetResponse {}
+
+message MsgUnsealAsset {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  uint64 asset_id = 2;
+  string reason = 3;
+}
+message MsgUnsealAssetResponse {}
+
+message MsgTransfer {
+  option (cosmos.msg.v1.signer) = "from";
+  string from = 1;
+  string to = 2;
+  uint64 asset_id = 3;
+  uint64 units = 4;
+  string memo = 5;
+}
+message MsgTransferResponse {}
+
+message MsgRetire {
+  option (cosmos.msg.v1.signer) = "retirer";
+  string retirer = 1;
+  string beneficiary = 2;     // empty defaults to retirer
+  uint64 asset_id = 3;
+  uint64 units = 4;
+  string purpose = 5;         // "scope1", "scope3", "voluntary", "ndc"
+  string claim = 6;           // e.g. NDC year, CSRD reference, CDP id
+  string memo = 7;
+  // beneficiary_jurisdiction is used only for OFFSET assets with
+  // require_article6_for_cross_border=true: when host_country !=
+  // beneficiary_jurisdiction the keeper requires CA_APPLIED.
+  string beneficiary_jurisdiction = 8;
+}
+message MsgRetireResponse {
+  uint64 retirement_id = 1;
+}
+
+// ---- Article 6 ------------------------------------------------------------
+
+message MsgSetArticle6Status {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;          // issuer admin
+  uint64 asset_id = 2;
+  Article6Status status = 3;
+  string host_country = 4;
+  string recipient_country = 5;
+  string document_uri = 6;   // off-chain authorisation
+  string document_hash = 7;  // sha256 of the document
+}
+message MsgSetArticle6StatusResponse {}
+
+// ---- Bridge ---------------------------------------------------------------
+
+message MsgSetBridgeAttestation {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 asset_id = 2;
+  string oracle_topic_id = 3;
+  uint32 max_staleness_seconds = 4;
+}
+message MsgSetBridgeAttestationResponse {}
+
+message MsgBridgeMint {
+  option (cosmos.msg.v1.signer) = "issuer_authority";
+  string issuer_authority = 1;
+  uint64 asset_id = 2;
+  uint64 units = 3;
+  string recipient = 4;
+}
+message MsgBridgeMintResponse {
+  uint64 new_issued_units = 1;
+}
+
+message MsgBridgeBurn {
+  option (cosmos.msg.v1.signer) = "holder";
+  string holder = 1;
+  uint64 asset_id = 2;
+  uint64 units = 3;
+  string external_recipient = 4;
+  string memo = 5;
+}
+message MsgBridgeBurnResponse {}
+
+// ---- Params ---------------------------------------------------------------
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

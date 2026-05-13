@@ -1,0 +1,183 @@
+syntax = "proto3";
+package energychain.carbon.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/carbon/types";
+
+// AssetCategory distinguishes the two carbon market lanes the spec
+// requires us to model side-by-side:
+//
+//   ALLOWANCE — compliance-market cap-and-trade unit (EUA, CCA,
+//               RGGI, CCER, etc.). Issued by a government / scheme
+//               operator, surrendered against compliance obligation.
+//   OFFSET    — voluntary-market emissions-reduction credit (Verra
+//               VCU, Gold Standard, ART/TREES, ACR, etc.). Issued
+//               by a project crediting body, retired against an
+//               emissions claim.
+enum AssetCategory {
+  ASSET_CATEGORY_UNSPECIFIED = 0;
+  ASSET_CATEGORY_ALLOWANCE   = 1;
+  ASSET_CATEGORY_OFFSET      = 2;
+}
+
+// AssetStatus mirrors x/eac.CertificateStatus. ACTIVE units may
+// transfer / retire / bridge-burn; SEALED blocks transfers (but
+// retirements still proceed so holders can liquidate compliance
+// positions); FULLY_RETIRED is terminal (kept for audit).
+enum AssetStatus {
+  ASSET_STATUS_UNSPECIFIED   = 0;
+  ASSET_STATUS_ACTIVE        = 1;
+  ASSET_STATUS_SEALED        = 2;
+  ASSET_STATUS_FULLY_RETIRED = 3;
+}
+
+enum IssuerStatus {
+  ISSUER_STATUS_UNSPECIFIED = 0;
+  ISSUER_STATUS_ACTIVE      = 1;
+  ISSUER_STATUS_SUSPENDED   = 2;
+  ISSUER_STATUS_REVOKED     = 3;
+}
+
+// Article6Status tracks Paris Agreement Article 6.4 corresponding-
+// adjustment lifecycle for OFFSET assets that flow internationally.
+//
+//   NOT_APPLICABLE         — purely domestic / sub-national; no CA
+//   PENDING_AUTHORIZATION  — host country has not yet authorised
+//                            transfer to the recipient party
+//   AUTHORIZED             — host country authorisation issued, CA
+//                            not yet posted in the registry
+//   CA_APPLIED             — corresponding adjustment posted; the
+//                            offset is safe to retire against a
+//                            non-host party's NDC.
+enum Article6Status {
+  ARTICLE6_STATUS_UNSPECIFIED           = 0;
+  ARTICLE6_STATUS_NOT_APPLICABLE        = 1;
+  ARTICLE6_STATUS_PENDING_AUTHORIZATION = 2;
+  ARTICLE6_STATUS_AUTHORIZED            = 3;
+  ARTICLE6_STATUS_CA_APPLIED            = 4;
+}
+
+// Issuer is a registered authority allowed to mint carbon assets.
+// Same shape as x/eac.Issuer; categories whitelist scopes the
+// issuer to ALLOWANCE / OFFSET / both.
+message Issuer {
+  string id = 1;
+  string did = 2;
+  string display_name = 3;
+  IssuerStatus status = 4;
+  // categories allowed; empty means both. Stored as int32 for
+  // forward-compat with future enum variants.
+  repeated int32 categories = 5;
+  string authority = 6; // bech32 that may sign IssueAllowance / IssueOffset
+  string admin = 7;     // bech32 that may seal / set Article6 / force-retire
+  string created_by = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+}
+
+// Asset is the canonical batch row. One asset id = up to issued_units
+// tCO2e issued under the same project + methodology + vintage +
+// jurisdiction + source serial. ERC-1155 style.
+message Asset {
+  uint64 id = 1;
+  string issuer_id = 2;
+  AssetCategory category = 3;
+  string registry = 4;        // e.g. "EU-ETS", "Verra", "ART"
+  string program = 5;         // e.g. "EUA", "CER", "VCU", "TREES"
+  string project_id = 6;      // upstream project identifier (offsets)
+  string methodology = 7;     // upstream methodology id (offsets)
+  string jurisdiction = 8;    // ISO-3166 alpha-2 / alpha-3 / region
+  uint32 vintage_year = 9;
+  string source_registry = 10;
+  string source_serial = 11;
+  // ccp_labels carries the Core Carbon Principles tags (ICVCM
+  // assessment categories) for OFFSET assets. Free-form strings
+  // length-bounded; a typical entry is "high-integrity:approved".
+  repeated string ccp_labels = 12;
+  // article6_status applies to OFFSET only. ALLOWANCE assets MUST
+  // set this to NOT_APPLICABLE.
+  Article6Status article6_status = 13;
+  // host_country and recipient_country are populated alongside
+  // article6_status to identify the parties to the CA. Empty unless
+  // article6_status > NOT_APPLICABLE.
+  string host_country = 14;
+  string recipient_country = 15;
+  // linked_eac_certificate_id, when non-zero, pins this OFFSET to a
+  // specific x/eac certificate so the keeper can enforce
+  // "1 MWh cannot be both RE-claimed and offset-claimed". The
+  // keeper accumulates a per-EAC running tally and rejects new
+  // issuance that would push the tally above the EAC's issued
+  // units. Empty (=0) means no link.
+  uint64 linked_eac_certificate_id = 16;
+  uint64 issued_units = 17;
+  uint64 retired_units = 18;
+  AssetStatus status = 19;
+  // policy_id is informational metadata. The authoritative binding
+  // for the transfer DSL is in x/policy keyed by
+  // (asset_class="carbon", asset_id=<asset_id_decimal>).
+  string policy_id = 20;
+  string created_by = 21;
+  int64 created_at = 22;
+  int64 updated_at = 23;
+}
+
+// Retirement is the immutable retire record. Each row IS the
+// "retirement NFT" the spec calls for: a unique id, a reference to
+// the underlying Asset, the beneficiary, the purpose, and the
+// retire timestamp. Kept append-only for audit.
+message Retirement {
+  uint64 id = 1;
+  uint64 asset_id = 2;
+  string retirer = 3;
+  string beneficiary = 4;
+  uint64 amount = 5;          // tCO2e units burned
+  string purpose = 6;         // e.g. "scope1", "voluntary", "ndc"
+  string claim = 7;           // e.g. NDC year / CSRD report id
+  string memo = 8;
+  // article6_status_at_retire snapshots the Asset's CA status at
+  // retire time so historical audits don't need to re-derive it.
+  Article6Status article6_status_at_retire = 9;
+  int64 retired_at = 10;
+  int64 height = 11;
+}
+
+// BridgeAttestation pins an asset id to its mirror in an upstream
+// registry. Identical mechanics to x/eac.BridgeAttestation.
+message BridgeAttestation {
+  uint64 asset_id = 1;
+  string source_registry = 2;
+  string source_serial = 3;
+  string oracle_topic_id = 4;
+  uint32 max_staleness_seconds = 5;
+  int64 updated_at = 6;
+}
+
+// Article6Authorization records the host country's authorisation
+// that backs CA_APPLIED state. The keeper writes one of these on
+// SetArticle6Status(AUTHORIZED|CA_APPLIED) and exposes it via
+// query so MRV reports can cite the document hash.
+message Article6Authorization {
+  uint64 asset_id = 1;
+  string host_country = 2;
+  string recipient_country = 3;
+  string document_uri = 4;      // off-chain authorisation document
+  string document_hash = 5;     // sha256 of the document
+  int64 authorized_at = 6;
+}
+
+// Params bound the variable-length state.
+message Params {
+  uint32 max_issuers = 1;
+  uint32 max_categories_per_issuer = 2;
+  uint32 max_units_per_batch = 3;
+  uint32 max_ccp_labels = 4;
+  // require_sanctions_clear toggles the receiver-side sanctions gate
+  // on every transfer / retire / mint path. Default true.
+  bool require_sanctions_clear = 5;
+  // require_article6_for_cross_border, when true, retires of OFFSET
+  // assets whose host_country != beneficiary's-jurisdiction-equivalent
+  // are blocked unless article6_status == CA_APPLIED. Defaults true
+  // so the chain is honest about "no double counting" out of the box.
+  bool require_article6_for_cross_border = 6;
+}

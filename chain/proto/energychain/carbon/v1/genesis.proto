@@ -1,0 +1,31 @@
+syntax = "proto3";
+package energychain.carbon.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/carbon/v1/types.proto";
+
+option go_package = "energychain/x/carbon/types";
+
+message Balance {
+  uint64 asset_id = 1;
+  string account = 2;
+  uint64 amount = 3;
+}
+
+message EACClaim {
+  uint64 eac_certificate_id = 1;
+  uint64 claimed_units = 2;
+}
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated Issuer issuers = 2 [(gogoproto.nullable) = false];
+  repeated Asset assets = 3 [(gogoproto.nullable) = false];
+  repeated Balance balances = 4 [(gogoproto.nullable) = false];
+  repeated Retirement retirements = 5 [(gogoproto.nullable) = false];
+  repeated Article6Authorization authorizations = 6 [(gogoproto.nullable) = false];
+  repeated BridgeAttestation bridges = 7 [(gogoproto.nullable) = false];
+  repeated EACClaim eac_claims = 8 [(gogoproto.nullable) = false];
+  uint64 asset_id_seq = 9;
+  uint64 retirement_id_seq = 10;
+}
