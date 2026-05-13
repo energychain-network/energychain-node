@@ -150,6 +150,9 @@ import (
 	sanctionsmodule "energychain/x/sanctions"
 	sanctionskeeper "energychain/x/sanctions/keeper"
 	sanctionstypes "energychain/x/sanctions/types"
+	stablecoinmodule "energychain/x/stablecoin"
+	stablecoinkeeper "energychain/x/stablecoin/keeper"
+	stablecointypes "energychain/x/stablecoin/types"
 )
 
 func init() {
@@ -216,9 +219,10 @@ type EVMD struct {
 	// Custom energy-chain keepers
 	OracleKeeper oraclekeeper.Keeper
 	AuditKeeper  auditkeeper.Keeper
-	MeterKeeper     meterkeeper.Keeper
-	PolicyKeeper    policykeeper.Keeper
-	SanctionsKeeper sanctionskeeper.Keeper
+	MeterKeeper      meterkeeper.Keeper
+	PolicyKeeper     policykeeper.Keeper
+	SanctionsKeeper  sanctionskeeper.Keeper
+	StablecoinKeeper stablecoinkeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -297,7 +301,7 @@ func NewEnergyChainApp(
 		evmtypes.StoreKey, feemarkettypes.StoreKey, erc20types.StoreKey,
 		// Custom energy-chain store keys
 		oracletypes.StoreKey, audittypes.StoreKey, metertypes.StoreKey, policytypes.StoreKey,
-		sanctionstypes.StoreKey,
+		sanctionstypes.StoreKey, stablecointypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -600,6 +604,22 @@ func NewEnergyChainApp(
 	// PolicyKeeper now consumes x/sanctions live; x/did + x/audit hooks
 	// remain nil pending later wiring.
 	app.PolicyKeeper = policykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[policytypes.StoreKey]), authAddr, nil, app.SanctionsKeeper, nil)
+	// StablecoinKeeper depends on x/policy (transfer DSL), x/sanctions
+	// (defense-in-depth address gate), and x/oracle (reserve attestation
+	// gate on mint, via a thin adapter that flattens the AggregatedValue
+	// shape into the keeper's narrow expected interface). x/did +
+	// x/audit hooks remain nil pending later wiring; the keeper is
+	// nil-safe and falls through.
+	app.StablecoinKeeper = stablecoinkeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[stablecointypes.StoreKey]),
+		authAddr,
+		app.PolicyKeeper,
+		app.SanctionsKeeper,
+		nil,
+		stablecoinOracleAdapter{k: app.OracleKeeper},
+		nil,
+	)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
@@ -697,6 +717,7 @@ func NewEnergyChainApp(
 		metermodule.NewAppModule(appCodec, app.MeterKeeper),
 		policymodule.NewAppModule(appCodec, app.PolicyKeeper),
 		sanctionsmodule.NewAppModule(appCodec, app.SanctionsKeeper),
+		stablecoinmodule.NewAppModule(appCodec, app.StablecoinKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -747,7 +768,7 @@ func NewEnergyChainApp(
 		vestingtypes.ModuleName,
 		// Custom energy-chain modules (no-op begin blockers)
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
-		sanctionstypes.ModuleName,
+		sanctionstypes.ModuleName, stablecointypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -770,7 +791,7 @@ func NewEnergyChainApp(
 		vestingtypes.ModuleName,
 		// Custom energy-chain modules (no-op end blockers)
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
-		sanctionstypes.ModuleName,
+		sanctionstypes.ModuleName, stablecointypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -795,7 +816,7 @@ func NewEnergyChainApp(
 		feegrant.ModuleName, upgradetypes.ModuleName, vestingtypes.ModuleName,
 		// Custom energy-chain modules
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
-		sanctionstypes.ModuleName,
+		sanctionstypes.ModuleName, stablecointypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)

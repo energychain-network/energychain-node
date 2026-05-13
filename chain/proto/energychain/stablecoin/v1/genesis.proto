@@ -1,0 +1,39 @@
+syntax = "proto3";
+package energychain.stablecoin.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/stablecoin/v1/types.proto";
+
+option go_package = "energychain/x/stablecoin/types";
+
+message Balance {
+  string denom_id = 1;
+  string account = 2;
+  uint64 amount = 3;
+}
+
+message Allowance {
+  string denom_id = 1;
+  string owner = 2;
+  string spender = 3;
+  uint64 amount = 4;
+}
+
+message Supply {
+  string denom_id = 1;
+  uint64 total_supply = 2;
+}
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated Denom denoms = 2 [(gogoproto.nullable) = false];
+  repeated Issuer issuers = 3 [(gogoproto.nullable) = false];
+  repeated MintQuota quotas = 4 [(gogoproto.nullable) = false];
+  repeated DenomReserve reserves = 5 [(gogoproto.nullable) = false];
+  repeated Balance balances = 6 [(gogoproto.nullable) = false];
+  repeated Allowance allowances = 7 [(gogoproto.nullable) = false];
+  repeated AccountFlags flags = 8 [(gogoproto.nullable) = false];
+  repeated Supply supplies = 9 [(gogoproto.nullable) = false];
+  repeated Redemption redemptions = 10 [(gogoproto.nullable) = false];
+  uint64 redemption_id_seq = 11;
+}

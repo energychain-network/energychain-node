@@ -1,0 +1,177 @@
+syntax = "proto3";
+package energychain.stablecoin.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/stablecoin/types";
+
+// DenomStatus governs a registered stablecoin currency:
+//
+//   ACTIVE  — mints, burns, transfers all permitted.
+//   PAUSED  — transfers + mints refused; burns + force operations
+//             still allowed so issuers can wind down a mis-issued
+//             denom or comply with a regulator's hold order.
+//   RETIRED — no further state changes accepted; reserve linkage
+//             frozen. Used to permanently sunset a currency after
+//             every holder has redeemed.
+enum DenomStatus {
+  DENOM_STATUS_UNSPECIFIED = 0;
+  DENOM_STATUS_ACTIVE      = 1;
+  DENOM_STATUS_PAUSED      = 2;
+  DENOM_STATUS_RETIRED     = 3;
+}
+
+// IssuerStatus mirrors DenomStatus for the issuer entity:
+//
+//   ACTIVE   — may mint up to its quota and operate force operations
+//   SUSPENDED — mint refused; force ops + burns still allowed (audit)
+//   REVOKED  — issuer is dead; force ops also refused
+enum IssuerStatus {
+  ISSUER_STATUS_UNSPECIFIED = 0;
+  ISSUER_STATUS_ACTIVE      = 1;
+  ISSUER_STATUS_SUSPENDED   = 2;
+  ISSUER_STATUS_REVOKED     = 3;
+}
+
+// RedemptionStatus tracks the off-chain settlement queue:
+//
+//   PENDING   — holder has burned tokens, awaiting fiat payout
+//   FULFILLED — issuer recorded payout (with off-chain reference)
+//   CANCELLED — holder withdrew or issuer rejected; tokens were
+//               re-minted to the holder when they cancelled
+enum RedemptionStatus {
+  REDEMPTION_STATUS_UNSPECIFIED = 0;
+  REDEMPTION_STATUS_PENDING     = 1;
+  REDEMPTION_STATUS_FULFILLED   = 2;
+  REDEMPTION_STATUS_CANCELLED   = 3;
+}
+
+// Denom is a registered stablecoin currency. Each denom has its own
+// independent supply, issuer set, balance ledger, and reserve linkage
+// — the spec calls this "各自独立合约空间" (separate contract spaces
+// per currency).
+message Denom {
+  string id = 1;             // canonical id, e.g. "usd"
+  string symbol = 2;         // display symbol, e.g. "scnUSD"
+  string name = 3;           // long name, e.g. "EnergyChain USD"
+  uint32 decimals = 4;       // unit-of-account decimals (typically 6)
+  string jurisdiction = 5;   // ISO-3166 alpha-2 (or "" for global)
+  DenomStatus status = 6;
+  // policy_id binds this denom to an x/policy DSL policy. Empty = no
+  // policy (only baseline freeze + sanctions checks fire on transfer).
+  string policy_id = 7;
+  string created_by = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+}
+
+// Issuer is a registered minting authority. The issuer is identified
+// off-chain by its DID; on-chain, mint operations are authorised by
+// addresses listed in `mint_authorities`.
+//
+// Multi-sig is achieved by wrapping the mint authority address in an
+// upstream `x/auth` multisig account — the keeper checks AccessControl
+// at single-address granularity.
+message Issuer {
+  string id = 1;
+  string did = 2;
+  string display_name = 3;
+  IssuerStatus status = 4;
+  // mint_authorities are the bech32 addresses that may sign MsgMint
+  // for any denom under this issuer's quota. Up to a small bound
+  // (Params.max_mint_authorities_per_issuer) so the linear contains
+  // check stays cheap.
+  repeated string mint_authorities = 5;
+  // admin is the bech32 with permission to call freeze / blacklist /
+  // force operations. Defaults to the registering authority.
+  string admin = 6;
+  string created_by = 7;
+  int64 created_at = 8;
+  int64 updated_at = 9;
+}
+
+// MintQuota caps how much an issuer may have outstanding for a given
+// denom. Outstanding shrinks on burn / redemption; ceiling is set by
+// governance.
+message MintQuota {
+  string issuer_id = 1;
+  string denom_id = 2;
+  uint64 ceiling = 3;
+  uint64 outstanding = 4;
+  // mint_paused gives an issuer a circuit-breaker between governance
+  // ceiling adjustments — they can pause their own minting without
+  // touching the global denom or the on-chain quota.
+  bool mint_paused = 5;
+  int64 updated_at = 6;
+}
+
+// AccountFlags are per-(denom, account) compliance bits. An account
+// flagged frozen cannot send or receive that denom; blacklisted is
+// the harder variant that also bars redemption (used when an address
+// is irrecoverably tainted).
+message AccountFlags {
+  string denom_id = 1;
+  string account = 2;
+  bool frozen = 3;
+  bool blacklisted = 4;
+  string freeze_reason = 5;
+  string blacklist_reason = 6;
+  int64 frozen_at = 7;
+  int64 blacklisted_at = 8;
+  string updated_by = 9;
+}
+
+// DenomReserve binds a denom to an x/oracle reserve attestation
+// topic. The keeper consults the topic on every mint to enforce the
+// `outstanding * 10000 <= reserve_value * required_ratio_bps`
+// invariant.
+message DenomReserve {
+  string denom_id = 1;
+  // oracle_topic_id resolves to an x/oracle Topic of kind RESERVE.
+  // The aggregated value is consumed as the on-chain witness.
+  string oracle_topic_id = 2;
+  // required_ratio_bps is the minimum reserve coverage in basis
+  // points (10_000 = 100%). 10_500 means 105% over-collateralised.
+  uint32 required_ratio_bps = 3;
+  // max_staleness_seconds bounds how old the latest aggregated value
+  // may be before mints fail closed.
+  uint32 max_staleness_seconds = 4;
+  int64 updated_at = 5;
+}
+
+// Redemption is a single off-chain settlement request. Tokens are
+// burned at request time so they cannot move while in queue; on
+// fulfil the issuer records the off-chain payout reference; on
+// cancel the tokens are re-minted to the holder.
+message Redemption {
+  uint64 id = 1;
+  string denom_id = 2;
+  string holder = 3;
+  string issuer_id = 4;
+  uint64 amount = 5;
+  RedemptionStatus status = 6;
+  // payout_ref is the issuer's off-chain settlement reference (wire
+  // tx hash, ACH trace, …). Filled in on Fulfill.
+  string payout_ref = 7;
+  string memo = 8;
+  string cancel_reason = 9;
+  int64 requested_at = 10;
+  int64 resolved_at = 11;
+}
+
+// Params governs the variable-length state collections.
+message Params {
+  uint32 max_denoms = 1;
+  uint32 max_issuers = 2;
+  uint32 max_mint_authorities_per_issuer = 3;
+  uint32 max_redemptions_pending_per_holder = 4;
+  // mint_requires_reserve toggles the reserve-attestation gate. When
+  // true, every MsgMint consults the oracle and refuses if the
+  // attested reserve does not cover the post-mint outstanding at
+  // required_ratio_bps. Default true; flip to false for testnets.
+  bool mint_requires_reserve = 5;
+  // require_kyc_credential, when non-empty, names a credential type
+  // (e.g. "urn:vc:kyc:passed") every transfer counterparty MUST hold
+  // — a defense-in-depth gate independent of x/policy.
+  string require_kyc_credential = 6;
+}

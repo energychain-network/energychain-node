@@ -1,0 +1,324 @@
+syntax = "proto3";
+package energychain.stablecoin.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/stablecoin/v1/types.proto";
+
+option go_package = "energychain/x/stablecoin/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // ---- Denom lifecycle (governance) ----
+  rpc RegisterDenom(MsgRegisterDenom) returns (MsgRegisterDenomResponse);
+  rpc UpdateDenom(MsgUpdateDenom) returns (MsgUpdateDenomResponse);
+  rpc PauseDenom(MsgPauseDenom) returns (MsgPauseDenomResponse);
+  rpc ResumeDenom(MsgResumeDenom) returns (MsgResumeDenomResponse);
+  rpc RetireDenom(MsgRetireDenom) returns (MsgRetireDenomResponse);
+
+  // ---- Issuer lifecycle (governance) ----
+  rpc RegisterIssuer(MsgRegisterIssuer) returns (MsgRegisterIssuerResponse);
+  rpc UpdateIssuer(MsgUpdateIssuer) returns (MsgUpdateIssuerResponse);
+  rpc SuspendIssuer(MsgSuspendIssuer) returns (MsgSuspendIssuerResponse);
+  rpc RevokeIssuer(MsgRevokeIssuer) returns (MsgRevokeIssuerResponse);
+
+  // ---- Quotas + reserves ----
+  rpc SetMintQuota(MsgSetMintQuota) returns (MsgSetMintQuotaResponse);
+  rpc SetMintPaused(MsgSetMintPaused) returns (MsgSetMintPausedResponse);
+  rpc SetReserveRequirement(MsgSetReserveRequirement) returns (MsgSetReserveRequirementResponse);
+
+  // ---- Hot path ----
+  rpc Mint(MsgMint) returns (MsgMintResponse);
+  rpc Burn(MsgBurn) returns (MsgBurnResponse);
+  rpc Transfer(MsgTransfer) returns (MsgTransferResponse);
+  rpc Approve(MsgApprove) returns (MsgApproveResponse);
+  rpc TransferFrom(MsgTransferFrom) returns (MsgTransferFromResponse);
+
+  // ---- Compliance + force operations (issuer admin) ----
+  rpc Freeze(MsgFreeze) returns (MsgFreezeResponse);
+  rpc Unfreeze(MsgUnfreeze) returns (MsgUnfreezeResponse);
+  rpc Blacklist(MsgBlacklist) returns (MsgBlacklistResponse);
+  rpc Unblacklist(MsgUnblacklist) returns (MsgUnblacklistResponse);
+  rpc ForceTransfer(MsgForceTransfer) returns (MsgForceTransferResponse);
+
+  // ---- Redemption queue ----
+  rpc RequestRedemption(MsgRequestRedemption) returns (MsgRequestRedemptionResponse);
+  rpc FulfillRedemption(MsgFulfillRedemption) returns (MsgFulfillRedemptionResponse);
+  rpc CancelRedemption(MsgCancelRedemption) returns (MsgCancelRedemptionResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+// ---- Denom ----
+
+message MsgRegisterDenom {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string symbol = 3;
+  string name = 4;
+  uint32 decimals = 5;
+  string jurisdiction = 6;
+  string policy_id = 7;
+}
+message MsgRegisterDenomResponse {}
+
+message MsgUpdateDenom {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string symbol = 3;
+  string name = 4;
+  string jurisdiction = 5;
+  string policy_id = 6;
+}
+message MsgUpdateDenomResponse {}
+
+message MsgPauseDenom {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgPauseDenomResponse {}
+
+message MsgResumeDenom {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgResumeDenomResponse {}
+
+message MsgRetireDenom {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgRetireDenomResponse {}
+
+// ---- Issuer ----
+
+message MsgRegisterIssuer {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string did = 3;
+  string display_name = 4;
+  repeated string mint_authorities = 5;
+  string admin = 6;
+}
+message MsgRegisterIssuerResponse {}
+
+message MsgUpdateIssuer {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string display_name = 3;
+  repeated string mint_authorities = 4;
+  string admin = 5;
+}
+message MsgUpdateIssuerResponse {}
+
+message MsgSuspendIssuer {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgSuspendIssuerResponse {}
+
+message MsgRevokeIssuer {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string reason = 3;
+}
+message MsgRevokeIssuerResponse {}
+
+// ---- Quotas / reserves ----
+
+message MsgSetMintQuota {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string issuer_id = 2;
+  string denom_id = 3;
+  uint64 ceiling = 4;
+}
+message MsgSetMintQuotaResponse {}
+
+// MsgSetMintPaused lets the issuer admin pause/unpause minting on a
+// single quota row. Independent of governance ceiling adjustments.
+message MsgSetMintPaused {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string issuer_id = 2;
+  string denom_id = 3;
+  bool paused = 4;
+  string reason = 5;
+}
+message MsgSetMintPausedResponse {}
+
+message MsgSetReserveRequirement {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string denom_id = 2;
+  string oracle_topic_id = 3;
+  uint32 required_ratio_bps = 4;
+  uint32 max_staleness_seconds = 5;
+}
+message MsgSetReserveRequirementResponse {}
+
+// ---- Hot path ----
+
+message MsgMint {
+  option (cosmos.msg.v1.signer) = "minter";
+  string minter = 1;       // must appear in issuer.mint_authorities
+  string issuer_id = 2;
+  string denom_id = 3;
+  string recipient = 4;
+  uint64 amount = 5;
+  string memo = 6;
+}
+message MsgMintResponse {
+  uint64 new_outstanding = 1;
+}
+
+message MsgBurn {
+  option (cosmos.msg.v1.signer) = "holder";
+  string holder = 1;
+  string denom_id = 2;
+  uint64 amount = 3;
+  string memo = 4;
+}
+message MsgBurnResponse {
+  uint64 new_total_supply = 1;
+}
+
+message MsgTransfer {
+  option (cosmos.msg.v1.signer) = "from";
+  string from = 1;
+  string to = 2;
+  string denom_id = 3;
+  uint64 amount = 4;
+  string memo = 5;
+}
+message MsgTransferResponse {}
+
+message MsgApprove {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  string spender = 2;
+  string denom_id = 3;
+  uint64 amount = 4;
+}
+message MsgApproveResponse {}
+
+message MsgTransferFrom {
+  option (cosmos.msg.v1.signer) = "spender";
+  string spender = 1;
+  string from = 2;
+  string to = 3;
+  string denom_id = 4;
+  uint64 amount = 5;
+  string memo = 6;
+}
+message MsgTransferFromResponse {}
+
+// ---- Compliance / force ops ----
+
+message MsgFreeze {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string issuer_id = 2;
+  string denom_id = 3;
+  string account = 4;
+  string reason = 5;
+}
+message MsgFreezeResponse {}
+
+message MsgUnfreeze {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string issuer_id = 2;
+  string denom_id = 3;
+  string account = 4;
+  string reason = 5;
+}
+message MsgUnfreezeResponse {}
+
+message MsgBlacklist {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string issuer_id = 2;
+  string denom_id = 3;
+  string account = 4;
+  string reason = 5;
+}
+message MsgBlacklistResponse {}
+
+message MsgUnblacklist {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string issuer_id = 2;
+  string denom_id = 3;
+  string account = 4;
+  string reason = 5;
+}
+message MsgUnblacklistResponse {}
+
+message MsgForceTransfer {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string issuer_id = 2;
+  string denom_id = 3;
+  string from = 4;
+  string to = 5;
+  uint64 amount = 6;
+  string reason = 7;
+}
+message MsgForceTransferResponse {}
+
+// ---- Redemption ----
+
+message MsgRequestRedemption {
+  option (cosmos.msg.v1.signer) = "holder";
+  string holder = 1;
+  string issuer_id = 2;
+  string denom_id = 3;
+  uint64 amount = 4;
+  string memo = 5;
+}
+message MsgRequestRedemptionResponse {
+  uint64 redemption_id = 1;
+}
+
+message MsgFulfillRedemption {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  uint64 redemption_id = 2;
+  string payout_ref = 3;
+}
+message MsgFulfillRedemptionResponse {}
+
+message MsgCancelRedemption {
+  // signer is either the holder OR the issuer admin. The keeper
+  // checks the actual identity.
+  option (cosmos.msg.v1.signer) = "signer";
+  string signer = 1;
+  uint64 redemption_id = 2;
+  string reason = 3;
+}
+message MsgCancelRedemptionResponse {}
+
+// ---- Params ----
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}
