@@ -347,6 +347,24 @@ func (k Keeper) debitBalance(ctx sdk.Context, denomID, account string, amount ui
 	return k.setSupply(ctx, denomID, nextSupply)
 }
 
+// MoveBalance is the public peer-to-peer transfer entrypoint used by
+// other modules (e.g. x/rwa for dividend payouts and redemption
+// settlements). It debits `from` and credits `to` without changing
+// the denom supply, mirroring moveBalance but skipping x/stablecoin's
+// own ComplianceCheck pipeline. Callers MUST run their own gates
+// (sanctions / freeze / KYC at the rwa-token layer) before invoking
+// MoveBalance — the function only enforces that the denom exists,
+// the source has enough balance, and the credit does not overflow.
+//
+// Use plain user transfers via MsgTransfer / ComplianceCheck; this is
+// reserved for module-controlled payouts.
+func (k Keeper) MoveBalance(ctx sdk.Context, denomID, from, to string, amount uint64) error {
+	if !k.HasDenom(ctx, denomID) {
+		return fmt.Errorf("denom %q not registered", denomID)
+	}
+	return k.moveBalance(ctx, denomID, from, to, amount)
+}
+
 // moveBalance is debit+credit without touching supply (transfer path).
 func (k Keeper) moveBalance(ctx sdk.Context, denomID, from, to string, amount uint64) error {
 	if amount == 0 {

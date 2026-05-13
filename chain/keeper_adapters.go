@@ -7,6 +7,7 @@ import (
 	eackeeper "energychain/x/eac/keeper"
 	eactypes "energychain/x/eac/types"
 	oraclekeeper "energychain/x/oracle/keeper"
+	stablecoinkeeper "energychain/x/stablecoin/keeper"
 )
 
 // stablecoinOracleAdapter bridges the rich x/oracle.AggregatedValue
@@ -93,4 +94,27 @@ func (a carbonOracleAdapter) GetAggregatedReserve(ctx sdk.Context, topicID strin
 		return 0, 0, false
 	}
 	return v.Value, v.ComputedTime, true
+}
+
+// rwaStablecoinAdapter is the thin x/rwa → x/stablecoin bridge for
+// dividend payouts and redemption settlements. It exposes only the
+// HasDenom + Move surface that x/rwa.types.StablecoinKeeper requires.
+//
+// Move() invokes x/stablecoin's MoveBalance which intentionally
+// bypasses the per-account compliance pipeline (sanctions / freeze /
+// blacklist) at the stablecoin layer; the x/rwa keeper enforces all
+// such gates at the RWA-token level before invoking Move(), and the
+// stablecoin module-controlled distribution pool account is not a
+// real holder so applying its own freeze checks would be
+// inappropriate.
+type rwaStablecoinAdapter struct {
+	k stablecoinkeeper.Keeper
+}
+
+func (a rwaStablecoinAdapter) HasDenom(ctx sdk.Context, denomID string) bool {
+	return a.k.HasDenom(ctx, denomID)
+}
+
+func (a rwaStablecoinAdapter) Move(ctx sdk.Context, denomID, from, to string, amount uint64) error {
+	return a.k.MoveBalance(ctx, denomID, from, to, amount)
 }

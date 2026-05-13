@@ -156,6 +156,9 @@ import (
 	policymodule "energychain/x/policy"
 	policykeeper "energychain/x/policy/keeper"
 	policytypes "energychain/x/policy/types"
+	rwamodule "energychain/x/rwa"
+	rwakeeper "energychain/x/rwa/keeper"
+	rwatypes "energychain/x/rwa/types"
 	sanctionsmodule "energychain/x/sanctions"
 	sanctionskeeper "energychain/x/sanctions/keeper"
 	sanctionstypes "energychain/x/sanctions/types"
@@ -235,6 +238,7 @@ type EVMD struct {
 	EACKeeper        eackeeper.Keeper
 	CarbonKeeper     carbonkeeper.Keeper
 	CFE247Keeper     cfe247keeper.Keeper
+	RWAKeeper        rwakeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -314,7 +318,7 @@ func NewEnergyChainApp(
 		// Custom energy-chain store keys
 		oracletypes.StoreKey, audittypes.StoreKey, metertypes.StoreKey, policytypes.StoreKey,
 		sanctionstypes.StoreKey, stablecointypes.StoreKey, eactypes.StoreKey,
-		carbontypes.StoreKey, cfe247types.StoreKey,
+		carbontypes.StoreKey, cfe247types.StoreKey, rwatypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -673,6 +677,21 @@ func NewEnergyChainApp(
 		app.SanctionsKeeper,
 		nil,
 	)
+	// RWAKeeper plumbs:
+	//   - x/policy   for transfer DSL gating (compliance pipeline)
+	//   - x/sanctions for the address-only blacklist
+	//   - x/stablecoin (via rwaStablecoinAdapter) for dividend payouts
+	//     and redemption settlement legs
+	// Audit hook left nil pending wider M2 audit wiring.
+	app.RWAKeeper = rwakeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[rwatypes.StoreKey]),
+		authAddr,
+		app.PolicyKeeper,
+		app.SanctionsKeeper,
+		rwaStablecoinAdapter{k: app.StablecoinKeeper},
+		nil,
+	)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
@@ -774,6 +793,7 @@ func NewEnergyChainApp(
 		eacmodule.NewAppModule(appCodec, app.EACKeeper),
 		carbonmodule.NewAppModule(appCodec, app.CarbonKeeper),
 		cfe247module.NewAppModule(appCodec, app.CFE247Keeper),
+		rwamodule.NewAppModule(appCodec, app.RWAKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -825,7 +845,7 @@ func NewEnergyChainApp(
 		// Custom energy-chain modules (no-op begin blockers)
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
-		carbontypes.ModuleName, cfe247types.ModuleName,
+		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -849,7 +869,7 @@ func NewEnergyChainApp(
 		// Custom energy-chain modules (no-op end blockers)
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
-		carbontypes.ModuleName, cfe247types.ModuleName,
+		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -875,7 +895,7 @@ func NewEnergyChainApp(
 		// Custom energy-chain modules
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
-		carbontypes.ModuleName, cfe247types.ModuleName,
+		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)

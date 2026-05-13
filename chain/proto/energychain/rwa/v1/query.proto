@@ -1,0 +1,163 @@
+syntax = "proto3";
+package energychain.rwa.v1;
+
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/rwa/v1/types.proto";
+
+option go_package = "energychain/x/rwa/types";
+
+service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+
+  rpc Issuer(QueryIssuerRequest) returns (QueryIssuerResponse);
+  rpc Issuers(QueryIssuersRequest) returns (QueryIssuersResponse);
+
+  rpc Token(QueryTokenRequest) returns (QueryTokenResponse);
+  rpc TokenBySymbol(QueryTokenBySymbolRequest) returns (QueryTokenBySymbolResponse);
+  rpc Tokens(QueryTokensRequest) returns (QueryTokensResponse);
+  rpc TokensByIssuer(QueryTokensByIssuerRequest) returns (QueryTokensByIssuerResponse);
+
+  rpc Balance(QueryBalanceRequest) returns (QueryBalanceResponse);
+  rpc BalancesByOwner(QueryBalancesByOwnerRequest) returns (QueryBalancesByOwnerResponse);
+  rpc Transferable(QueryTransferableRequest) returns (QueryTransferableResponse);
+  rpc FrozenBalance(QueryFrozenBalanceRequest) returns (QueryFrozenBalanceResponse);
+  rpc LockupsByHolder(QueryLockupsByHolderRequest) returns (QueryLockupsByHolderResponse);
+
+  rpc AccountFlags(QueryAccountFlagsRequest) returns (QueryAccountFlagsResponse);
+
+  rpc Snapshot(QuerySnapshotRequest) returns (QuerySnapshotResponse);
+  rpc SnapshotsByToken(QuerySnapshotsByTokenRequest) returns (QuerySnapshotsByTokenResponse);
+  rpc SnapshotBalance(QuerySnapshotBalanceRequest) returns (QuerySnapshotBalanceResponse);
+
+  rpc Distribution(QueryDistributionRequest) returns (QueryDistributionResponse);
+  rpc DistributionsByToken(QueryDistributionsByTokenRequest) returns (QueryDistributionsByTokenResponse);
+  rpc DistributionClaim(QueryDistributionClaimRequest) returns (QueryDistributionClaimResponse);
+
+  rpc Redemption(QueryRedemptionRequest) returns (QueryRedemptionResponse);
+  rpc RedemptionsByHolder(QueryRedemptionsByHolderRequest) returns (QueryRedemptionsByHolderResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+
+message QueryIssuerRequest { string id = 1; }
+message QueryIssuerResponse { Issuer issuer = 1 [(gogoproto.nullable) = false]; }
+
+message QueryIssuersRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryIssuersResponse {
+  repeated Issuer issuers = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryTokenRequest { uint64 id = 1; }
+message QueryTokenResponse { Token token = 1 [(gogoproto.nullable) = false]; }
+
+message QueryTokenBySymbolRequest { string symbol = 1; }
+message QueryTokenBySymbolResponse { Token token = 1 [(gogoproto.nullable) = false]; }
+
+message QueryTokensRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryTokensResponse {
+  repeated Token tokens = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryTokensByIssuerRequest {
+  string issuer_id = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryTokensByIssuerResponse {
+  repeated Token tokens = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryBalanceRequest { uint64 token_id = 1; string account = 2; }
+message QueryBalanceResponse { uint64 balance = 1; }
+
+message QueryBalancesByOwnerRequest {
+  string owner = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message OwnedBalance { uint64 token_id = 1; uint64 balance = 2; }
+message QueryBalancesByOwnerResponse {
+  repeated OwnedBalance balances = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryTransferableRequest { uint64 token_id = 1; string account = 2; }
+message QueryTransferableResponse {
+  uint64 balance = 1;
+  uint64 frozen = 2;
+  uint64 locked = 3;
+  uint64 transferable = 4;
+}
+
+message QueryFrozenBalanceRequest { uint64 token_id = 1; string account = 2; }
+message QueryFrozenBalanceResponse { FrozenBalance frozen = 1 [(gogoproto.nullable) = false]; }
+
+message QueryLockupsByHolderRequest {
+  uint64 token_id = 1;
+  string account = 2;
+  cosmos.base.query.v1beta1.PageRequest pagination = 3;
+}
+message QueryLockupsByHolderResponse {
+  repeated Lockup lockups = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryAccountFlagsRequest { uint64 token_id = 1; string account = 2; }
+message QueryAccountFlagsResponse { AccountFlags flags = 1 [(gogoproto.nullable) = false]; }
+
+message QuerySnapshotRequest { uint64 id = 1; }
+message QuerySnapshotResponse { SnapshotMeta snapshot = 1 [(gogoproto.nullable) = false]; }
+
+message QuerySnapshotsByTokenRequest {
+  uint64 token_id = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QuerySnapshotsByTokenResponse {
+  repeated SnapshotMeta snapshots = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QuerySnapshotBalanceRequest {
+  uint64 snapshot_id = 1;
+  string account = 2;
+}
+message QuerySnapshotBalanceResponse {
+  uint64 amount = 1;
+}
+
+message QueryDistributionRequest { uint64 id = 1; }
+message QueryDistributionResponse { Distribution distribution = 1 [(gogoproto.nullable) = false]; }
+
+message QueryDistributionsByTokenRequest {
+  uint64 token_id = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryDistributionsByTokenResponse {
+  repeated Distribution distributions = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryDistributionClaimRequest {
+  uint64 distribution_id = 1;
+  string account = 2;
+}
+message QueryDistributionClaimResponse {
+  DistributionClaim claim = 1 [(gogoproto.nullable) = false];
+  bool claimed = 2;
+}
+
+message QueryRedemptionRequest { uint64 id = 1; }
+message QueryRedemptionResponse { RedemptionRequest redemption = 1 [(gogoproto.nullable) = false]; }
+
+message QueryRedemptionsByHolderRequest {
+  string holder = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryRedemptionsByHolderResponse {
+  repeated RedemptionRequest redemptions = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}

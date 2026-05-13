@@ -1,0 +1,234 @@
+syntax = "proto3";
+package energychain.rwa.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/rwa/types";
+
+// AssetClass enumerates the families of real-world assets the
+// module is designed to tokenise. The keeper does not enforce
+// class-specific behaviour beyond carrying the tag through to
+// events / DSL inputs; classification is left to off-chain
+// disclosure documents.
+enum AssetClass {
+  ASSET_CLASS_UNSPECIFIED      = 0;
+  ASSET_CLASS_PPA              = 1;  // PPA cashflow rights
+  ASSET_CLASS_VPPA             = 2;  // virtual PPA
+  ASSET_CLASS_GREEN_BOND       = 3;  // green / sustainability bond
+  ASSET_CLASS_PROJECT_EQUITY   = 4;  // power plant / storage equity
+  ASSET_CLASS_STORAGE_SHARE    = 5;  // co-owned battery share
+  ASSET_CLASS_RECEIVABLE       = 6;  // generation receivable
+  ASSET_CLASS_FUND_UNIT        = 7;  // fund unit
+  ASSET_CLASS_OTHER            = 99;
+}
+
+enum IssuerStatus {
+  ISSUER_STATUS_UNSPECIFIED = 0;
+  ISSUER_STATUS_ACTIVE      = 1;
+  ISSUER_STATUS_SUSPENDED   = 2;
+  ISSUER_STATUS_REVOKED     = 3;
+}
+
+enum TokenStatus {
+  TOKEN_STATUS_UNSPECIFIED = 0;
+  TOKEN_STATUS_ACTIVE      = 1;
+  TOKEN_STATUS_PAUSED      = 2;  // refuses transfers, allows force / freeze ops
+  TOKEN_STATUS_TERMINATED  = 3;  // terminal; only redemptions allowed
+}
+
+enum DistributionStatus {
+  DISTRIBUTION_STATUS_UNSPECIFIED = 0;
+  DISTRIBUTION_STATUS_CREATED     = 1; // declared, not yet funded
+  DISTRIBUTION_STATUS_FUNDED      = 2; // settlement_amount escrowed
+  DISTRIBUTION_STATUS_FINALIZED   = 3; // remainder swept back to issuer
+}
+
+enum RedemptionStatus {
+  REDEMPTION_STATUS_UNSPECIFIED = 0;
+  REDEMPTION_STATUS_PENDING     = 1; // waiting for eligible_at
+  REDEMPTION_STATUS_SETTLED     = 2;
+  REDEMPTION_STATUS_CANCELLED   = 3;
+}
+
+// Issuer is the registered ERC-3643 / ERC-1400-style token issuer.
+// Created by governance; carries an authority address that may mint
+// / force / freeze and an admin address that may rotate metadata.
+message Issuer {
+  string id = 1;
+  string did = 2;
+  string display_name = 3;
+  IssuerStatus status = 4;
+  string authority = 5;          // bech32 — controller for mint / force / freeze
+  string admin = 6;              // bech32 — may update tokens / take snapshots
+  string created_by = 7;
+  int64 created_at = 8;
+  int64 updated_at = 9;
+}
+
+// Token is one fungible RWA series. The settlement_denom names the
+// x/stablecoin denom the issuer uses to distribute dividends and
+// pay redemptions; the keeper refuses operations whose stablecoin
+// hop would land on an unknown denom.
+message Token {
+  uint64 id = 1;
+  string issuer_id = 2;
+  string symbol = 3;             // unique within the chain
+  string display_name = 4;
+  uint32 decimals = 5;           // informational; balances are integer units
+  AssetClass asset_class = 6;
+  string jurisdiction = 7;       // ISO-3166 / region
+  string policy_id = 8;          // x/policy DSL id used for transfers
+  string settlement_denom = 9;   // x/stablecoin denom for dividend / redemption payouts
+  // per_holder_cap caps any single holder's balance after a transfer
+  // / mint / force-transfer. 0 disables the cap.
+  uint64 per_holder_cap = 10;
+  // total_supply_cap caps the cumulative supply. 0 disables the cap.
+  uint64 total_supply_cap = 11;
+  // redemption_rate is the settlement_denom amount paid per RWA unit
+  // at redemption time, scaled by REDEMPTION_RATE_SCALE (1e6). 0
+  // disables the redemption pathway entirely.
+  uint64 redemption_rate = 12;
+  // redemption_delay_seconds is the T+N window between
+  // RequestRedemption and SettleRedemption.
+  int64 redemption_delay_seconds = 13;
+  // require_kyc_holders, when true, refuses transfers / mints to an
+  // address that has not had a KycCleared flag set by the issuer
+  // admin (keeper-managed flag in the AccountFlags collection).
+  bool require_kyc_holders = 14;
+  TokenStatus status = 15;
+  string created_by = 16;
+  int64 created_at = 17;
+  int64 updated_at = 18;
+  uint64 total_supply = 19;
+}
+
+// AccountFlags carries per-(token, account) compliance bits the
+// issuer admin sets. KycCleared is the only flag enforced by the
+// keeper today; the rest are surfaced for the DSL.
+message AccountFlags {
+  uint64 token_id = 1;
+  string account = 2;
+  bool kyc_cleared = 3;
+  bool accredited = 4;
+  string jurisdiction = 5;
+  int64 updated_at = 6;
+}
+
+// FrozenBalance partially freezes a holder's balance. amount cannot
+// exceed the holder's current balance; after a freeze, transfers /
+// burns / redemption requests must leave at least `amount` units in
+// the holder's wallet. Fully replaceable by SetFrozenBalance.
+message FrozenBalance {
+  uint64 token_id = 1;
+  string account = 2;
+  uint64 amount = 3;
+  string reason = 4;
+  string frozen_by = 5;
+  int64 frozen_at = 6;
+}
+
+// Lockup represents a vesting cliff. Each row adds `amount` units
+// that become spendable strictly after `unlock_time`. The keeper
+// sums all matured rows and treats their total as a separate
+// reduction on transferable balance:
+//
+//   transferable = balance − frozen − Σ(unmatured lockups)
+//
+// Lockups are append-only; once matured they self-expire on read.
+message Lockup {
+  uint64 id = 1;
+  uint64 token_id = 2;
+  string account = 3;
+  uint64 amount = 4;
+  int64 unlock_time = 5;
+  string reason = 6;
+  string created_by = 7;
+  int64 created_at = 8;
+}
+
+// SnapshotMeta records that a snapshot was taken at block height
+// `height`. Per-holder balances at that snapshot live in their own
+// keyed collection.
+message SnapshotMeta {
+  uint64 id = 1;
+  uint64 token_id = 2;
+  int64 height = 3;
+  int64 time = 4;
+  uint64 total_supply = 5;
+  uint64 holder_count = 6;
+  string taken_by = 7;
+}
+
+// SnapshotBalance is one row in the (token, snapshot, holder) tree.
+// Stored explicitly so dividend / vote computations don't replay
+// historical state.
+message SnapshotBalance {
+  uint64 token_id = 1;
+  uint64 snapshot_id = 2;
+  string account = 3;
+  uint64 amount = 4;
+}
+
+// Distribution is a dividend / coupon run. The issuer creates one
+// against a snapshot, funds it (transferring settlement_denom from
+// their stablecoin balance into the module-controlled distribution
+// pool), and holders pull-claim their pro-rata share.
+//
+//   per_unit_rate = total_amount * SCALE / snapshot.total_supply   (uint128 logic)
+//   amount_for(holder) = floor(snapshot_balance * per_unit_rate / SCALE)
+//
+// SCALE = 1e12 to keep fractional precision for tiny per-unit
+// amounts on large supplies.
+message Distribution {
+  uint64 id = 1;
+  uint64 token_id = 2;
+  uint64 snapshot_id = 3;
+  string settlement_denom = 4;
+  uint64 total_amount = 5;        // settlement_denom units
+  uint64 per_unit_rate = 6;       // amount per RWA unit, scaled (1e12)
+  uint64 funded_amount = 7;       // how much has actually been escrowed
+  uint64 claimed_amount = 8;
+  DistributionStatus status = 9;
+  string memo = 10;
+  string funder = 11;             // settlement_denom payer (issuer authority)
+  int64 created_at = 12;
+  int64 funded_at = 13;
+  int64 finalized_at = 14;
+}
+
+// DistributionClaim records that an account has pulled its share of
+// a given distribution. Existence of this row blocks a second pull.
+message DistributionClaim {
+  uint64 distribution_id = 1;
+  string account = 2;
+  uint64 amount = 3;
+  int64 claimed_at = 4;
+}
+
+// RedemptionRequest is one queued T+N redemption. On creation the
+// keeper debits the holder's balance into a pending pool so the
+// units cannot be transferred or re-redeemed; on settle the keeper
+// burns those units and pushes the pre-quoted settlement_amount
+// from the issuer's stablecoin balance to the holder.
+message RedemptionRequest {
+  uint64 id = 1;
+  uint64 token_id = 2;
+  string holder = 3;
+  uint64 amount = 4;              // RWA units
+  string settlement_denom = 5;
+  uint64 settlement_amount = 6;   // settlement_denom units, quoted at request time
+  int64 requested_at = 7;
+  int64 eligible_at = 8;
+  int64 settled_at = 9;
+  RedemptionStatus status = 10;
+  string memo = 11;
+}
+
+message Params {
+  uint32 max_issuers = 1;
+  uint32 max_tokens = 2;
+  uint32 max_holders_per_snapshot = 3;
+  uint32 max_pending_redemptions_per_holder = 4;
+  uint32 max_lockups_per_holder = 5;
+  bool require_sanctions_clear = 6;
+}
