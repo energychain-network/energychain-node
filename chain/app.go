@@ -141,6 +141,9 @@ import (
 	carbonmodule "energychain/x/carbon"
 	carbonkeeper "energychain/x/carbon/keeper"
 	carbontypes "energychain/x/carbon/types"
+	cfe247module "energychain/x/cfe247"
+	cfe247keeper "energychain/x/cfe247/keeper"
+	cfe247types "energychain/x/cfe247/types"
 	eacmodule "energychain/x/eac"
 	eackeeper "energychain/x/eac/keeper"
 	eactypes "energychain/x/eac/types"
@@ -231,6 +234,7 @@ type EVMD struct {
 	StablecoinKeeper stablecoinkeeper.Keeper
 	EACKeeper        eackeeper.Keeper
 	CarbonKeeper     carbonkeeper.Keeper
+	CFE247Keeper     cfe247keeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -310,7 +314,7 @@ func NewEnergyChainApp(
 		// Custom energy-chain store keys
 		oracletypes.StoreKey, audittypes.StoreKey, metertypes.StoreKey, policytypes.StoreKey,
 		sanctionstypes.StoreKey, stablecointypes.StoreKey, eactypes.StoreKey,
-		carbontypes.StoreKey,
+		carbontypes.StoreKey, cfe247types.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -658,6 +662,17 @@ func NewEnergyChainApp(
 		app.EACKeeper,
 		nil,
 	)
+	// CFE247Keeper depends on x/eac (read-only retirement+certificate
+	// join via cfe247EACAdapter) and x/sanctions (subject-side gate).
+	// Audit hook is left nil pending the M2 audit wiring.
+	app.CFE247Keeper = cfe247keeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[cfe247types.StoreKey]),
+		authAddr,
+		cfe247EACAdapter{k: app.EACKeeper},
+		app.SanctionsKeeper,
+		nil,
+	)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
@@ -758,6 +773,7 @@ func NewEnergyChainApp(
 		stablecoinmodule.NewAppModule(appCodec, app.StablecoinKeeper),
 		eacmodule.NewAppModule(appCodec, app.EACKeeper),
 		carbonmodule.NewAppModule(appCodec, app.CarbonKeeper),
+		cfe247module.NewAppModule(appCodec, app.CFE247Keeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -809,7 +825,7 @@ func NewEnergyChainApp(
 		// Custom energy-chain modules (no-op begin blockers)
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
-		carbontypes.ModuleName,
+		carbontypes.ModuleName, cfe247types.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -833,7 +849,7 @@ func NewEnergyChainApp(
 		// Custom energy-chain modules (no-op end blockers)
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
-		carbontypes.ModuleName,
+		carbontypes.ModuleName, cfe247types.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -859,7 +875,7 @@ func NewEnergyChainApp(
 		// Custom energy-chain modules
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
-		carbontypes.ModuleName,
+		carbontypes.ModuleName, cfe247types.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)

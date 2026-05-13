@@ -53,6 +53,7 @@ import (
 	auditcli "energychain/x/audit/client/cli"
 	metercli "energychain/x/meter/client/cli"
 	carboncli "energychain/x/carbon/client/cli"
+	cfe247cli "energychain/x/cfe247/client/cli"
 	eaccli "energychain/x/eac/client/cli"
 	oraclecli "energychain/x/oracle/client/cli"
 	policycli "energychain/x/policy/client/cli"
@@ -296,6 +297,7 @@ func txCommand() *cobra.Command {
 		stablecoincli.GetTxCmd(),
 		eaccli.GetTxCmd(),
 		carboncli.GetTxCmd(),
+		cfe247cli.GetTxCmd(),
 	)
 
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")

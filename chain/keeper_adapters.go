@@ -3,6 +3,9 @@ package evmd
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	cfe247types "energychain/x/cfe247/types"
+	eackeeper "energychain/x/eac/keeper"
+	eactypes "energychain/x/eac/types"
 	oraclekeeper "energychain/x/oracle/keeper"
 )
 
@@ -42,6 +45,38 @@ func (a eacOracleAdapter) GetAggregatedReserve(ctx sdk.Context, topicID string) 
 		return 0, 0, false
 	}
 	return v.Value, v.ComputedTime, true
+}
+
+// cfe247EACAdapter is the read-only join cfe247 uses to look up an
+// x/eac retirement together with the certificate metadata it needs
+// for hour / zone / technology checks. Implementations MUST NOT
+// mutate state; the cfe247 keeper relies on this guarantee for its
+// own deterministic accounting.
+type cfe247EACAdapter struct {
+	k eackeeper.Keeper
+}
+
+func (a cfe247EACAdapter) LookupRetirement(ctx sdk.Context, retirementID uint64) (cfe247types.EACRetirementView, bool) {
+	r, err := a.k.Retirements.Get(ctx, retirementID)
+	if err != nil {
+		return cfe247types.EACRetirementView{}, false
+	}
+	c, err := a.k.Certificates.Get(ctx, r.CertificateId)
+	if err != nil {
+		return cfe247types.EACRetirementView{}, false
+	}
+	return cfe247types.EACRetirementView{
+		RetirementID:  r.Id,
+		CertificateID: c.Id,
+		Retirer:       r.Retirer,
+		Beneficiary:   r.Beneficiary,
+		Amount:        r.Amount,
+		CertHourStart: c.HourStart,
+		CertHourEnd:   c.HourEnd,
+		GridZone:      c.GridZone,
+		Technology:    int32(c.Technology),
+		IsStorage:     c.Technology == eactypes.Technology_TECHNOLOGY_STORAGE,
+	}, true
 }
 
 // carbonOracleAdapter mirrors eacOracleAdapter for x/carbon's
