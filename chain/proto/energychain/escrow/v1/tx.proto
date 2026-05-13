@@ -1,0 +1,147 @@
+syntax = "proto3";
+package energychain.escrow.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/escrow/v1/types.proto";
+
+option go_package = "energychain/x/escrow/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc CreateEscrow(MsgCreateEscrow) returns (MsgCreateEscrowResponse);
+  rpc Fund(MsgFund) returns (MsgFundResponse);
+  rpc Cancel(MsgCancel) returns (MsgCancelResponse);
+
+  rpc Approve(MsgApprove) returns (MsgApproveResponse);
+  rpc RevokeApproval(MsgRevokeApproval) returns (MsgRevokeApprovalResponse);
+
+  rpc Release(MsgRelease) returns (MsgReleaseResponse);
+  rpc Refund(MsgRefund) returns (MsgRefundResponse);
+
+  rpc ArbiterRelease(MsgArbiterRelease) returns (MsgArbiterReleaseResponse);
+  rpc ArbiterRefund(MsgArbiterRefund) returns (MsgArbiterRefundResponse);
+
+  rpc MarkDisputed(MsgMarkDisputed) returns (MsgMarkDisputedResponse);
+  rpc ResolveDispute(MsgResolveDispute) returns (MsgResolveDisputeResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+message MsgCreateEscrow {
+  option (cosmos.msg.v1.signer) = "depositor";
+  string depositor = 1;
+  string beneficiary = 2;
+  string fallback_addr = 3;
+  repeated string committee = 4;
+  uint32 approval_threshold = 5;
+  string arbiter = 6;
+
+  AssetKind kind = 7;
+  string stablecoin_denom = 8;
+  uint64 rwa_token_id = 9;
+  uint64 amount = 10;
+
+  Triggers triggers = 11 [(gogoproto.nullable) = false];
+
+  string memo = 12;
+}
+message MsgCreateEscrowResponse { uint64 escrow_id = 1; }
+
+message MsgFund {
+  option (cosmos.msg.v1.signer) = "depositor";
+  string depositor = 1;
+  uint64 escrow_id = 2;
+}
+message MsgFundResponse {}
+
+message MsgCancel {
+  option (cosmos.msg.v1.signer) = "depositor";
+  string depositor = 1;
+  uint64 escrow_id = 2;
+  string reason = 3;
+}
+message MsgCancelResponse {}
+
+message MsgApprove {
+  option (cosmos.msg.v1.signer) = "signer";
+  string signer = 1;
+  uint64 escrow_id = 2;
+  Intent intent = 3;
+  string memo = 4;
+}
+message MsgApproveResponse {
+  uint32 release_count = 1;
+  uint32 refund_count = 2;
+}
+
+message MsgRevokeApproval {
+  option (cosmos.msg.v1.signer) = "signer";
+  string signer = 1;
+  uint64 escrow_id = 2;
+}
+message MsgRevokeApprovalResponse {}
+
+message MsgRelease {
+  option (cosmos.msg.v1.signer) = "actor";
+  string actor = 1;          // anyone — gates are independent of caller
+  uint64 escrow_id = 2;
+}
+message MsgReleaseResponse {}
+
+message MsgRefund {
+  option (cosmos.msg.v1.signer) = "actor";
+  string actor = 1;
+  uint64 escrow_id = 2;
+}
+message MsgRefundResponse {}
+
+message MsgArbiterRelease {
+  option (cosmos.msg.v1.signer) = "arbiter";
+  string arbiter = 1;
+  uint64 escrow_id = 2;
+  string reason = 3;
+}
+message MsgArbiterReleaseResponse {}
+
+message MsgArbiterRefund {
+  option (cosmos.msg.v1.signer) = "arbiter";
+  string arbiter = 1;
+  uint64 escrow_id = 2;
+  string reason = 3;
+}
+message MsgArbiterRefundResponse {}
+
+message MsgMarkDisputed {
+  option (cosmos.msg.v1.signer) = "actor";
+  // actor must be depositor, beneficiary, or arbiter; otherwise
+  // refused. Once x/dispute lands this message will be replaced by
+  // an inter-module hook.
+  string actor = 1;
+  uint64 escrow_id = 2;
+  string reason = 3;
+}
+message MsgMarkDisputedResponse {}
+
+// MsgResolveDispute closes a dispute with a binary outcome
+// (true = release, false = refund). Signer must be the arbiter.
+// When x/dispute lands, the keeper-level handler will be invoked
+// from the dispute module and this message will become a thin
+// arbiter-only escape hatch.
+message MsgResolveDispute {
+  option (cosmos.msg.v1.signer) = "arbiter";
+  string arbiter = 1;
+  uint64 escrow_id = 2;
+  bool release = 3;
+  string reason = 4;
+}
+message MsgResolveDisputeResponse {}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

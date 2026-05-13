@@ -365,6 +365,33 @@ func (k Keeper) MoveBalance(ctx sdk.Context, denomID, from, to string, amount ui
 	return k.moveBalance(ctx, denomID, from, to, amount)
 }
 
+// IsAccountBlocked is the cross-module defensive read that lets
+// callers (e.g. x/escrow) refuse a MoveBalance whose source or
+// destination would be refused by ComplianceCheck. Returns true
+// when the per-denom flags mark the account as either frozen or
+// blacklisted on the named denom.
+func (k Keeper) IsAccountBlocked(ctx sdk.Context, denomID, account string) bool {
+	f := k.GetFlags(ctx, denomID, account)
+	return f.Frozen || f.Blacklisted
+}
+
+// IsDenomPaused is the cross-module defensive read that mirrors
+// the denom-level half of ComplianceCheck. Returns true when the
+// denom is PAUSED or RETIRED. Callers typically refuse pay-ins
+// (so a frozen denom cannot grow) but permit pay-outs (so already
+// in-flight escrows / distributions can wind down).
+func (k Keeper) IsDenomPaused(ctx sdk.Context, denomID string) bool {
+	d, ok := k.GetDenom(ctx, denomID)
+	if !ok {
+		return false
+	}
+	switch d.Status {
+	case types.DenomStatus_DENOM_STATUS_PAUSED, types.DenomStatus_DENOM_STATUS_RETIRED:
+		return true
+	}
+	return false
+}
+
 // moveBalance is debit+credit without touching supply (transfer path).
 func (k Keeper) moveBalance(ctx sdk.Context, denomID, from, to string, amount uint64) error {
 	if amount == 0 {

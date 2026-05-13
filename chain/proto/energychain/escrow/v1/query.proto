@@ -1,0 +1,62 @@
+syntax = "proto3";
+package energychain.escrow.v1;
+
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/escrow/v1/types.proto";
+
+option go_package = "energychain/x/escrow/types";
+
+service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+
+  rpc Escrow(QueryEscrowRequest) returns (QueryEscrowResponse);
+  rpc Escrows(QueryEscrowsRequest) returns (QueryEscrowsResponse);
+  rpc EscrowsByDepositor(QueryEscrowsByDepositorRequest) returns (QueryEscrowsByDepositorResponse);
+  rpc EscrowsByBeneficiary(QueryEscrowsByBeneficiaryRequest) returns (QueryEscrowsByBeneficiaryResponse);
+
+  rpc ApprovalsForEscrow(QueryApprovalsForEscrowRequest) returns (QueryApprovalsForEscrowResponse);
+  rpc Approval(QueryApprovalRequest) returns (QueryApprovalResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+
+message QueryEscrowRequest { uint64 id = 1; }
+message QueryEscrowResponse { Escrow escrow = 1 [(gogoproto.nullable) = false]; }
+
+message QueryEscrowsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryEscrowsResponse {
+  repeated Escrow escrows = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryEscrowsByDepositorRequest {
+  string depositor = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryEscrowsByDepositorResponse {
+  repeated Escrow escrows = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryEscrowsByBeneficiaryRequest {
+  string beneficiary = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryEscrowsByBeneficiaryResponse {
+  repeated Escrow escrows = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryApprovalsForEscrowRequest { uint64 escrow_id = 1; }
+message QueryApprovalsForEscrowResponse {
+  repeated Approval approvals = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryApprovalRequest { uint64 escrow_id = 1; string signer = 2; }
+message QueryApprovalResponse {
+  Approval approval = 1 [(gogoproto.nullable) = false];
+  bool found = 2;
+}

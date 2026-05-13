@@ -225,6 +225,13 @@ func (k Keeper) GetToken(ctx context.Context, id uint64) (types.Token, bool, err
 	return t, true, nil
 }
 
+// HasToken is the cheap read used by other modules (e.g. x/escrow)
+// to fail-fast on bad token IDs before launching a multi-step flow.
+func (k Keeper) HasToken(ctx sdk.Context, tokenID uint64) bool {
+	has, _ := k.Tokens.Has(ctx, tokenID)
+	return has
+}
+
 func (k Keeper) GetTokenBySymbol(ctx context.Context, symbol string) (types.Token, bool, error) {
 	id, err := k.TokenBySymbol.Get(ctx, symbol)
 	if err != nil {

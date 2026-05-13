@@ -7,6 +7,7 @@ import (
 	eackeeper "energychain/x/eac/keeper"
 	eactypes "energychain/x/eac/types"
 	oraclekeeper "energychain/x/oracle/keeper"
+	rwakeeper "energychain/x/rwa/keeper"
 	stablecoinkeeper "energychain/x/stablecoin/keeper"
 )
 
@@ -117,4 +118,67 @@ func (a rwaStablecoinAdapter) HasDenom(ctx sdk.Context, denomID string) bool {
 
 func (a rwaStablecoinAdapter) Move(ctx sdk.Context, denomID, from, to string, amount uint64) error {
 	return a.k.MoveBalance(ctx, denomID, from, to, amount)
+}
+
+// escrowStablecoinAdapter is the same shape as rwaStablecoinAdapter
+// but bound to x/escrow's StablecoinKeeper interface. Splitting the
+// adapter — instead of sharing rwaStablecoinAdapter — makes it
+// easier to evolve each module's settlement contract independently
+// (e.g. adding a per-escrow allowance flow without entangling
+// dividend payouts).
+type escrowStablecoinAdapter struct {
+	k stablecoinkeeper.Keeper
+}
+
+func (a escrowStablecoinAdapter) HasDenom(ctx sdk.Context, denomID string) bool {
+	return a.k.HasDenom(ctx, denomID)
+}
+
+func (a escrowStablecoinAdapter) Move(ctx sdk.Context, denomID, from, to string, amount uint64) error {
+	return a.k.MoveBalance(ctx, denomID, from, to, amount)
+}
+
+func (a escrowStablecoinAdapter) IsAccountBlocked(ctx sdk.Context, denomID, account string) bool {
+	return a.k.IsAccountBlocked(ctx, denomID, account)
+}
+
+func (a escrowStablecoinAdapter) IsDenomPaused(ctx sdk.Context, denomID string) bool {
+	return a.k.IsDenomPaused(ctx, denomID)
+}
+
+// escrowRWAAdapter exposes the narrow RWAKeeper surface x/escrow
+// expects (HasToken / EscrowLock / EscrowRelease). The lock/release
+// pair embeds full holder-side compliance on the release leg
+// (KYC / per-holder cap / sanctions) and transferable check on the
+// lock leg (frozen / lockup); see x/rwa/keeper/escrow.go.
+type escrowRWAAdapter struct {
+	k rwakeeper.Keeper
+}
+
+func (a escrowRWAAdapter) HasToken(ctx sdk.Context, tokenID uint64) bool {
+	return a.k.HasToken(ctx, tokenID)
+}
+
+func (a escrowRWAAdapter) EscrowLock(ctx sdk.Context, tokenID uint64, depositor string, amount uint64) error {
+	return a.k.EscrowLock(ctx, tokenID, depositor, amount)
+}
+
+func (a escrowRWAAdapter) EscrowRelease(ctx sdk.Context, tokenID uint64, recipient string, amount uint64) error {
+	return a.k.EscrowRelease(ctx, tokenID, recipient, amount)
+}
+
+// escrowOracleAdapter shares its shape with stablecoin / eac /
+// carbon adapters: every consumer of x/oracle aggregated values
+// reads (value, timestamp, ok) from the same surface, so a single
+// underlying topic can be reused across modules.
+type escrowOracleAdapter struct {
+	k oraclekeeper.Keeper
+}
+
+func (a escrowOracleAdapter) GetAggregatedReserve(ctx sdk.Context, topicID string) (value int64, timestamp int64, ok bool) {
+	v, found := a.k.GetAggregated(ctx, topicID)
+	if !found {
+		return 0, 0, false
+	}
+	return v.Value, v.ComputedTime, true
 }
