@@ -1,0 +1,162 @@
+syntax = "proto3";
+package energychain.eac.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/eac/types";
+
+// CertificateKind enumerates the supported global EAC standards. NATIVE
+// is the on-chain greenfield kind for projects that don't have an
+// upstream registry (typically self-attested or DAO-governed).
+enum CertificateKind {
+  CERTIFICATE_KIND_UNSPECIFIED = 0;
+  CERTIFICATE_KIND_IREC        = 1; // I-REC (international)
+  CERTIFICATE_KIND_EU_GO       = 2; // EU Guarantees of Origin
+  CERTIFICATE_KIND_US_REC      = 3; // US Renewable Energy Credits
+  CERTIFICATE_KIND_CN_GEC      = 4; // CN Green Electricity Certificate
+  CERTIFICATE_KIND_AU_LGC      = 5; // AU Large-scale Generation Cert.
+  CERTIFICATE_KIND_JP_J_CREDIT = 6; // JP J-Credit
+  CERTIFICATE_KIND_NATIVE      = 7;
+}
+
+// Technology distinguishes the generation source. Aligned with the
+// EnergyTag granular-cert spec so 24/7 CFE matching can filter on it.
+enum Technology {
+  TECHNOLOGY_UNSPECIFIED = 0;
+  TECHNOLOGY_SOLAR       = 1;
+  TECHNOLOGY_WIND        = 2;
+  TECHNOLOGY_HYDRO       = 3;
+  TECHNOLOGY_NUCLEAR     = 4;
+  TECHNOLOGY_BIOMASS     = 5;
+  TECHNOLOGY_GEOTHERMAL  = 6;
+  TECHNOLOGY_STORAGE     = 7;
+  TECHNOLOGY_OTHER       = 8;
+}
+
+// IssuerStatus governs the EAC issuance authority lifecycle.
+enum IssuerStatus {
+  ISSUER_STATUS_UNSPECIFIED = 0;
+  ISSUER_STATUS_ACTIVE      = 1;
+  ISSUER_STATUS_SUSPENDED   = 2; // can no longer issue / bridge-mint
+  ISSUER_STATUS_REVOKED     = 3; // terminal; cannot re-mint or sign
+}
+
+// CertificateStatus reflects the lifecycle of the batch as a whole.
+//
+//   ACTIVE       — units may transfer / retire / bridge-burn
+//   SEALED       — issuer froze the batch (e.g. dispute); transfers
+//                  refused but retirements still allowed so holders
+//                  can liquidate compliance positions safely
+//   FULLY_RETIRED — every issued unit has been retired; preserved for
+//                  audit but transfers / further retires return zero.
+enum CertificateStatus {
+  CERTIFICATE_STATUS_UNSPECIFIED   = 0;
+  CERTIFICATE_STATUS_ACTIVE        = 1;
+  CERTIFICATE_STATUS_SEALED        = 2;
+  CERTIFICATE_STATUS_FULLY_RETIRED = 3;
+}
+
+// Issuer is a registered authority allowed to mint EAC batches.
+//
+// Issuers are not coextensive with mint authorities the way x/stablecoin
+// models them: every EAC issuer is a standards body / certificate
+// program operator (e.g. I-REC operator, EU-GO Issuing Body), so the
+// authority list is short and the role is high-trust. Multi-sig keying
+// is delegated to the upstream `x/auth` multisig account wrapping the
+// authority address.
+message Issuer {
+  string id = 1;
+  string did = 2;
+  string display_name = 3;
+  IssuerStatus status = 4;
+  // kinds is the whitelist of CertificateKind enums (as int32) the
+  // issuer is permitted to mint under. Empty = all kinds.
+  repeated int32 kinds = 5;
+  // authority is the bech32 that must sign IssueBatch / BridgeMint.
+  string authority = 6;
+  // admin is the bech32 that may seal / unseal certificates and
+  // run force-retire on its kinds.
+  string admin = 7;
+  string created_by = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+}
+
+// Certificate is the canonical batch record. One certificate represents
+// up to `issued_units` MWh produced under the same project + device
+// + grid_zone + hour window + technology, in the style of ERC-1155.
+//
+// retired_units only ever grows; it never exceeds issued_units.
+message Certificate {
+  uint64 id = 1;
+  string issuer_id = 2;
+  CertificateKind kind = 3;
+  Technology technology = 4;
+  string project_id = 5;
+  string device_id = 6;
+  string grid_zone = 7;
+  // hour_start / hour_end define the production window in unix
+  // seconds. The keeper enforces hour_end > hour_start and the
+  // window length must match Params.HourWindowSeconds (default 3600)
+  // so 24/7 CFE matching can rely on a uniform grid.
+  int64 hour_start = 8;
+  int64 hour_end = 9;
+  uint32 vintage_year = 10;
+  string source_registry = 11;
+  string source_serial = 12;
+  uint64 issued_units = 13;
+  uint64 retired_units = 14;
+  CertificateStatus status = 15;
+  // policy_id is informational metadata for clients. The authoritative
+  // binding for the transfer DSL is in x/policy keyed by
+  // (asset_class="eac", asset_id=<certificate_id>).
+  string policy_id = 16;
+  string created_by = 17;
+  int64 created_at = 18;
+  int64 updated_at = 19;
+}
+
+// Retirement is the immutable proof of one retire op. Append-only.
+message Retirement {
+  uint64 id = 1;
+  uint64 certificate_id = 2;
+  string retirer = 3;       // who signed the retire (may = beneficiary)
+  string beneficiary = 4;   // on whose behalf retired
+  uint64 amount = 5;        // MWh units burned
+  string purpose = 6;       // e.g. "scope2", "rggi", "article6", "tax"
+  string memo = 7;
+  int64 retired_at = 8;
+  int64 height = 9;
+}
+
+// BridgeAttestation pins a certificate to its mirror in an upstream
+// registry. The keeper consults the bound oracle topic on
+// BridgeMint / BridgeBurn to enforce the on-chain mirror MUST not
+// exceed the off-chain locked count.
+message BridgeAttestation {
+  uint64 certificate_id = 1;
+  string source_registry = 2;
+  string source_serial = 3;
+  // oracle_topic_id holds the oracle topic that aggregates the
+  // upstream "locked units" attestations from bridge oracles.
+  string oracle_topic_id = 4;
+  // max_staleness_seconds bounds the freshness of the latest
+  // aggregation; mints/burns fail closed beyond this age.
+  uint32 max_staleness_seconds = 5;
+  int64 updated_at = 6;
+}
+
+// Params bound the variable-length state collections.
+message Params {
+  uint32 max_issuers = 1;
+  uint32 max_kinds_per_issuer = 2;
+  uint32 max_units_per_batch = 3;
+  // hour_window_seconds enforces a uniform production-window length
+  // (default 3600). Set to 0 to disable the check (e.g. test chains
+  // that want sub-hour granular certs).
+  uint32 hour_window_seconds = 4;
+  // require_sanctions_clear, when true, the keeper rejects any
+  // transfer / retire whose counterparty appears on a sanctions list.
+  // Default true (fail-closed).
+  bool require_sanctions_clear = 5;
+}
