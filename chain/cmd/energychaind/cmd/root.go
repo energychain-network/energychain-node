@@ -60,6 +60,7 @@ import (
 	policycli "energychain/x/policy/client/cli"
 	rwacli "energychain/x/rwa/client/cli"
 	sanctionscli "energychain/x/sanctions/client/cli"
+	schedulercli "energychain/x/scheduler/client/cli"
 	stablecoincli "energychain/x/stablecoin/client/cli"
 )
 
@@ -302,6 +303,7 @@ func txCommand() *cobra.Command {
 		cfe247cli.GetTxCmd(),
 		rwacli.GetTxCmd(),
 		escrowcli.GetTxCmd(),
+		schedulercli.GetTxCmd(),
 	)
 
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")

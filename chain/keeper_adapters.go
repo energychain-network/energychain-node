@@ -1,6 +1,9 @@
 package evmd
 
 import (
+	"fmt"
+
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	cfe247types "energychain/x/cfe247/types"
@@ -181,4 +184,28 @@ func (a escrowOracleAdapter) GetAggregatedReserve(ctx sdk.Context, topicID strin
 		return 0, 0, false
 	}
 	return v.Value, v.ComputedTime, true
+}
+
+// schedulerMsgRouterAdapter wraps BaseApp.MsgServiceRouter so the
+// x/scheduler keeper can route scheduled payloads at tick time
+// without taking a direct dependency on the SDK service router.
+//
+// RouteMsg returns the handler's first error. Successful handler
+// returns are surfaced as nil regardless of any sdk.Result fields —
+// the per-tick fee accounting and audit live in x/scheduler, not
+// here.
+type schedulerMsgRouterAdapter struct {
+	msr *baseapp.MsgServiceRouter
+}
+
+func (a schedulerMsgRouterAdapter) RouteMsg(ctx sdk.Context, msg sdk.Msg) error {
+	if a.msr == nil {
+		return fmt.Errorf("msg service router not wired")
+	}
+	handler := a.msr.Handler(msg)
+	if handler == nil {
+		return fmt.Errorf("no handler registered for %T", msg)
+	}
+	_, err := handler(ctx, msg)
+	return err
 }

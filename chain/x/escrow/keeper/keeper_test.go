@@ -27,10 +27,10 @@ type stubSanctions struct{ bad map[string]bool }
 func (s *stubSanctions) IsSanctioned(_ sdk.Context, subject string) bool { return s.bad[subject] }
 
 type stubStablecoin struct {
-	denoms        map[string]bool
-	bal           map[string]map[string]uint64
-	pausedDenom   map[string]bool
-	blocked       map[string]map[string]bool
+	denoms      map[string]bool
+	bal         map[string]map[string]uint64
+	pausedDenom map[string]bool
+	blocked     map[string]map[string]bool
 }
 
 func newStubStablecoin() *stubStablecoin {

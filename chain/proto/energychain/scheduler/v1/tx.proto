@@ -1,0 +1,126 @@
+syntax = "proto3";
+package energychain.scheduler.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+import "google/protobuf/any.proto";
+
+import "energychain/scheduler/v1/types.proto";
+
+option go_package = "energychain/x/scheduler/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc CreateJob(MsgCreateJob) returns (MsgCreateJobResponse);
+  rpc TopUpJob(MsgTopUpJob) returns (MsgTopUpJobResponse);
+  rpc WithdrawJob(MsgWithdrawJob) returns (MsgWithdrawJobResponse);
+  rpc PauseJob(MsgPauseJob) returns (MsgPauseJobResponse);
+  rpc ResumeJob(MsgResumeJob) returns (MsgResumeJobResponse);
+  rpc CancelJob(MsgCancelJob) returns (MsgCancelJobResponse);
+  rpc UpdateJob(MsgUpdateJob) returns (MsgUpdateJobResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+message MsgCreateJob {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  string owner = 1;
+
+  google.protobuf.Any payload = 2;
+
+  int64 start_time = 3;       // 0 -> use block_time + interval
+  int64 end_time = 4;          // 0 -> open-ended
+  int64 interval_seconds = 5;
+  uint64 max_executions = 6;   // 0 -> uncapped
+
+  string fee_denom = 7;        // empty -> use Params.default_fee_denom
+  uint64 fee_per_run = 8;
+  // initial_budget is debited from the owner's fee_denom balance
+  // at create time. Must be >= fee_per_run (a job must be able to
+  // run at least once at creation, or it has no purpose).
+  uint64 initial_budget = 9;
+
+  string memo = 10;
+}
+message MsgCreateJobResponse { uint64 job_id = 1; }
+
+message MsgTopUpJob {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  uint64 job_id = 2;
+  // amount is debited from owner's fee_denom balance and credited
+  // to the scheduler fee pool. amount > 0.
+  uint64 amount = 3;
+  // resume_if_exhausted, when true, also lifts the EXHAUSTED
+  // status back to ACTIVE after the top-up if the new budget can
+  // cover at least one fee_per_run. Atomic so the owner does not
+  // have to send a separate ResumeJob and risk a gap.
+  bool resume_if_exhausted = 4;
+}
+message MsgTopUpJobResponse {
+  uint64 new_budget = 1;
+  Status status = 2;
+}
+
+message MsgWithdrawJob {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  uint64 job_id = 2;
+  // amount = 0 means "withdraw all remaining". Only allowed on
+  // PAUSED / EXHAUSTED / CANCELLED jobs so an ACTIVE schedule
+  // cannot have its budget pulled out from under it mid-tick.
+  uint64 amount = 3;
+}
+message MsgWithdrawJobResponse { uint64 withdrawn = 1; uint64 new_budget = 2; }
+
+message MsgPauseJob {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  uint64 job_id = 2;
+  string reason = 3;
+}
+message MsgPauseJobResponse {}
+
+message MsgResumeJob {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  uint64 job_id = 2;
+}
+message MsgResumeJobResponse {}
+
+message MsgCancelJob {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  uint64 job_id = 2;
+  // refund, when true, also withdraws all remaining budget back
+  // to the owner. False keeps the budget pinned (useful when an
+  // operator wants to forensically inspect the row first).
+  bool refund = 3;
+  string reason = 4;
+}
+message MsgCancelJobResponse { uint64 refunded = 1; }
+
+message MsgUpdateJob {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  string owner = 1;
+  uint64 job_id = 2;
+  // payload, interval_seconds, end_time and max_executions are the
+  // only update-able fields. fee_denom and fee_per_run are
+  // intentionally immutable post-create so the budget accounting
+  // never drifts. Pass empty / zero to leave a field unchanged.
+  google.protobuf.Any payload = 3;
+  int64 interval_seconds = 4;
+  int64 end_time = 5;
+  uint64 max_executions = 6;
+}
+message MsgUpdateJobResponse {}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

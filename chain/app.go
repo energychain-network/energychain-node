@@ -162,6 +162,9 @@ import (
 	rwamodule "energychain/x/rwa"
 	rwakeeper "energychain/x/rwa/keeper"
 	rwatypes "energychain/x/rwa/types"
+	schedulermodule "energychain/x/scheduler"
+	schedulerkeeper "energychain/x/scheduler/keeper"
+	schedulertypes "energychain/x/scheduler/types"
 	sanctionsmodule "energychain/x/sanctions"
 	sanctionskeeper "energychain/x/sanctions/keeper"
 	sanctionstypes "energychain/x/sanctions/types"
@@ -243,6 +246,7 @@ type EVMD struct {
 	CFE247Keeper     cfe247keeper.Keeper
 	RWAKeeper        rwakeeper.Keeper
 	EscrowKeeper     escrowkeeper.Keeper
+	SchedulerKeeper  schedulerkeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -323,7 +327,7 @@ func NewEnergyChainApp(
 		oracletypes.StoreKey, audittypes.StoreKey, metertypes.StoreKey, policytypes.StoreKey,
 		sanctionstypes.StoreKey, stablecointypes.StoreKey, eactypes.StoreKey,
 		carbontypes.StoreKey, cfe247types.StoreKey, rwatypes.StoreKey,
-		escrowtypes.StoreKey,
+		escrowtypes.StoreKey, schedulertypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -715,6 +719,20 @@ func NewEnergyChainApp(
 		escrowOracleAdapter{k: app.OracleKeeper},
 		nil,
 	)
+	// SchedulerKeeper plumbs:
+	//   - x/stablecoin   for fee-pool funding / withdraw / per-tick fee
+	//   - MsgServiceRouter (via schedulerMsgRouterAdapter) for routing
+	//     payload Msgs at tick time inside CacheContext
+	// Audit hook left nil pending wider M3 audit wiring.
+	app.SchedulerKeeper = schedulerkeeper.NewKeeper(
+		appCodec,
+		interfaceRegistry,
+		runtime.NewKVStoreService(keys[schedulertypes.StoreKey]),
+		authAddr,
+		escrowStablecoinAdapter{k: app.StablecoinKeeper},
+		schedulerMsgRouterAdapter{msr: app.MsgServiceRouter()},
+		nil,
+	)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
@@ -818,6 +836,7 @@ func NewEnergyChainApp(
 		cfe247module.NewAppModule(appCodec, app.CFE247Keeper),
 		rwamodule.NewAppModule(appCodec, app.RWAKeeper),
 		escrowmodule.NewAppModule(appCodec, app.EscrowKeeper),
+		schedulermodule.NewAppModule(appCodec, app.SchedulerKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -870,7 +889,7 @@ func NewEnergyChainApp(
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
-		escrowtypes.ModuleName,
+		escrowtypes.ModuleName, schedulertypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -895,7 +914,7 @@ func NewEnergyChainApp(
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
-		escrowtypes.ModuleName,
+		escrowtypes.ModuleName, schedulertypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -922,7 +941,7 @@ func NewEnergyChainApp(
 		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
-		escrowtypes.ModuleName,
+		escrowtypes.ModuleName, schedulertypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)
