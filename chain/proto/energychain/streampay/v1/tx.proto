@@ -1,0 +1,120 @@
+syntax = "proto3";
+package energychain.streampay.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/streampay/v1/types.proto";
+
+option go_package = "energychain/x/streampay/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc CreateStream(MsgCreateStream) returns (MsgCreateStreamResponse);
+  rpc DepositToStream(MsgDepositToStream) returns (MsgDepositToStreamResponse);
+  rpc Withdraw(MsgWithdraw) returns (MsgWithdrawResponse);
+  rpc Pause(MsgPause) returns (MsgPauseResponse);
+  rpc Resume(MsgResume) returns (MsgResumeResponse);
+  rpc Cancel(MsgCancel) returns (MsgCancelResponse);
+  rpc Transfer(MsgTransfer) returns (MsgTransferResponse);
+  rpc ChangeRate(MsgChangeRate) returns (MsgChangeRateResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+// MsgCreateStream pre-funds and opens a per-second flow from
+// sender to receiver. amount is debited from sender's denom
+// balance and credited to the streampay pool atomically.
+message MsgCreateStream {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1;
+  string receiver = 2;
+  string denom = 3;            // empty -> Params.default_denom
+  uint64 rate_per_second = 4;
+  uint64 deposit = 5;
+  int64  start_time = 6;        // 0 -> now
+  int64  end_time = 7;          // 0 -> open-ended
+  string memo = 8;
+}
+message MsgCreateStreamResponse { uint64 stream_id = 1; }
+
+message MsgDepositToStream {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  uint64 stream_id = 2;
+  uint64 amount = 3;
+}
+message MsgDepositToStreamResponse { uint64 new_deposit = 1; }
+
+message MsgWithdraw {
+  option (cosmos.msg.v1.signer) = "receiver";
+  string receiver = 1;
+  uint64 stream_id = 2;
+  // amount = 0 means "withdraw all currently accrued".
+  uint64 amount = 3;
+}
+message MsgWithdrawResponse { uint64 withdrawn = 1; uint64 total_withdrawn = 2; }
+
+message MsgPause {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  uint64 stream_id = 2;
+  string reason = 3;
+}
+message MsgPauseResponse { uint64 accrued_at_pause = 1; }
+
+message MsgResume {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  uint64 stream_id = 2;
+}
+message MsgResumeResponse { int64 paused_duration_added = 1; }
+
+// MsgCancel performs final settlement: receiver gets
+// streamed-not-withdrawn, sender gets deposit-streamed. Either
+// party may cancel (a one-sided lock would let one party hold
+// the other's funds hostage); the actor field records who did.
+message MsgCancel {
+  option (cosmos.msg.v1.signer) = "actor";
+  string actor = 1;
+  uint64 stream_id = 2;
+  string reason = 3;
+}
+message MsgCancelResponse {
+  uint64 receiver_payout = 1;
+  uint64 sender_refund = 2;
+}
+
+// MsgTransfer reassigns the receiver to new_receiver. Only the
+// current receiver may transfer (it's the receiver's right to
+// reassign). The withdrawn counter carries over so the new
+// receiver only ever accrues against the residual.
+message MsgTransfer {
+  option (cosmos.msg.v1.signer) = "receiver";
+  string receiver = 1;
+  uint64 stream_id = 2;
+  string new_receiver = 3;
+}
+message MsgTransferResponse {}
+
+// MsgChangeRate adjusts the rate going forward. The keeper
+// settles all accrual up to the change point first (re-anchoring
+// withdrawn) so the new rate only applies to time after this
+// call. Refused while PAUSED to keep the accounting clean
+// (resume first, then change rate).
+message MsgChangeRate {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  uint64 stream_id = 2;
+  uint64 new_rate_per_second = 3;
+}
+message MsgChangeRateResponse {}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

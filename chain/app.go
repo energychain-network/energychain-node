@@ -165,6 +165,9 @@ import (
 	schedulermodule "energychain/x/scheduler"
 	schedulerkeeper "energychain/x/scheduler/keeper"
 	schedulertypes "energychain/x/scheduler/types"
+	streampaymodule "energychain/x/streampay"
+	streampaykeeper "energychain/x/streampay/keeper"
+	streampaytypes "energychain/x/streampay/types"
 	sanctionsmodule "energychain/x/sanctions"
 	sanctionskeeper "energychain/x/sanctions/keeper"
 	sanctionstypes "energychain/x/sanctions/types"
@@ -247,6 +250,7 @@ type EVMD struct {
 	RWAKeeper        rwakeeper.Keeper
 	EscrowKeeper     escrowkeeper.Keeper
 	SchedulerKeeper  schedulerkeeper.Keeper
+	StreamPayKeeper  streampaykeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -328,6 +332,7 @@ func NewEnergyChainApp(
 		sanctionstypes.StoreKey, stablecointypes.StoreKey, eactypes.StoreKey,
 		carbontypes.StoreKey, cfe247types.StoreKey, rwatypes.StoreKey,
 		escrowtypes.StoreKey, schedulertypes.StoreKey,
+		streampaytypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -733,6 +738,19 @@ func NewEnergyChainApp(
 		schedulerMsgRouterAdapter{msr: app.MsgServiceRouter()},
 		nil,
 	)
+	// StreamPayKeeper reuses the same stablecoin adapter as
+	// x/escrow / x/scheduler (the freeze + paused-denom gates
+	// are the cross-module bridge against the MoveBalance
+	// compliance bypass). Sanctions hooks the chain-level
+	// OFAC / national-list read.
+	app.StreamPayKeeper = streampaykeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[streampaytypes.StoreKey]),
+		authAddr,
+		app.SanctionsKeeper,
+		escrowStablecoinAdapter{k: app.StablecoinKeeper},
+		nil,
+	)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
@@ -837,6 +855,7 @@ func NewEnergyChainApp(
 		rwamodule.NewAppModule(appCodec, app.RWAKeeper),
 		escrowmodule.NewAppModule(appCodec, app.EscrowKeeper),
 		schedulermodule.NewAppModule(appCodec, app.SchedulerKeeper),
+		streampaymodule.NewAppModule(appCodec, app.StreamPayKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -890,6 +909,7 @@ func NewEnergyChainApp(
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
+		streampaytypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -915,6 +935,7 @@ func NewEnergyChainApp(
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
+		streampaytypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -942,6 +963,7 @@ func NewEnergyChainApp(
 		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
+		streampaytypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)

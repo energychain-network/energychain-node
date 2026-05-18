@@ -62,6 +62,7 @@ import (
 	sanctionscli "energychain/x/sanctions/client/cli"
 	schedulercli "energychain/x/scheduler/client/cli"
 	stablecoincli "energychain/x/stablecoin/client/cli"
+	streampaycli "energychain/x/streampay/client/cli"
 )
 
 // NewRootCmd creates a new root command for evmd. It is called once in the
@@ -304,6 +305,7 @@ func txCommand() *cobra.Command {
 		rwacli.GetTxCmd(),
 		escrowcli.GetTxCmd(),
 		schedulercli.GetTxCmd(),
+		streampaycli.GetTxCmd(),
 	)
 
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")
