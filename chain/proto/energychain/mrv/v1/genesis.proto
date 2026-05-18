@@ -1,0 +1,21 @@
+syntax = "proto3";
+package energychain.mrv.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/mrv/v1/types.proto";
+
+option go_package = "energychain/x/mrv/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+
+  uint64 next_schema_id = 2;
+  uint64 next_verifier_id = 3;
+  uint64 next_report_id = 4;
+  uint64 next_grant_id = 5;
+
+  repeated Schema schemas = 6 [(gogoproto.nullable) = false];
+  repeated Verifier verifiers = 7 [(gogoproto.nullable) = false];
+  repeated Report reports = 8 [(gogoproto.nullable) = false];
+  repeated ViewKeyGrant grants = 9 [(gogoproto.nullable) = false];
+}
