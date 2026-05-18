@@ -1,0 +1,105 @@
+syntax = "proto3";
+package energychain.market.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/market/v1/types.proto";
+
+option go_package = "energychain/x/market/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc CreatePair(MsgCreatePair) returns (MsgCreatePairResponse);
+  rpc PauseUnpausePair(MsgPauseUnpausePair) returns (MsgPauseUnpausePairResponse);
+  rpc UpdatePairRisk(MsgUpdatePairRisk) returns (MsgUpdatePairRiskResponse);
+
+  rpc PlaceLimitOrder(MsgPlaceLimitOrder) returns (MsgPlaceLimitOrderResponse);
+  rpc CancelOrder(MsgCancelOrder) returns (MsgCancelOrderResponse);
+
+  // FBA only: anyone can call after batch_close_time to run a
+  // single uniform-price clearing round. Idempotent for the
+  // remainder of the same batch.
+  rpc ClearBatch(MsgClearBatch) returns (MsgClearBatchResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+message MsgCreatePair {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string base_denom = 2;
+  string quote_denom = 3;
+  MatchMode mode = 4;
+  int64 batch_interval_seconds = 5; // FBA only
+  uint64 price_band_lo = 6;
+  uint64 price_band_hi = 7;
+  uint64 max_position_per_user = 8;
+  string memo = 9;
+}
+message MsgCreatePairResponse { uint64 pair_id = 1; }
+
+message MsgPauseUnpausePair {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 pair_id = 2;
+  bool pause = 3;
+  string reason = 4;
+}
+message MsgPauseUnpausePairResponse { PairStatus new_status = 1; }
+
+message MsgUpdatePairRisk {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 pair_id = 2;
+  uint64 price_band_lo = 3;
+  uint64 price_band_hi = 4;
+  uint64 max_position_per_user = 5;
+}
+message MsgUpdatePairRiskResponse {}
+
+message MsgPlaceLimitOrder {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  uint64 pair_id = 2;
+  Side side = 3;
+  uint64 price = 4;
+  uint64 quantity = 5;
+  string memo = 6;
+}
+message MsgPlaceLimitOrderResponse {
+  uint64 order_id = 1;
+  // Continuous-mode immediate-fill summary; zero for FBA.
+  uint64 filled_qty = 2;
+  uint64 remaining_qty = 3;
+}
+
+message MsgCancelOrder {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  uint64 order_id = 2;
+  string reason = 3;
+}
+message MsgCancelOrderResponse { uint64 refunded_amount = 1; }
+
+message MsgClearBatch {
+  option (cosmos.msg.v1.signer) = "caller";
+  string caller = 1;
+  uint64 pair_id = 2;
+}
+message MsgClearBatchResponse {
+  uint32 matched_pairs = 1;
+  uint64 clearing_price = 2;
+  // batch_done is true when the entire batch is cleared (no
+  // crossing orders remain). false when the call hit
+  // max_matches_per_clear and the caller should re-invoke.
+  bool batch_done = 3;
+}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

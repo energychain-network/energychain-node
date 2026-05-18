@@ -1,0 +1,17 @@
+syntax = "proto3";
+package energychain.market.v1;
+
+import "gogoproto/gogo.proto";
+
+import "energychain/market/v1/types.proto";
+
+option go_package = "energychain/x/market/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  uint64 next_pair_id = 2;
+  uint64 next_order_id = 3;
+  repeated Pair pairs = 4 [(gogoproto.nullable) = false];
+  repeated Order orders = 5 [(gogoproto.nullable) = false];
+  repeated Position positions = 6 [(gogoproto.nullable) = false];
+}

@@ -1,0 +1,172 @@
+syntax = "proto3";
+package energychain.market.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/market/types";
+
+// MatchMode is the per-Pair matching policy.
+//
+// CONTINUOUS — price-time priority, immediate match on add.
+//              Closest to a centralized-exchange order book;
+//              maximizes interactivity but is exposed to
+//              within-block ordering games.
+// FBA        — Frequent Batch Auction. Orders accumulate
+//              during the batch window; an explicit MsgClearBatch
+//              (anyone, after batch_close_time) runs uniform
+//              clearing-price matching for all crossing orders.
+//              Structurally defeats within-block reordering
+//              attacks; used by the power-spot market.
+enum MatchMode {
+  MATCH_MODE_UNSPECIFIED = 0;
+  MATCH_MODE_CONTINUOUS  = 1;
+  MATCH_MODE_FBA         = 2;
+}
+
+// PairStatus is the per-Pair operating state.
+//
+// ACTIVE — accepting orders, matching as configured.
+// PAUSED — authority halt; no new orders, no matching. Existing
+//          orders may still be CancelOrder'd (so users can
+//          recover escrow when the pair is offline).
+enum PairStatus {
+  PAIR_STATUS_UNSPECIFIED = 0;
+  PAIR_STATUS_ACTIVE      = 1;
+  PAIR_STATUS_PAUSED      = 2;
+}
+
+// Side is BUY / SELL relative to the base_denom.
+enum Side {
+  SIDE_UNSPECIFIED = 0;
+  SIDE_BUY         = 1;
+  SIDE_SELL        = 2;
+}
+
+// OrderStatus is the per-Order lifecycle.
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED      = 0;
+  ORDER_STATUS_OPEN             = 1;
+  ORDER_STATUS_PARTIALLY_FILLED = 2;
+  ORDER_STATUS_FILLED           = 3;
+  ORDER_STATUS_CANCELLED        = 4;
+}
+
+// Pair is one tradable market.
+//
+// Pricing model:
+//   - price is in micro-units of quote_denom per unit of
+//     base_denom (scale = 10^PriceScaleDecimals). I.e. an
+//     order with price=1_500_000 and quantity=2 (base) costs
+//     3 quote_denom units.
+//   - The chain uses uint64 for both price and quantity;
+//     callers MUST sanity-check the implied notional fits.
+//
+// Position model:
+//   - For v1 there is no margin: both legs of every order are
+//     pre-escrowed (BUY locks price*quantity in quote_denom;
+//     SELL locks quantity in base_denom). Filled positions are
+//     tracked for reporting / per-user caps but the keeper
+//     does not charge variation margin.
+message Pair {
+  uint64 id = 1;
+  string base_denom = 2;
+  string quote_denom = 3;
+  MatchMode mode = 4;
+  PairStatus status = 5;
+
+  // FBA-only batch window. Orders accept during the window;
+  // ClearBatch is callable after batch_close_time. After
+  // clearing, next batch opens at next_batch_open_time.
+  int64 batch_interval_seconds = 6;
+  int64 batch_close_time = 7;
+  int64 next_batch_open_time = 8;
+
+  // Risk gates. price_band_lo / price_band_hi are 0=disabled;
+  // otherwise an order whose price falls outside [lo, hi] is
+  // refused at placement. Authority-tunable so the chain can
+  // enforce day-ahead price caps without rewriting code.
+  uint64 price_band_lo = 9;
+  uint64 price_band_hi = 10;
+
+  // Per-user signed-position cap (in base_denom units, absolute
+  // value). 0 disables. The keeper compares cap against
+  // abs(net_position_after_fill) on every fill leg; a cap
+  // exceedance refuses the fill (and the entire taker order if
+  // it cannot rest at its remainder).
+  uint64 max_position_per_user = 11;
+
+  int64 created_at = 12;
+  string memo = 13;
+}
+
+// Order is one resting / historical order.
+//
+// remaining_qty is the unfilled portion. When remaining_qty
+// reaches 0, status flips to FILLED. Cancelling an OPEN /
+// PARTIALLY_FILLED order refunds the remaining-leg escrow.
+//
+// BUY escrow accounting: locked_quote = price * remaining_qty
+//   (drained at each fill; what's left at cancel is returned).
+// SELL escrow accounting: locked_base = remaining_qty
+//   (drained at each fill; what's left at cancel is returned).
+message Order {
+  uint64 id = 1;
+  uint64 pair_id = 2;
+  string owner = 3;
+  Side side = 4;
+  uint64 price = 5;
+  uint64 quantity = 6;
+  uint64 remaining_qty = 7;
+  OrderStatus status = 8;
+
+  int64 placed_at = 9;
+  int64 last_filled_at = 10;
+  uint64 filled_qty = 11;
+
+  // Total quote_denom paid (BUY) or received (SELL) across all
+  // fills. Used by clients to derive average fill price; the
+  // module does not compute the average internally to keep
+  // bookkeeping minimal.
+  uint64 cumulative_quote = 12;
+
+  string memo = 13;
+
+  // escrow_locked is the exact amount of escrow currently held
+  // by the module pool for this order. Tracked separately from
+  // remaining_qty because, for BUY orders, recomputing the
+  // refund as QuoteForFill(price, remaining_qty) at cancel
+  // time can drift by floor-divide truncation residue versus
+  // the sum-of-fill drains; tracking it explicitly guarantees
+  // every cancel refunds exactly what was locked. Denominated
+  // in quote_denom for BUY, base_denom for SELL.
+  uint64 escrow_locked = 14;
+}
+
+// Position tracks a user's net position per pair, in
+// base_denom units. Signed: positive = net long (more BUY-
+// fills than SELL-fills), negative = net short.
+message Position {
+  uint64 pair_id = 1;
+  string owner = 2;
+  // signed_net = net_long - net_short, stored as a positive
+  // magnitude plus a side flag. Done this way to avoid signed
+  // integers in protobuf accounting.
+  uint64 magnitude = 3;
+  bool   is_short = 4;
+  uint64 cumulative_bought = 5;
+  uint64 cumulative_sold = 6;
+}
+
+message Params {
+  uint32 max_pairs = 1;
+  uint32 max_open_orders_per_pair = 2;
+  uint32 max_open_orders_per_user_per_pair = 3;
+  uint32 max_fills_per_match = 4;
+  // max_matches_per_clear bounds how much work a single FBA
+  // ClearBatch call can do; prevents block-gas exhaustion if a
+  // pair accumulated tens of thousands of orders. ClearBatch
+  // is idempotent for the remainder of the same batch — the
+  // caller can re-invoke until the queue clears.
+  uint32 max_matches_per_clear = 5;
+  uint32 memo_max_len = 6;
+}

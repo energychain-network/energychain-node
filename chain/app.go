@@ -176,6 +176,10 @@ import (
 	auctionmodule "energychain/x/auction"
 	auctionkeeper "energychain/x/auction/keeper"
 	auctiontypes "energychain/x/auction/types"
+
+	marketmodule "energychain/x/market"
+	marketkeeper "energychain/x/market/keeper"
+	markettypes "energychain/x/market/types"
 	sanctionsmodule "energychain/x/sanctions"
 	sanctionskeeper "energychain/x/sanctions/keeper"
 	sanctionstypes "energychain/x/sanctions/types"
@@ -261,6 +265,7 @@ type EVMD struct {
 	StreamPayKeeper  streampaykeeper.Keeper
 	ContractKeeper   contractkeeper.Keeper
 	AuctionKeeper    auctionkeeper.Keeper
+	MarketKeeper     marketkeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -345,6 +350,7 @@ func NewEnergyChainApp(
 		streampaytypes.StoreKey,
 		contracttypes.StoreKey,
 		auctiontypes.StoreKey,
+		markettypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -794,6 +800,20 @@ func NewEnergyChainApp(
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
 		nil,
 	)
+	// MarketKeeper runs the chain-native limit-order book + FBA
+	// matcher. Both legs of every fill route through x/stablecoin
+	// via the same adapter as escrow / contract / auction; the
+	// adapter's IsAccountBlocked + IsDenomPaused gates close the
+	// defense-in-depth loop against per-denom freezes that
+	// MoveBalance otherwise bypasses.
+	app.MarketKeeper = marketkeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[markettypes.StoreKey]),
+		authAddr,
+		app.SanctionsKeeper,
+		escrowStablecoinAdapter{k: app.StablecoinKeeper},
+		nil,
+	)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
@@ -901,6 +921,7 @@ func NewEnergyChainApp(
 		streampaymodule.NewAppModule(appCodec, app.StreamPayKeeper),
 		contractmodule.NewAppModule(appCodec, app.ContractKeeper),
 		auctionmodule.NewAppModule(appCodec, app.AuctionKeeper),
+		marketmodule.NewAppModule(appCodec, app.MarketKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -955,7 +976,7 @@ func NewEnergyChainApp(
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
 		streampaytypes.ModuleName, contracttypes.ModuleName,
-		auctiontypes.ModuleName,
+		auctiontypes.ModuleName, markettypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -982,7 +1003,7 @@ func NewEnergyChainApp(
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
 		streampaytypes.ModuleName, contracttypes.ModuleName,
-		auctiontypes.ModuleName,
+		auctiontypes.ModuleName, markettypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -1011,7 +1032,7 @@ func NewEnergyChainApp(
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
 		streampaytypes.ModuleName, contracttypes.ModuleName,
-		auctiontypes.ModuleName,
+		auctiontypes.ModuleName, markettypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)
