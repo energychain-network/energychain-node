@@ -7,6 +7,7 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 
 	v1_0_1 "energychain/upgrades/v1_0_1"
+	v1_1_0 "energychain/upgrades/v1_1_0"
 )
 
 // upgradeEntry groups everything we need to know about a single upgrade in
@@ -41,6 +42,17 @@ func (app *EVMD) registerUpgrades() []upgradeEntry {
 				)
 			},
 			storeUpgrades: v1_0_1.StoreUpgrades,
+		},
+		{
+			name: v1_1_0.UpgradeName,
+			createHandler: func(app *EVMD) upgradetypes.UpgradeHandler {
+				return v1_1_0.CreateUpgradeHandler(
+					app.ModuleManager,
+					app.Configurator(),
+					v1_1_0.MigrationDeps{},
+				)
+			},
+			storeUpgrades: v1_1_0.StoreUpgrades,
 		},
 	}
 }
