@@ -71,6 +71,9 @@ import (
 	dataslashcli "energychain/x/dataslash/client/cli"
 	mrvcli "energychain/x/mrv/client/cli"
 
+	devicecli "energychain/x/device/client/cli"
+	didcli "energychain/x/did/client/cli"
+
 	auctioncli "energychain/x/auction/client/cli"
 )
 
@@ -322,6 +325,8 @@ func txCommand() *cobra.Command {
 		mrvcli.GetTxCmd(),
 		disputecli.GetTxCmd(),
 		dataslashcli.GetTxCmd(),
+		didcli.GetTxCmd(),
+		devicecli.GetTxCmd(),
 	)
 
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")

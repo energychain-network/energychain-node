@@ -7,12 +7,64 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	cfe247types "energychain/x/cfe247/types"
+	didkeeper "energychain/x/did/keeper"
 	eackeeper "energychain/x/eac/keeper"
 	eactypes "energychain/x/eac/types"
 	oraclekeeper "energychain/x/oracle/keeper"
 	rwakeeper "energychain/x/rwa/keeper"
 	stablecoinkeeper "energychain/x/stablecoin/keeper"
 )
+
+// didControllerAdapter bridges x/did.Keeper.IsController →
+// x/mrv & x/dispute's expected IsControllerOf. The semantic
+// is identical (controller = address listed in the DID
+// document's controllers slice); only the method name
+// differs across consumer modules. Keeping the adapter here
+// (rather than renaming inside x/did) preserves the existing
+// keeper API for direct callers.
+type didControllerAdapter struct {
+	k didkeeper.Keeper
+}
+
+func (a didControllerAdapter) IsControllerOf(ctx sdk.Context, did, addr string) bool {
+	return a.k.IsController(ctx, did, addr)
+}
+
+// didPolicyAdapter is the x/policy-shaped slice of x/did.
+// Two narrowing notes:
+//   - Jurisdiction returns "" because the current DID Document
+//     schema does not include a jurisdiction field; the policy
+//     keeper falls through to a permissive default in that
+//     case (documented in expected_keepers.go). Adding the
+//     jurisdiction field to DIDDocument is tracked in the
+//     v2 schema migration.
+//   - HasCredential maps directly to HasValidCredential.
+type didPolicyAdapter struct {
+	k didkeeper.Keeper
+}
+
+func (a didPolicyAdapter) IsActive(ctx sdk.Context, subject string) bool {
+	return a.k.IsActive(ctx, subject)
+}
+func (a didPolicyAdapter) Jurisdiction(_ sdk.Context, _ string) string { return "" }
+func (a didPolicyAdapter) HasCredential(ctx sdk.Context, subject, credType string) bool {
+	return a.k.HasValidCredential(ctx, subject, credType)
+}
+
+// didStablecoinAdapter mirrors didPolicyAdapter for x/stablecoin —
+// the stablecoin keeper takes a narrow DID surface to gate
+// KYC-flagged mints / transfers. Same Jurisdiction caveat as
+// didPolicyAdapter applies.
+type didStablecoinAdapter struct {
+	k didkeeper.Keeper
+}
+
+func (a didStablecoinAdapter) IsActive(ctx sdk.Context, subject string) bool {
+	return a.k.IsActive(ctx, subject)
+}
+func (a didStablecoinAdapter) HasCredential(ctx sdk.Context, subject, credType string) bool {
+	return a.k.HasValidCredential(ctx, subject, credType)
+}
 
 // stablecoinOracleAdapter bridges the rich x/oracle.AggregatedValue
 // type into x/stablecoin's narrow OracleKeeper expected interface,

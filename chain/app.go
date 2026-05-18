@@ -138,6 +138,14 @@ import (
 	auditmodule "energychain/x/audit"
 	auditkeeper "energychain/x/audit/keeper"
 	audittypes "energychain/x/audit/types"
+
+	didmodule "energychain/x/did"
+	didkeeper "energychain/x/did/keeper"
+	didtypes "energychain/x/did/types"
+	devicemodule "energychain/x/device"
+	devicekeeper "energychain/x/device/keeper"
+	devicetypes "energychain/x/device/types"
+
 	carbonmodule "energychain/x/carbon"
 	carbonkeeper "energychain/x/carbon/keeper"
 	carbontypes "energychain/x/carbon/types"
@@ -286,6 +294,8 @@ type EVMD struct {
 	MRVKeeper        mrvkeeper.Keeper
 	DisputeKeeper    disputekeeper.Keeper
 	DataslashKeeper  dataslashkeeper.Keeper
+	DIDKeeper        didkeeper.Keeper
+	DeviceKeeper     devicekeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -375,6 +385,8 @@ func NewEnergyChainApp(
 		mrvtypes.StoreKey,
 		disputetypes.StoreKey,
 		dataslashtypes.StoreKey,
+		didtypes.StoreKey,
+		devicetypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -655,16 +667,34 @@ func NewEnergyChainApp(
 
 	// Custom energy-chain keepers
 	app.OracleKeeper = oraclekeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[oracletypes.StoreKey]), authAddr, app.BankKeeper)
-	// AuditKeeper accepts an optional DIDKeeper (gates view-key grants).
-	// Wired to nil here; the M1 wiring milestone (appgo TODO) replaces
-	// nil with the real x/did keeper once all M1 modules are assembled.
-	app.AuditKeeper = auditkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[audittypes.StoreKey]), tKeys[audittypes.TStoreKey], authAddr, nil)
-	// MeterKeeper depends on x/did (owner DID gating) and x/device
-	// (attestation gating). Both are wired as nil here because those
-	// modules are not yet plumbed into app.go; the M1 wiring milestone
-	// (appgo TODO) replaces nil with the real keepers. Keeper code is
-	// nil-safe — the gates simply pass through until wired.
-	app.MeterKeeper = meterkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[metertypes.StoreKey]), authAddr, nil, nil)
+
+	// DIDKeeper is the M1 identity root — every downstream
+	// owner / subject gate (device, meter, mrv, dispute,
+	// stablecoin, policy) ultimately consults
+	// DIDKeeper.IsActive / IsController. Wired with no
+	// upstream dependencies so it can be constructed first.
+	app.DIDKeeper = didkeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[didtypes.StoreKey]),
+		authAddr,
+	)
+	// DeviceKeeper depends on x/did's IsActive gate so a
+	// device cannot be registered under a non-existent /
+	// suspended DID.
+	app.DeviceKeeper = devicekeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[devicetypes.StoreKey]),
+		authAddr,
+		app.DIDKeeper,
+	)
+
+	// AuditKeeper consumes the live DIDKeeper so view-key
+	// grants reject non-existent / inactive controllers.
+	app.AuditKeeper = auditkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[audittypes.StoreKey]), tKeys[audittypes.TStoreKey], authAddr, app.DIDKeeper)
+	// MeterKeeper now consumes the live DID + Device
+	// keepers; gates fail-closed under the wired keepers
+	// (unknown owner → reject; un-attested device → reject).
+	app.MeterKeeper = meterkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[metertypes.StoreKey]), authAddr, app.DIDKeeper, app.DeviceKeeper)
 	// PolicyKeeper depends on x/did (subject jurisdiction + credentials),
 	// x/sanctions (sanction list), and x/audit (denial event hook). All
 	// three are wired as nil here pending the M2 wiring milestone (appgo
@@ -674,9 +704,11 @@ func NewEnergyChainApp(
 	// PolicyKeeper consumes it via the SanctionsKeeper expected_keeper.
 	// Audit hook is still nil pending the M2 wiring milestone.
 	app.SanctionsKeeper = sanctionskeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[sanctionstypes.StoreKey]), authAddr, nil)
-	// PolicyKeeper now consumes x/sanctions live; x/did + x/audit hooks
-	// remain nil pending later wiring.
-	app.PolicyKeeper = policykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[policytypes.StoreKey]), authAddr, nil, app.SanctionsKeeper, nil)
+	// PolicyKeeper now consumes the live x/did surface (via
+	// adapter that fills in the un-modelled Jurisdiction
+	// field with empty string) plus x/sanctions; x/audit
+	// hook remains nil pending the policy-denial recorder.
+	app.PolicyKeeper = policykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[policytypes.StoreKey]), authAddr, didPolicyAdapter{k: app.DIDKeeper}, app.SanctionsKeeper, nil)
 	// StablecoinKeeper depends on x/policy (transfer DSL), x/sanctions
 	// (defense-in-depth address gate), and x/oracle (reserve attestation
 	// gate on mint, via a thin adapter that flattens the AggregatedValue
@@ -689,7 +721,7 @@ func NewEnergyChainApp(
 		authAddr,
 		app.PolicyKeeper,
 		app.SanctionsKeeper,
-		nil,
+		didStablecoinAdapter{k: app.DIDKeeper},
 		stablecoinOracleAdapter{k: app.OracleKeeper},
 		nil,
 	)
@@ -868,8 +900,8 @@ func NewEnergyChainApp(
 		runtime.NewKVStoreService(keys[mrvtypes.StoreKey]),
 		authAddr,
 		app.SanctionsKeeper,
-		nil, // DIDKeeper hook reserved for a future x/did surface
-		nil, // AuditKeeper hook reserved for the audit module
+		didControllerAdapter{k: app.DIDKeeper},
+		nil, // AuditKeeper hook awaits the x/audit RecordMRVAction surface
 	)
 
 	// DisputeKeeper hosts the arbitration tribunal + bond
@@ -887,8 +919,8 @@ func NewEnergyChainApp(
 		authAddr,
 		app.SanctionsKeeper,
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		nil,
-		nil,
+		didControllerAdapter{k: app.DIDKeeper},
+		nil, // AuditKeeper hook awaits the x/audit RecordDisputeAction surface
 	)
 
 	// DataslashKeeper backs the data-provider misbehavior
@@ -1020,6 +1052,8 @@ func NewEnergyChainApp(
 		mrvmodule.NewAppModule(appCodec, app.MRVKeeper),
 		disputemodule.NewAppModule(appCodec, app.DisputeKeeper),
 		dataslashmodule.NewAppModule(appCodec, app.DataslashKeeper),
+		didmodule.NewAppModule(appCodec, app.DIDKeeper),
+		devicemodule.NewAppModule(appCodec, app.DeviceKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -1077,6 +1111,7 @@ func NewEnergyChainApp(
 		auctiontypes.ModuleName, markettypes.ModuleName,
 		clearingtypes.ModuleName, mrvtypes.ModuleName,
 		disputetypes.ModuleName, dataslashtypes.ModuleName,
+		didtypes.ModuleName, devicetypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -1106,6 +1141,7 @@ func NewEnergyChainApp(
 		auctiontypes.ModuleName, markettypes.ModuleName,
 		clearingtypes.ModuleName, mrvtypes.ModuleName,
 		disputetypes.ModuleName, dataslashtypes.ModuleName,
+		didtypes.ModuleName, devicetypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -1134,6 +1170,7 @@ func NewEnergyChainApp(
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
 		streampaytypes.ModuleName, contracttypes.ModuleName,
+		didtypes.ModuleName, devicetypes.ModuleName,
 		auctiontypes.ModuleName, markettypes.ModuleName,
 		clearingtypes.ModuleName, mrvtypes.ModuleName,
 		disputetypes.ModuleName, dataslashtypes.ModuleName,
