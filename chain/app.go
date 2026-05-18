@@ -172,6 +172,10 @@ import (
 	contractmodule "energychain/x/contract"
 	contractkeeper "energychain/x/contract/keeper"
 	contracttypes "energychain/x/contract/types"
+
+	auctionmodule "energychain/x/auction"
+	auctionkeeper "energychain/x/auction/keeper"
+	auctiontypes "energychain/x/auction/types"
 	sanctionsmodule "energychain/x/sanctions"
 	sanctionskeeper "energychain/x/sanctions/keeper"
 	sanctionstypes "energychain/x/sanctions/types"
@@ -256,6 +260,7 @@ type EVMD struct {
 	SchedulerKeeper  schedulerkeeper.Keeper
 	StreamPayKeeper  streampaykeeper.Keeper
 	ContractKeeper   contractkeeper.Keeper
+	AuctionKeeper    auctionkeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -339,6 +344,7 @@ func NewEnergyChainApp(
 		escrowtypes.StoreKey, schedulertypes.StoreKey,
 		streampaytypes.StoreKey,
 		contracttypes.StoreKey,
+		auctiontypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -774,6 +780,20 @@ func NewEnergyChainApp(
 		contractOracleAdapter{k: app.OracleKeeper},
 		nil,
 	)
+	// AuctionKeeper underpins the generic auction primitive used
+	// by capacity-market lots, EAC bundles, RWA tranches, etc.
+	// Asset delivery is opaque (asset_ref label) and out-of-
+	// module; only the cash leg + bidder-deposit pool live here.
+	// Re-uses the same stablecoin adapter / chain-level sanctions
+	// surface as scheduler / streampay / contract.
+	app.AuctionKeeper = auctionkeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[auctiontypes.StoreKey]),
+		authAddr,
+		app.SanctionsKeeper,
+		escrowStablecoinAdapter{k: app.StablecoinKeeper},
+		nil,
+	)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
@@ -880,6 +900,7 @@ func NewEnergyChainApp(
 		schedulermodule.NewAppModule(appCodec, app.SchedulerKeeper),
 		streampaymodule.NewAppModule(appCodec, app.StreamPayKeeper),
 		contractmodule.NewAppModule(appCodec, app.ContractKeeper),
+		auctionmodule.NewAppModule(appCodec, app.AuctionKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -934,6 +955,7 @@ func NewEnergyChainApp(
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
 		streampaytypes.ModuleName, contracttypes.ModuleName,
+		auctiontypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -960,6 +982,7 @@ func NewEnergyChainApp(
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
 		streampaytypes.ModuleName, contracttypes.ModuleName,
+		auctiontypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -988,6 +1011,7 @@ func NewEnergyChainApp(
 		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
 		streampaytypes.ModuleName, contracttypes.ModuleName,
+		auctiontypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)

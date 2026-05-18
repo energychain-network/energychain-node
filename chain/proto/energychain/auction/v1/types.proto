@@ -1,0 +1,170 @@
+syntax = "proto3";
+package energychain.auction.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/auction/types";
+
+// Kind enumerates the auction modes supported in v1.
+//
+// ENGLISH       — open-ascending. Anyone may PlaceBid above the
+//                 current high before end_time; previous high
+//                 bidder is automatically queued for refund.
+// DUTCH         — descending-price. price(t) decreases linearly
+//                 from dutch_start_price at start_time to
+//                 dutch_floor_price at start_time+dutch_decay_seconds,
+//                 then floors. First PlaceBid at-or-above the
+//                 current price wins immediately.
+// SEALED_FIRST  — sealed-bid first-price. Bidders Commit a hash
+//                 of (price, salt) plus a deposit during the
+//                 commit window; Reveal during the reveal window;
+//                 highest revealed bid wins and pays its own bid.
+// SEALED_SECOND — Vickrey. Same envelope as SEALED_FIRST but
+//                 the winner pays the SECOND-highest revealed
+//                 bid (or reserve_price if only one valid bid).
+enum Kind {
+  KIND_UNSPECIFIED  = 0;
+  KIND_ENGLISH      = 1;
+  KIND_DUTCH        = 2;
+  KIND_SEALED_FIRST = 3;
+  KIND_SEALED_SECOND = 4;
+}
+
+// Status is the auction lifecycle.
+//
+// DRAFT     — created but not yet started (start_time in future).
+// OPEN      — bids accepted (English, Dutch).
+// COMMIT    — sealed mode: bidders may Commit hashes.
+// REVEAL    — sealed mode: bidders may Reveal the body of their
+//             committed bids. Unrevealed Commits forfeit their
+//             deposit to the seller at Close.
+// CLOSED    — winner determined (or no-winner if no bid cleared
+//             the reserve). Losers may withdraw deposit refunds.
+// SETTLED   — seller has been paid the clearing amount; auction
+//             is terminal beyond loser refund withdrawals.
+// CANCELLED — seller cancelled before any binding bid was
+//             placed; all deposits refundable.
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_DRAFT       = 1;
+  STATUS_OPEN        = 2;
+  STATUS_COMMIT      = 3;
+  STATUS_REVEAL      = 4;
+  STATUS_CLOSED      = 5;
+  STATUS_SETTLED     = 6;
+  STATUS_CANCELLED   = 7;
+}
+
+// Auction is one auction row.
+//
+// asset_ref is an opaque off-chain or cross-module label
+// describing what is being sold. In v1 the auction module does
+// NOT escrow the asset itself; it only escrows bidder deposits
+// and runs the winner-selection state machine. Asset delivery
+// is the seller's responsibility (or routed via the upcoming
+// x/clearing DvP path). This keeps the auction primitive
+// reusable across capacity-market lots, EAC bundles, RWA
+// tranches, etc., without baking in a specific asset taxonomy.
+message Auction {
+  uint64 id = 1;
+  Kind   kind = 2;
+  Status status = 3;
+
+  string seller = 4;
+  string asset_ref = 5;            // opaque label
+  string payment_denom = 6;        // stablecoin used for bids
+
+  uint64 reserve_price = 7;        // 0 = no reserve
+
+  // English-only: minimum new-bid increment in payment_denom
+  // units. Ignored for Dutch / sealed modes.
+  uint64 min_bid_increment = 8;
+
+  // Dutch-only: linear-decay configuration.
+  uint64 dutch_start_price = 9;
+  uint64 dutch_floor_price = 10;
+  int64  dutch_decay_seconds = 11;
+
+  // Time gates.
+  int64 start_time = 12;
+  int64 commit_end_time = 13;       // sealed-only
+  int64 reveal_end_time = 14;       // sealed-only
+  int64 end_time = 15;              // english / dutch close gate
+  int64 created_at = 16;
+  int64 closed_at = 17;
+  int64 settled_at = 18;
+
+  // Cross-cutting clearing outcome (post-Close).
+  string winner = 19;
+  uint64 clearing_price = 20;       // total amount winner owes seller
+  uint64 winning_bid_id = 21;
+  uint64 bid_count = 22;
+  uint64 valid_reveal_count = 23;
+
+  string memo = 24;
+}
+
+// BidStatus tracks a single bid's lifecycle.
+//
+// ACTIVE     — currently the leading bid (English) or open bid
+//              (Dutch is single-shot WIN-on-place so Dutch bids
+//              never sit in ACTIVE).
+// COMMITTED  — sealed-mode hash committed, awaiting reveal.
+// REVEALED   — sealed-mode reveal succeeded; eligible for
+//              winner selection.
+// OUTBID     — superseded by a higher English bid; deposit
+//              refundable.
+// WON        — winning bid (post-Close).
+// LOST       — losing bid (post-Close); deposit refundable.
+// FORFEITED  — sealed-mode Commit without a valid Reveal by
+//              reveal_end_time; deposit forfeited to seller at
+//              Close. Acts as the anti-grief gate for sealed
+//              modes — without forfeit, a malicious bidder
+//              could Commit at the cap and refuse to reveal,
+//              freezing the auction's competitive shape.
+enum BidStatus {
+  BID_STATUS_UNSPECIFIED = 0;
+  BID_STATUS_ACTIVE      = 1;
+  BID_STATUS_COMMITTED   = 2;
+  BID_STATUS_REVEALED    = 3;
+  BID_STATUS_OUTBID      = 4;
+  BID_STATUS_WON         = 5;
+  BID_STATUS_LOST        = 6;
+  BID_STATUS_FORFEITED   = 7;
+}
+
+message Bid {
+  uint64 id = 1;
+  uint64 auction_id = 2;
+  string bidder = 3;
+  BidStatus status = 4;
+
+  // English / Dutch: actual price.
+  // SEALED_*: zero until Reveal succeeds.
+  uint64 price = 5;
+  // Deposit escrowed in the pool. For English / Dutch this is
+  // always equal to `price`. For sealed it is the bidder-chosen
+  // cap (>= eventual revealed price). Cap allows the bidder
+  // to commit privately without leaking max via the deposit
+  // amount being equal to the price.
+  uint64 deposit = 6;
+
+  // SEALED_* only: hash of (price || salt) in hex.
+  bytes commit_hash = 7;
+  // SEALED_* only: revealed salt (populated post-Reveal).
+  bytes reveal_salt = 8;
+
+  int64 placed_at = 9;
+  int64 revealed_at = 10;
+
+  bool refunded = 11; // loser self-claimed via WithdrawRefund
+}
+
+message Params {
+  uint32 max_auctions = 1;
+  uint32 max_auctions_per_seller = 2;
+  uint32 max_bids_per_auction = 3;
+  int64  min_auction_duration_seconds = 4;
+  int64  max_auction_duration_seconds = 5;
+  uint32 memo_max_len = 6;
+}
