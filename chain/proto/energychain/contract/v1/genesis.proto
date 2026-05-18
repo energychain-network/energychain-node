@@ -1,0 +1,14 @@
+syntax = "proto3";
+package energychain.contract.v1;
+
+import "gogoproto/gogo.proto";
+
+import "energychain/contract/v1/types.proto";
+
+option go_package = "energychain/x/contract/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  uint64 next_contract_id = 2;
+  repeated Contract contracts = 3 [(gogoproto.nullable) = false];
+}

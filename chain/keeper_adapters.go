@@ -186,6 +186,25 @@ func (a escrowOracleAdapter) GetAggregatedReserve(ctx sdk.Context, topicID strin
 	return v.Value, v.ComputedTime, true
 }
 
+// contractOracleAdapter shares its shape with stablecoin / eac /
+// carbon / escrow adapters: every consumer of x/oracle aggregated
+// values reads (value, timestamp, ok) from the same surface. The
+// x/contract settlement engine validates the timestamp against
+// each contract's max_oracle_staleness_seconds so we do NOT
+// pre-filter staleness here — the per-contract policy is the
+// source of truth.
+type contractOracleAdapter struct {
+	k oraclekeeper.Keeper
+}
+
+func (a contractOracleAdapter) GetAggregatedReserve(ctx sdk.Context, topicID string) (value int64, timestamp int64, ok bool) {
+	v, found := a.k.GetAggregated(ctx, topicID)
+	if !found {
+		return 0, 0, false
+	}
+	return v.Value, v.ComputedTime, true
+}
+
 // schedulerMsgRouterAdapter wraps BaseApp.MsgServiceRouter so the
 // x/scheduler keeper can route scheduled payloads at tick time
 // without taking a direct dependency on the SDK service router.

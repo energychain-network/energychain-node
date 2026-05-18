@@ -1,0 +1,167 @@
+syntax = "proto3";
+package energychain.contract.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/contract/v1/types.proto";
+
+option go_package = "energychain/x/contract/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc CreateContract(MsgCreateContract) returns (MsgCreateContractResponse);
+  rpc DepositMargin(MsgDepositMargin) returns (MsgDepositMarginResponse);
+  rpc WithdrawMargin(MsgWithdrawMargin) returns (MsgWithdrawMarginResponse);
+  rpc Sign(MsgSign) returns (MsgSignResponse);
+  rpc Revoke(MsgRevoke) returns (MsgRevokeResponse);
+  rpc Settle(MsgSettle) returns (MsgSettleResponse);
+  rpc Default(MsgDefault) returns (MsgDefaultResponse);
+  rpc Terminate(MsgTerminate) returns (MsgTerminateResponse);
+
+  rpc MarkDisputed(MsgMarkDisputed) returns (MsgMarkDisputedResponse);
+  rpc ResolveDispute(MsgResolveDispute) returns (MsgResolveDisputeResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+message MsgCreateContract {
+  option (cosmos.msg.v1.signer) = "drafter";
+
+  // drafter is one of buyer / seller — whichever party is
+  // bootstrapping the contract row. The other counterparty is
+  // expected to Sign before the contract activates.
+  string drafter = 1;
+
+  Kind kind = 2;
+  string buyer = 3;
+  string seller = 4;
+
+  string schema_uri = 5;
+  bytes  schema_hash = 6;
+
+  string asset_denom = 7;
+  uint64 strike_price = 8;
+  uint64 notional_quantity = 9;
+  string price_oracle_topic = 10;
+  string quantity_oracle_topic = 11;
+  int64  max_oracle_staleness_seconds = 12;
+
+  uint64 margin_requirement = 13;
+
+  int64 settlement_period_seconds = 14;
+  int64 start_time = 15;   // 0 -> block_time when both sign
+  int64 end_time = 16;     // 0 -> open-ended (no auto-EXPIRE)
+  int64 grace_period_seconds = 17; // 0 -> Params.default_grace_period_seconds
+
+  string memo = 18;
+}
+message MsgCreateContractResponse { uint64 contract_id = 1; }
+
+message MsgDepositMargin {
+  option (cosmos.msg.v1.signer) = "party";
+  string party = 1;
+  uint64 contract_id = 2;
+  uint64 amount = 3;
+}
+message MsgDepositMarginResponse { uint64 new_balance = 1; }
+
+message MsgWithdrawMargin {
+  option (cosmos.msg.v1.signer) = "party";
+  string party = 1;
+  uint64 contract_id = 2;
+  // amount = 0 means "withdraw all withdrawable" (excess over
+  // margin_requirement when ACTIVE; the full balance on
+  // terminal status).
+  uint64 amount = 3;
+}
+message MsgWithdrawMarginResponse { uint64 withdrawn = 1; uint64 new_balance = 2; }
+
+// MsgSign records a party's signature. Activation transitions
+// to ACTIVE atomically when both parties have signed AND both
+// margins meet margin_requirement.
+message MsgSign {
+  option (cosmos.msg.v1.signer) = "party";
+  string party = 1;
+  uint64 contract_id = 2;
+}
+message MsgSignResponse { Status new_status = 1; }
+
+// MsgRevoke un-signs a DRAFT contract. Only the party who
+// signed can revoke; only while still DRAFT (i.e. the OTHER
+// party has not yet signed AND both margins haven't yet been
+// posted to flip to ACTIVE in the same block).
+message MsgRevoke {
+  option (cosmos.msg.v1.signer) = "party";
+  string party = 1;
+  uint64 contract_id = 2;
+  string reason = 3;
+}
+message MsgRevokeResponse {}
+
+message MsgSettle {
+  option (cosmos.msg.v1.signer) = "caller";
+  string caller = 1;
+  uint64 contract_id = 2;
+}
+message MsgSettleResponse {
+  uint32 periods_settled = 1;
+  // net delta of the entire batch: positive = buyer -> seller,
+  // negative = seller -> buyer.
+  int64 net_amount = 2;
+}
+
+// MsgDefault is called when the next_settlement_time +
+// grace_period_seconds has passed and Settle has not been
+// invoked. Resolves to slashing the side that would have owed
+// at the latest reading — their margin transfers in full to
+// the non-defaulting party.
+message MsgDefault {
+  option (cosmos.msg.v1.signer) = "caller";
+  string caller = 1;
+  uint64 contract_id = 2;
+  string reason = 3;
+}
+message MsgDefaultResponse {
+  string defaulting_party = 1;
+  uint64 slashed_amount = 2;
+}
+
+// MsgTerminate is the mutual-consent termination. Both
+// parties must call Terminate (a bit-mask is tracked on the
+// row); the second call flips status to TERMINATED.
+message MsgTerminate {
+  option (cosmos.msg.v1.signer) = "party";
+  string party = 1;
+  uint64 contract_id = 2;
+  string reason = 3;
+}
+message MsgTerminateResponse { Status new_status = 1; }
+
+// MsgMarkDisputed / MsgResolveDispute are governance-only
+// hooks pending x/dispute. Authority is the chain authority
+// today; will route to x/dispute keeper once that module
+// lands.
+message MsgMarkDisputed {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 contract_id = 2;
+  string reason = 3;
+}
+message MsgMarkDisputedResponse {}
+
+message MsgResolveDispute {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 contract_id = 2;
+  string reason = 3;
+}
+message MsgResolveDisputeResponse {}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}
