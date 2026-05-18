@@ -1,0 +1,21 @@
+syntax = "proto3";
+package energychain.dataslash.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/dataslash/v1/types.proto";
+
+option go_package = "energychain/x/dataslash/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+
+  uint64 next_provider_id    = 2;
+  uint64 next_infraction_id  = 3;
+  uint64 next_jail_record_id = 4;
+  uint64 next_ban_record_id  = 5;
+
+  repeated Provider providers      = 6  [(gogoproto.nullable) = false];
+  repeated Infraction infractions  = 7  [(gogoproto.nullable) = false];
+  repeated JailRecord jail_records = 8  [(gogoproto.nullable) = false];
+  repeated BanRecord ban_records   = 9  [(gogoproto.nullable) = false];
+}

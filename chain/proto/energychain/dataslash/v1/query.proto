@@ -1,0 +1,89 @@
+syntax = "proto3";
+package energychain.dataslash.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "energychain/dataslash/v1/types.proto";
+
+option go_package = "energychain/x/dataslash/types";
+
+service Query {
+  rpc Params           (QueryParamsRequest)           returns (QueryParamsResponse);
+  rpc Provider         (QueryProviderRequest)         returns (QueryProviderResponse);
+  rpc Providers        (QueryProvidersRequest)        returns (QueryProvidersResponse);
+  // ProviderBySigner is the chokepoint upstream modules
+  // (oracle / meter / bridge) use to resolve a signing
+  // address to its provider record before accepting a
+  // submission. Returns NOT_FOUND when no provider is
+  // registered for the address.
+  rpc ProviderBySigner (QueryProviderBySignerRequest) returns (QueryProviderBySignerResponse);
+
+  rpc Infraction       (QueryInfractionRequest)       returns (QueryInfractionResponse);
+  rpc Infractions      (QueryInfractionsRequest)      returns (QueryInfractionsResponse);
+
+  rpc JailRecords      (QueryJailRecordsRequest)      returns (QueryJailRecordsResponse);
+  rpc BanRecords       (QueryBanRecordsRequest)       returns (QueryBanRecordsResponse);
+
+  rpc PoolAddress      (QueryPoolAddressRequest)      returns (QueryPoolAddressResponse);
+
+  // IsActive is a fast on-chain hook: upstream keepers
+  // call it before accepting data from a signer address.
+  // Returns true only when the provider exists, is ACTIVE,
+  // and has met the role's required bond.
+  rpc IsActive         (QueryIsActiveRequest)         returns (QueryIsActiveResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+
+message QueryProviderRequest  { uint64 id = 1; }
+message QueryProviderResponse { Provider provider = 1 [(gogoproto.nullable) = false]; }
+
+message QueryProvidersRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+  ProviderStatus status = 2;
+  ProviderRole role = 3;
+}
+message QueryProvidersResponse {
+  repeated Provider providers = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryProviderBySignerRequest  { string signer_address = 1; }
+message QueryProviderBySignerResponse { Provider provider = 1 [(gogoproto.nullable) = false]; }
+
+message QueryInfractionRequest  { uint64 id = 1; }
+message QueryInfractionResponse { Infraction infraction = 1 [(gogoproto.nullable) = false]; }
+
+message QueryInfractionsRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+  uint64 provider_id = 2;
+  InfractionKind kind = 3;
+}
+message QueryInfractionsResponse {
+  repeated Infraction infractions = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryJailRecordsRequest  { uint64 provider_id = 1; }
+message QueryJailRecordsResponse {
+  repeated JailRecord records = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryBanRecordsRequest  { uint64 provider_id = 1; }
+message QueryBanRecordsResponse {
+  repeated BanRecord records = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryPoolAddressRequest {}
+message QueryPoolAddressResponse { string pool = 1; }
+
+message QueryIsActiveRequest  {
+  string signer_address = 1;
+  ProviderRole expected_role = 2; // if UNSPECIFIED, any role is accepted
+}
+message QueryIsActiveResponse {
+  bool active = 1;
+  uint64 provider_id = 2;
+  ProviderStatus status = 3;
+}

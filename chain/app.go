@@ -189,6 +189,10 @@ import (
 	disputekeeper "energychain/x/dispute/keeper"
 	disputetypes "energychain/x/dispute/types"
 
+	dataslashmodule "energychain/x/dataslash"
+	dataslashkeeper "energychain/x/dataslash/keeper"
+	dataslashtypes "energychain/x/dataslash/types"
+
 	mrvmodule "energychain/x/mrv"
 	mrvkeeper "energychain/x/mrv/keeper"
 	mrvtypes "energychain/x/mrv/types"
@@ -281,6 +285,7 @@ type EVMD struct {
 	ClearingKeeper   clearingkeeper.Keeper
 	MRVKeeper        mrvkeeper.Keeper
 	DisputeKeeper    disputekeeper.Keeper
+	DataslashKeeper  dataslashkeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -369,6 +374,7 @@ func NewEnergyChainApp(
 		clearingtypes.StoreKey,
 		mrvtypes.StoreKey,
 		disputetypes.StoreKey,
+		dataslashtypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -885,6 +891,24 @@ func NewEnergyChainApp(
 		nil,
 	)
 
+	// DataslashKeeper backs the data-provider misbehavior
+	// surface: bonded oracles / meters / bridges register
+	// here, get auto-jailed or auto-banned when authority
+	// reports infractions, and the bond pool absorbs the
+	// slashed remainder pending governance distribution.
+	// The keeper reuses escrowStablecoinAdapter so each
+	// bond leg re-checks per-account block lists. Sanctions
+	// + audit keepers stay optional — passing nil disables
+	// those layers; passing the real keeper enables them.
+	app.DataslashKeeper = dataslashkeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[dataslashtypes.StoreKey]),
+		authAddr,
+		app.SanctionsKeeper,
+		escrowStablecoinAdapter{k: app.StablecoinKeeper},
+		nil,
+	)
+
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
 	// because the EVM module's params list the active precompile addresses
@@ -995,6 +1019,7 @@ func NewEnergyChainApp(
 		clearingmodule.NewAppModule(appCodec, app.ClearingKeeper),
 		mrvmodule.NewAppModule(appCodec, app.MRVKeeper),
 		disputemodule.NewAppModule(appCodec, app.DisputeKeeper),
+		dataslashmodule.NewAppModule(appCodec, app.DataslashKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -1051,7 +1076,7 @@ func NewEnergyChainApp(
 		streampaytypes.ModuleName, contracttypes.ModuleName,
 		auctiontypes.ModuleName, markettypes.ModuleName,
 		clearingtypes.ModuleName, mrvtypes.ModuleName,
-		disputetypes.ModuleName,
+		disputetypes.ModuleName, dataslashtypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -1080,7 +1105,7 @@ func NewEnergyChainApp(
 		streampaytypes.ModuleName, contracttypes.ModuleName,
 		auctiontypes.ModuleName, markettypes.ModuleName,
 		clearingtypes.ModuleName, mrvtypes.ModuleName,
-		disputetypes.ModuleName,
+		disputetypes.ModuleName, dataslashtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -1111,7 +1136,7 @@ func NewEnergyChainApp(
 		streampaytypes.ModuleName, contracttypes.ModuleName,
 		auctiontypes.ModuleName, markettypes.ModuleName,
 		clearingtypes.ModuleName, mrvtypes.ModuleName,
-		disputetypes.ModuleName,
+		disputetypes.ModuleName, dataslashtypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)
