@@ -1,0 +1,172 @@
+syntax = "proto3";
+package energychain.dispute.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/dispute/types";
+
+// ArbitratorStatus tracks tribunal-membership eligibility.
+// Only ACCREDITED arbitrators can be assigned to new
+// tribunals or cast votes; SUSPENDED keeps existing votes
+// valid but bars new assignments; REVOKED additionally
+// drops any pending votes.
+enum ArbitratorStatus {
+  ARBITRATOR_STATUS_UNSPECIFIED = 0;
+  ARBITRATOR_STATUS_ACCREDITED  = 1;
+  ARBITRATOR_STATUS_SUSPENDED   = 2;
+  ARBITRATOR_STATUS_REVOKED     = 3;
+}
+
+// SubjectKind identifies the cross-module artifact the
+// dispute is about. The chain does NOT mutate the referenced
+// artifact directly (no cross-module write coupling), but
+// upstream modules can query dispute state via
+// AnyOpenDisputeFor() to gate downstream actions while a
+// dispute is pending.
+enum SubjectKind {
+  SUBJECT_KIND_UNSPECIFIED   = 0;
+  SUBJECT_KIND_ORACLE_TOPIC  = 1; // oracle price-feed entry
+  SUBJECT_KIND_METER_READING = 2; // meter reading
+  SUBJECT_KIND_CONTRACT_SETTLEMENT = 3; // bilateral contract settle
+  SUBJECT_KIND_MARKET_FILL   = 4; // exchange fill
+  SUBJECT_KIND_EAC_ISSUANCE  = 5; // EAC issuance
+  SUBJECT_KIND_CARBON_RETIRE = 6; // carbon retirement
+  SUBJECT_KIND_OTHER         = 7; // catch-all for non-listed
+}
+
+// DisputeStatus is the canonical dispute lifecycle.
+enum DisputeStatus {
+  DISPUTE_STATUS_UNSPECIFIED   = 0;
+  DISPUTE_STATUS_OPEN          = 1; // awaiting respondent + tribunal
+  DISPUTE_STATUS_RESPONDED     = 2; // both bonds posted, tribunal assigned
+  DISPUTE_STATUS_DELIBERATING  = 3; // tribunal collecting votes
+  DISPUTE_STATUS_RESOLVED      = 4; // ruling cast, bonds disbursed
+  DISPUTE_STATUS_CANCELLED     = 5; // withdrawn before ruling
+}
+
+// RulingOutcome — only meaningful for RESOLVED disputes.
+enum RulingOutcome {
+  RULING_OUTCOME_UNSPECIFIED = 0;
+  RULING_OUTCOME_PLAINTIFF   = 1; // respondent's bond slashed
+  RULING_OUTCOME_RESPONDENT  = 2; // plaintiff's bond slashed
+  RULING_OUTCOME_SPLIT       = 3; // partial fault, partial slash
+  RULING_OUTCOME_NO_FAULT    = 4; // both refunded in full
+}
+
+// VoteChoice mirrors RulingOutcome but is per-arbitrator.
+enum VoteChoice {
+  VOTE_CHOICE_UNSPECIFIED = 0;
+  VOTE_CHOICE_PLAINTIFF   = 1;
+  VOTE_CHOICE_RESPONDENT  = 2;
+  VOTE_CHOICE_SPLIT       = 3;
+  VOTE_CHOICE_NO_FAULT    = 4;
+  VOTE_CHOICE_ABSTAIN     = 5;
+}
+
+message Arbitrator {
+  uint64 id = 1;
+  string did = 2;
+  string signer_address = 3; // bech32 — always-on chain enforcement
+  string name = 4;
+  repeated string accredited_standards = 5;
+  repeated string jurisdictions = 6;
+  ArbitratorStatus status = 7;
+  int64 accredited_at = 8;
+  int64 updated_at = 9;
+}
+
+message Dispute {
+  uint64 id = 1;
+
+  // Parties.
+  string plaintiff  = 2;
+  string respondent = 3;
+
+  // Subject of the dispute.
+  SubjectKind subject_kind = 4;
+  string subject_ref = 5; // free-form opaque reference; off-chain canonical
+
+  // Claim documentation.
+  string claim_uri = 6;
+  string claim_hash = 7; // sha256 hex
+  string memo = 8;
+
+  // Bonds (held in a module pool until resolved).
+  string bond_denom = 9;
+  uint64 plaintiff_bond = 10;
+  uint64 respondent_bond_required = 11; // minimum the respondent must post
+  uint64 respondent_bond = 12;          // actually posted (0 if not yet)
+
+  // Lifecycle.
+  DisputeStatus status = 13;
+  int64 opened_at = 14;
+  int64 respond_deadline = 15;      // unix seconds; OPEN→CANCELLED if no response
+  int64 deliberation_deadline = 16; // unix seconds; tribunal must rule by
+
+  // Outcome (set on RESOLVED only).
+  RulingOutcome outcome = 17;
+  string ruling_uri = 18;
+  string ruling_hash = 19;
+  // slash_bps is the basis points (0–10000) of the losing
+  // side's bond that is slashed (forfeited to the module
+  // pool / treasury). The remainder is refunded.
+  // For SPLIT outcomes this is applied to BOTH sides.
+  // For NO_FAULT this is 0 and both sides are fully refunded.
+  uint32 slash_bps = 20;
+  int64 resolved_at = 21;
+}
+
+message TribunalMember {
+  uint64 dispute_id = 1;
+  uint64 arbitrator_id = 2;
+  int64 assigned_at = 3;
+}
+
+message Vote {
+  uint64 dispute_id = 1;
+  uint64 arbitrator_id = 2;
+  VoteChoice choice = 3;
+  string reason = 4;
+  int64 cast_at = 5;
+}
+
+message Evidence {
+  uint64 dispute_id = 1;
+  uint64 id = 2; // monotonic within a dispute
+  string submitter = 3;
+  string uri = 4;
+  string hash = 5;
+  int64 submitted_at = 6;
+}
+
+message Params {
+  uint32 max_arbitrators = 1;
+  uint32 max_open_disputes = 2;
+  uint32 max_evidence_per_dispute = 3;
+
+  // panel_size is the number of arbitrators auto-assigned
+  // to each dispute. Quorum is computed as a basis-points
+  // fraction of this.
+  uint32 panel_size = 4;
+  uint32 quorum_bps = 5; // 0-10000
+
+  int64 respond_period_seconds = 6;
+  int64 deliberation_period_seconds = 7;
+
+  // Bond constraints. min_plaintiff_bond is the absolute
+  // floor; max_plaintiff_bond is an upper cap to prevent a
+  // griefing plaintiff from setting an unreachable
+  // respondent_bond_required.
+  uint64 min_plaintiff_bond = 8;
+  uint64 max_plaintiff_bond = 9;
+  uint32 default_slash_bps = 10; // applied when ruling doesn't override
+
+  uint32 memo_max_len = 11;
+  uint32 reason_max_len = 12;
+  uint32 uri_max_len = 13;
+  uint32 max_jurisdictions_per_arbitrator = 14;
+  uint32 max_standards_per_arbitrator = 15;
+
+  // sweep budgets per block
+  uint32 max_finalizations_per_block = 16;
+}

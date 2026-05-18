@@ -1,0 +1,154 @@
+syntax = "proto3";
+package energychain.dispute.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos/msg/v1/msg.proto";
+import "energychain/dispute/v1/types.proto";
+
+option go_package = "energychain/x/dispute/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc RegisterArbitrator    (MsgRegisterArbitrator)    returns (MsgRegisterArbitratorResponse);
+  rpc UpdateArbitratorStatus(MsgUpdateArbitratorStatus)returns (MsgUpdateArbitratorStatusResponse);
+
+  rpc OpenDispute     (MsgOpenDispute)     returns (MsgOpenDisputeResponse);
+  rpc Respond         (MsgRespond)         returns (MsgRespondResponse);
+  rpc SubmitEvidence  (MsgSubmitEvidence)  returns (MsgSubmitEvidenceResponse);
+  rpc AssignTribunal  (MsgAssignTribunal)  returns (MsgAssignTribunalResponse);
+  rpc CastVote        (MsgCastVote)        returns (MsgCastVoteResponse);
+  rpc FinalizeRuling  (MsgFinalizeRuling)  returns (MsgFinalizeRulingResponse);
+  rpc CancelDispute   (MsgCancelDispute)   returns (MsgCancelDisputeResponse);
+
+  rpc UpdateParams    (MsgUpdateParams)    returns (MsgUpdateParamsResponse);
+}
+
+// ---- Arbitrators (authority only) -------------------------------------
+
+message MsgRegisterArbitrator {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string did = 2;
+  string signer_address = 3;
+  string name = 4;
+  repeated string accredited_standards = 5;
+  repeated string jurisdictions = 6;
+}
+message MsgRegisterArbitratorResponse { uint64 arbitrator_id = 1; }
+
+message MsgUpdateArbitratorStatus {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 arbitrator_id = 2;
+  ArbitratorStatus new_status = 3;
+  string reason = 4;
+}
+message MsgUpdateArbitratorStatusResponse {}
+
+// ---- Disputes ----------------------------------------------------------
+
+// OpenDispute is signed by the plaintiff. The plaintiff's
+// bond is moved from their balance into the module pool at
+// this point. respondent_bond_required defines the bond the
+// respondent must post; the chain enforces a sensible upper
+// cap so an abusive plaintiff cannot impose unreachable
+// barriers.
+message MsgOpenDispute {
+  option (cosmos.msg.v1.signer) = "plaintiff";
+  string plaintiff = 1;
+  string respondent = 2;
+  SubjectKind subject_kind = 3;
+  string subject_ref = 4;
+  string claim_uri = 5;
+  string claim_hash = 6;
+  string memo = 7;
+  string bond_denom = 8;
+  uint64 plaintiff_bond = 9;
+  uint64 respondent_bond_required = 10;
+}
+message MsgOpenDisputeResponse { uint64 dispute_id = 1; }
+
+// Respond is signed by the named respondent and posts at
+// LEAST `respondent_bond_required`. Excess bond is allowed —
+// it just increases their stake at potential slash.
+message MsgRespond {
+  option (cosmos.msg.v1.signer) = "respondent";
+  string respondent = 1;
+  uint64 dispute_id = 2;
+  uint64 bond = 3;
+}
+message MsgRespondResponse {}
+
+// SubmitEvidence is callable by either party OR by an
+// arbitrator on the assigned tribunal. Evidence is append-
+// only; you cannot retract.
+message MsgSubmitEvidence {
+  option (cosmos.msg.v1.signer) = "submitter";
+  string submitter = 1;
+  uint64 dispute_id = 2;
+  string uri = 3;
+  string hash = 4;
+}
+message MsgSubmitEvidenceResponse { uint64 evidence_id = 1; }
+
+// AssignTribunal is authority-only. The chain takes the
+// supplied panel and validates each arbitrator is ACCREDITED.
+// A future variant can auto-select from the accredited pool.
+message MsgAssignTribunal {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 dispute_id = 2;
+  repeated uint64 arbitrator_ids = 3;
+}
+message MsgAssignTribunalResponse {}
+
+// CastVote is signed by the arbitrator's signer_address.
+// An arbitrator votes at most once per dispute.
+message MsgCastVote {
+  option (cosmos.msg.v1.signer) = "voter_address";
+  string voter_address = 1;
+  uint64 arbitrator_id = 2;
+  uint64 dispute_id = 3;
+  VoteChoice choice = 4;
+  string reason = 5;
+}
+message MsgCastVoteResponse {}
+
+// FinalizeRuling is callable by the authority or by anyone
+// once quorum is met OR the deliberation deadline has passed.
+// The chain tallies the votes deterministically and writes
+// the outcome. Bonds are disbursed in the same tx.
+message MsgFinalizeRuling {
+  option (cosmos.msg.v1.signer) = "actor";
+  string actor = 1;
+  uint64 dispute_id = 2;
+  // override_slash_bps lets authority pin a specific slash
+  // rate at finalization time (e.g., when ruling is more
+  // nuanced than the default). Ignored for non-authority
+  // callers, which always use params.default_slash_bps.
+  uint32 override_slash_bps = 3;
+  string ruling_uri = 4;
+  string ruling_hash = 5;
+}
+message MsgFinalizeRulingResponse { RulingOutcome outcome = 1; }
+
+// CancelDispute is callable by:
+//   - the plaintiff, ONLY if status is OPEN (i.e. before the
+//     respondent has joined). Plaintiff's bond is refunded.
+//   - the authority, at any non-terminal status. Both sides
+//     are refunded their posted bonds in full.
+message MsgCancelDispute {
+  option (cosmos.msg.v1.signer) = "actor";
+  string actor = 1;
+  uint64 dispute_id = 2;
+  string reason = 3;
+}
+message MsgCancelDisputeResponse {}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

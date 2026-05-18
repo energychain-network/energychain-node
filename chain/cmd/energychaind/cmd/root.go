@@ -67,6 +67,7 @@ import (
 	contractcli "energychain/x/contract/client/cli"
 	marketcli "energychain/x/market/client/cli"
 	clearingcli "energychain/x/clearing/client/cli"
+	disputecli "energychain/x/dispute/client/cli"
 	mrvcli "energychain/x/mrv/client/cli"
 
 	auctioncli "energychain/x/auction/client/cli"
@@ -318,6 +319,7 @@ func txCommand() *cobra.Command {
 		marketcli.GetTxCmd(),
 		clearingcli.GetTxCmd(),
 		mrvcli.GetTxCmd(),
+		disputecli.GetTxCmd(),
 	)
 
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")

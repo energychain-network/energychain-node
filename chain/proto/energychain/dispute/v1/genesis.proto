@@ -1,0 +1,28 @@
+syntax = "proto3";
+package energychain.dispute.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/dispute/v1/types.proto";
+
+option go_package = "energychain/x/dispute/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+
+  uint64 next_arbitrator_id = 2;
+  uint64 next_dispute_id = 3;
+
+  repeated Arbitrator arbitrators = 4 [(gogoproto.nullable) = false];
+  repeated Dispute disputes = 5 [(gogoproto.nullable) = false];
+  repeated TribunalMember tribunal_members = 6 [(gogoproto.nullable) = false];
+  repeated Vote votes = 7 [(gogoproto.nullable) = false];
+  repeated Evidence evidence = 8 [(gogoproto.nullable) = false];
+  // EvidenceSeqEntry preserves the per-dispute evidence id
+  // sequence across genesis export/import.
+  repeated EvidenceSeqEntry evidence_seqs = 9 [(gogoproto.nullable) = false];
+}
+
+message EvidenceSeqEntry {
+  uint64 dispute_id = 1;
+  uint64 next_evidence_id = 2;
+}

@@ -185,6 +185,10 @@ import (
 	clearingkeeper "energychain/x/clearing/keeper"
 	clearingtypes "energychain/x/clearing/types"
 
+	disputemodule "energychain/x/dispute"
+	disputekeeper "energychain/x/dispute/keeper"
+	disputetypes "energychain/x/dispute/types"
+
 	mrvmodule "energychain/x/mrv"
 	mrvkeeper "energychain/x/mrv/keeper"
 	mrvtypes "energychain/x/mrv/types"
@@ -276,6 +280,7 @@ type EVMD struct {
 	MarketKeeper     marketkeeper.Keeper
 	ClearingKeeper   clearingkeeper.Keeper
 	MRVKeeper        mrvkeeper.Keeper
+	DisputeKeeper    disputekeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -363,6 +368,7 @@ func NewEnergyChainApp(
 		markettypes.StoreKey,
 		clearingtypes.StoreKey,
 		mrvtypes.StoreKey,
+		disputetypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -860,6 +866,25 @@ func NewEnergyChainApp(
 		nil, // AuditKeeper hook reserved for the audit module
 	)
 
+	// DisputeKeeper hosts the arbitration tribunal + bond
+	// escrow surface (x/dispute). Bonds are denominated in
+	// x/stablecoin denoms; the same escrowStablecoinAdapter
+	// used by x/escrow is reused so the per-account
+	// freeze/blacklist gate is re-checked on every bond leg.
+	// SanctionsKeeper hooks block sanctioned plaintiffs /
+	// respondents at open/respond time. The DIDKeeper and
+	// AuditKeeper hooks are reserved for the same future
+	// wiring that x/mrv awaits.
+	app.DisputeKeeper = disputekeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[disputetypes.StoreKey]),
+		authAddr,
+		app.SanctionsKeeper,
+		escrowStablecoinAdapter{k: app.StablecoinKeeper},
+		nil,
+		nil,
+	)
+
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
 	// because the EVM module's params list the active precompile addresses
@@ -969,6 +994,7 @@ func NewEnergyChainApp(
 		marketmodule.NewAppModule(appCodec, app.MarketKeeper),
 		clearingmodule.NewAppModule(appCodec, app.ClearingKeeper),
 		mrvmodule.NewAppModule(appCodec, app.MRVKeeper),
+		disputemodule.NewAppModule(appCodec, app.DisputeKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -1025,6 +1051,7 @@ func NewEnergyChainApp(
 		streampaytypes.ModuleName, contracttypes.ModuleName,
 		auctiontypes.ModuleName, markettypes.ModuleName,
 		clearingtypes.ModuleName, mrvtypes.ModuleName,
+		disputetypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -1053,6 +1080,7 @@ func NewEnergyChainApp(
 		streampaytypes.ModuleName, contracttypes.ModuleName,
 		auctiontypes.ModuleName, markettypes.ModuleName,
 		clearingtypes.ModuleName, mrvtypes.ModuleName,
+		disputetypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -1083,6 +1111,7 @@ func NewEnergyChainApp(
 		streampaytypes.ModuleName, contracttypes.ModuleName,
 		auctiontypes.ModuleName, markettypes.ModuleName,
 		clearingtypes.ModuleName, mrvtypes.ModuleName,
+		disputetypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)
