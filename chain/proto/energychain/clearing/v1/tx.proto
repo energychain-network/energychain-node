@@ -1,0 +1,130 @@
+syntax = "proto3";
+package energychain.clearing.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "energychain/clearing/v1/types.proto";
+
+option go_package = "energychain/x/clearing/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc RegisterMember     (MsgRegisterMember)     returns (MsgRegisterMemberResponse);
+  rpc UpdateMemberStatus (MsgUpdateMemberStatus) returns (MsgUpdateMemberStatusResponse);
+
+  rpc PostMargin         (MsgPostMargin)         returns (MsgPostMarginResponse);
+  rpc WithdrawMargin     (MsgWithdrawMargin)     returns (MsgWithdrawMarginResponse);
+  rpc FundDefaultFund    (MsgFundDefaultFund)    returns (MsgFundDefaultFundResponse);
+
+  rpc OpenCycle          (MsgOpenCycle)          returns (MsgOpenCycleResponse);
+  rpc SubmitObligation   (MsgSubmitObligation)   returns (MsgSubmitObligationResponse);
+  rpc CloseCycle         (MsgCloseCycle)         returns (MsgCloseCycleResponse);
+  rpc SettleCycle        (MsgSettleCycle)        returns (MsgSettleCycleResponse);
+  rpc CancelCycle        (MsgCancelCycle)        returns (MsgCancelCycleResponse);
+
+  rpc UpdateParams       (MsgUpdateParams)       returns (MsgUpdateParamsResponse);
+}
+
+message MsgRegisterMember {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string member_address = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  map<string, uint64> required_margin = 3;
+  string memo = 4;
+}
+message MsgRegisterMemberResponse { uint64 member_id = 1; }
+
+message MsgUpdateMemberStatus {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 member_id = 2;
+  MemberStatus new_status = 3;
+  string reason = 4;
+}
+message MsgUpdateMemberStatusResponse {}
+
+message MsgPostMargin {
+  option (cosmos.msg.v1.signer) = "member_address";
+  string member_address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 member_id = 2;
+  string denom = 3;
+  uint64 amount = 4;
+}
+message MsgPostMarginResponse { uint64 new_balance = 1; }
+
+message MsgWithdrawMargin {
+  option (cosmos.msg.v1.signer) = "member_address";
+  string member_address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 member_id = 2;
+  string denom = 3;
+  uint64 amount = 4;
+}
+message MsgWithdrawMarginResponse { uint64 new_balance = 1; }
+
+message MsgFundDefaultFund {
+  option (cosmos.msg.v1.signer) = "member_address";
+  string member_address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 member_id = 2;
+  string denom = 3;
+  uint64 amount = 4;
+}
+message MsgFundDefaultFundResponse { uint64 new_share = 1; }
+
+message MsgOpenCycle {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string memo = 2;
+}
+message MsgOpenCycleResponse { uint64 cycle_id = 1; }
+
+message MsgSubmitObligation {
+  option (cosmos.msg.v1.signer) = "submitter";
+  // Only the authority OR the from-member can submit.
+  // Strict: a third party cannot saddle either side with an
+  // obligation. The authority-bypass exists for system flows
+  // (e.g. market / auction / contract bundling many fills
+  // into a single cycle).
+  string submitter = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 cycle_id = 2;
+  uint64 from_member_id = 3;
+  uint64 to_member_id = 4;
+  string denom = 5;
+  uint64 amount = 6;
+  string source_ref = 7;
+}
+message MsgSubmitObligationResponse { uint64 obligation_id = 1; }
+
+message MsgCloseCycle {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 cycle_id = 2;
+}
+message MsgCloseCycleResponse {}
+
+message MsgSettleCycle {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 cycle_id = 2;
+}
+message MsgSettleCycleResponse {
+  uint32 net_positions_count = 1;
+  uint32 default_events_count = 2;
+  bool   has_defaults = 3;
+}
+
+message MsgCancelCycle {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 cycle_id = 2;
+  string reason = 3;
+}
+message MsgCancelCycleResponse {}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

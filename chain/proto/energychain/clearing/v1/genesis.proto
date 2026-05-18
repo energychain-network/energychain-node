@@ -1,0 +1,48 @@
+syntax = "proto3";
+package energychain.clearing.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/clearing/v1/types.proto";
+
+option go_package = "energychain/x/clearing/types";
+
+// MarginEntry is a flat (member, denom, amount) row used for
+// genesis import/export of margin balances.
+message MarginEntry {
+  uint64 member_id = 1;
+  string denom = 2;
+  uint64 amount = 3;
+}
+
+// DefaultFundEntry is a flat (denom, amount) row for the
+// mutualized default fund per denom.
+message DefaultFundEntry {
+  string denom = 1;
+  uint64 amount = 2;
+}
+
+// ReservationEntry is a flat (member, denom, amount) row for
+// the gross outbound exposure currently reserved against a
+// member's margin (sum across non-terminal cycles).
+message ReservationEntry {
+  uint64 member_id = 1;
+  string denom = 2;
+  uint64 amount = 3;
+}
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+
+  uint64 next_member_id      = 2;
+  uint64 next_cycle_id       = 3;
+  uint64 next_obligation_id  = 4;
+
+  repeated Member       members         = 5 [(gogoproto.nullable) = false];
+  repeated Cycle        cycles          = 6 [(gogoproto.nullable) = false];
+  repeated Obligation   obligations     = 7 [(gogoproto.nullable) = false];
+  repeated NetPosition  net_positions   = 8 [(gogoproto.nullable) = false];
+  repeated DefaultEvent default_events  = 9 [(gogoproto.nullable) = false];
+  repeated MarginEntry  margin          = 10 [(gogoproto.nullable) = false];
+  repeated DefaultFundEntry default_fund = 11 [(gogoproto.nullable) = false];
+  repeated ReservationEntry reservations = 12 [(gogoproto.nullable) = false];
+}

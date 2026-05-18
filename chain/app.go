@@ -180,6 +180,10 @@ import (
 	marketmodule "energychain/x/market"
 	marketkeeper "energychain/x/market/keeper"
 	markettypes "energychain/x/market/types"
+
+	clearingmodule "energychain/x/clearing"
+	clearingkeeper "energychain/x/clearing/keeper"
+	clearingtypes "energychain/x/clearing/types"
 	sanctionsmodule "energychain/x/sanctions"
 	sanctionskeeper "energychain/x/sanctions/keeper"
 	sanctionstypes "energychain/x/sanctions/types"
@@ -266,6 +270,7 @@ type EVMD struct {
 	ContractKeeper   contractkeeper.Keeper
 	AuctionKeeper    auctionkeeper.Keeper
 	MarketKeeper     marketkeeper.Keeper
+	ClearingKeeper   clearingkeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -351,6 +356,7 @@ func NewEnergyChainApp(
 		contracttypes.StoreKey,
 		auctiontypes.StoreKey,
 		markettypes.StoreKey,
+		clearingtypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -814,6 +820,22 @@ func NewEnergyChainApp(
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
 		nil,
 	)
+	// ClearingKeeper is the multilateral netting + DvP/DvD
+	// settlement engine. It funnels every margin / default-
+	// fund / settlement payout through the same x/stablecoin
+	// adapter used by escrow / market / contract / auction so
+	// the IsAccountBlocked + IsDenomPaused defense-in-depth
+	// gates apply uniformly. Sanctions tolerance in the
+	// settle path (uncovered accruals rather than full revert)
+	// is documented in keeper/settlement.go.
+	app.ClearingKeeper = clearingkeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[clearingtypes.StoreKey]),
+		authAddr,
+		app.SanctionsKeeper,
+		escrowStablecoinAdapter{k: app.StablecoinKeeper},
+		nil,
+	)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
@@ -922,6 +944,7 @@ func NewEnergyChainApp(
 		contractmodule.NewAppModule(appCodec, app.ContractKeeper),
 		auctionmodule.NewAppModule(appCodec, app.AuctionKeeper),
 		marketmodule.NewAppModule(appCodec, app.MarketKeeper),
+		clearingmodule.NewAppModule(appCodec, app.ClearingKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -977,6 +1000,7 @@ func NewEnergyChainApp(
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
 		streampaytypes.ModuleName, contracttypes.ModuleName,
 		auctiontypes.ModuleName, markettypes.ModuleName,
+		clearingtypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -1004,6 +1028,7 @@ func NewEnergyChainApp(
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
 		streampaytypes.ModuleName, contracttypes.ModuleName,
 		auctiontypes.ModuleName, markettypes.ModuleName,
+		clearingtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -1033,6 +1058,7 @@ func NewEnergyChainApp(
 		escrowtypes.ModuleName, schedulertypes.ModuleName,
 		streampaytypes.ModuleName, contracttypes.ModuleName,
 		auctiontypes.ModuleName, markettypes.ModuleName,
+		clearingtypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)
