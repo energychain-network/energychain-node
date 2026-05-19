@@ -29,6 +29,8 @@ import (
 	evmaddress "github.com/cosmos/evm/encoding/address"
 	evmmempool "github.com/cosmos/evm/mempool"
 	precompiletypes "github.com/cosmos/evm/precompiles/types"
+
+	stablecoinprecompile "energychain/precompiles/stablecoin"
 	cosmosevmserver "github.com/cosmos/evm/server"
 	srvflags "github.com/cosmos/evm/server/flags"
 	"github.com/cosmos/evm/utils"
@@ -945,9 +947,17 @@ func NewEnergyChainApp(
 	// AFTER the keepers they reference exist and BEFORE InitGenesis,
 	// because the EVM module's params list the active precompile addresses
 	// and the EVM keeper validates that every listed address resolves to a
-	// registered implementation. The four precompiles emitted by M2/M3
-	// (eac, carbon, stablecoin, market) will be wired here as those
-	// modules land — see docs/native-modules.md §5 principle 5.
+	// registered implementation. NativePrecompileAddresses() in
+	// chain/genesis.go MUST stay in lockstep with the
+	// RegisterStaticPrecompile calls below.
+	//
+	// Each precompile reuses its module's MsgServer for state-mutating
+	// methods so the EVM surface never bypasses the keeper's
+	// ComplianceCheck pipeline.
+	app.EVMKeeper.RegisterStaticPrecompile(
+		stablecoinprecompile.PrecompileAddress,
+		stablecoinprecompile.NewPrecompile(app.StablecoinKeeper),
+	)
 
 	/*
 		Create Transfer Stack
