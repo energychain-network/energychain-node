@@ -243,6 +243,374 @@
         "min_gas_multiplier": "0.500000000000000000"
       },
       "block_gas": "0"
+    },
+    "did": {
+      "params": {
+        "max_controllers": 8,
+        "max_verification_methods": 16,
+        "max_service_endpoints": 8,
+        "max_credential_hash_len": 128,
+        "revocation_grace_period": 604800
+      },
+      "documents": [],
+      "credentials": [],
+      "anchors": []
+    },
+    "device": {
+      "params": {
+        "attestation_validity": 2592000,
+        "max_devices_per_owner": 10000
+      },
+      "devices": [],
+      "attestations": [],
+      "next_attestation_id": 1
+    },
+    "audit": {
+      "params": {
+        "large_transfer_threshold": 1000000,
+        "max_data_size": 65536,
+        "permissionless": true,
+        "max_audits_per_block_per_creator": 100,
+        "archive_min_age_blocks": 50000,
+        "view_key_max_validity": 31536000,
+        "archive_max_batch": 1000
+      },
+      "logs": [],
+      "schemas": [],
+      "archive_segments": [],
+      "view_key_grants": []
+    },
+    "oracle": {
+      "params": {
+        "min_submissions": 3,
+        "data_max_age": 600,
+        "max_metadata_size": 4096,
+        "bond_denom": "uecy",
+        "bond_min_amount": "0",
+        "bond_release_cooldown": 100000,
+        "max_topics_per_block": 64,
+        "max_submissions_per_topic": 256
+      },
+      "topics": [],
+      "providers": [],
+      "submissions": [],
+      "aggregated": [],
+      "reserve_attestations": []
+    },
+    "meter": {
+      "params": {
+        "max_metadata_uri_size": 512,
+        "max_commitment_size": 256,
+        "max_batch_count": 4096,
+        "max_signature_size": 256,
+        "stream_max_validity": 31536000,
+        "future_skew_seconds": 60
+      },
+      "metering_points": [],
+      "readings": [],
+      "batches": [],
+      "authorizations": []
+    },
+    "sanctions": {
+      "params": {
+        "max_lists": 64,
+        "max_entries_per_list": 100000,
+        "max_proposal_actions": 1000,
+        "hits_log_max": 4096,
+        "max_pending_proposals": 64
+      },
+      "lists": [],
+      "entries": [],
+      "proposals": [],
+      "hits": []
+    },
+    "policy": {
+      "params": {
+        "max_rules_per_policy": 32,
+        "max_param_value_size": 256,
+        "max_policies": 1024,
+        "max_bindings": 65536,
+        "log_denials": true,
+        "evaluation_log_max": 1024
+      },
+      "policies": [],
+      "bindings": [],
+      "evaluation_logs": []
+    },
+    "stablecoin": {
+      "params": {
+        "max_denoms": 64,
+        "max_issuers": 256,
+        "max_mint_authorities_per_issuer": 16,
+        "max_redemptions_pending_per_holder": 32,
+        "mint_requires_reserve": true
+      },
+      "denoms": null,
+      "issuers": null,
+      "quotas": null,
+      "reserves": null,
+      "balances": null,
+      "allowances": null,
+      "flags": null,
+      "supplies": null,
+      "redemptions": null
+    },
+    "eac": {
+      "params": {
+        "max_issuers": 256,
+        "max_kinds_per_issuer": 8,
+        "max_units_per_batch": 1000000000,
+        "hour_window_seconds": 3600,
+        "require_sanctions_clear": true
+      },
+      "issuers": null,
+      "certificates": null,
+      "balances": null,
+      "retirements": null,
+      "bridges": null
+    },
+    "carbon": {
+      "params": {
+        "max_issuers": 256,
+        "max_categories_per_issuer": 2,
+        "max_units_per_batch": 1000000000,
+        "max_ccp_labels": 16,
+        "require_sanctions_clear": true,
+        "require_article6_for_cross_border": true
+      },
+      "issuers": null,
+      "assets": null,
+      "balances": null,
+      "retirements": null,
+      "authorizations": null,
+      "bridges": null,
+      "eac_claims": null
+    },
+    "cfe247": {
+      "params": {
+        "max_data_providers": 256,
+        "max_grid_zones": 1024,
+        "max_subjects": 8192,
+        "max_attestations_per_batch": 168,
+        "max_matches_per_call": 1,
+        "max_report_period_days": 366,
+        "require_active_provider": true,
+        "hour_seconds": 3600
+      },
+      "data_providers": null,
+      "grid_zones": null,
+      "subjects": null,
+      "consumptions": null,
+      "matches": null,
+      "aggregates": null,
+      "annual_scores": null,
+      "reports": null,
+      "retirement_allocations": null
+    },
+    "rwa": {
+      "params": {
+        "max_issuers": 256,
+        "max_tokens": 4096,
+        "max_holders_per_snapshot": 50000,
+        "max_pending_redemptions_per_holder": 64,
+        "max_lockups_per_holder": 64,
+        "require_sanctions_clear": true
+      },
+      "issuers": null,
+      "tokens": null,
+      "balances": null,
+      "account_flags": null,
+      "frozen": null,
+      "lockups": null,
+      "snapshots": null,
+      "snapshot_balances": null,
+      "distributions": null,
+      "distribution_claims": null,
+      "redemptions": null,
+      "pending_redemption_units": null
+    },
+    "escrow": {
+      "params": {
+        "max_escrows": 50000,
+        "max_signers_per_escrow": 16,
+        "max_release_horizon_seconds": 1576800000,
+        "require_sanctions_clear": true
+      },
+      "next_escrow_id": 1,
+      "escrows": null,
+      "approvals": null
+    },
+    "scheduler": {
+      "params": {
+        "max_jobs": 50000,
+        "max_jobs_per_owner": 256,
+        "min_interval_seconds": 60,
+        "max_interval_seconds": 31536000,
+        "max_payload_bytes": 16384,
+        "max_jobs_per_block": 200,
+        "error_max_len": 512
+      },
+      "next_job_id": 1,
+      "jobs": null
+    },
+    "streampay": {
+      "params": {
+        "max_streams": 200000,
+        "max_streams_per_sender": 1000,
+        "min_rate_per_second": 1,
+        "max_rate_per_second": 1000000000,
+        "max_deposit": 1000000000000000000,
+        "max_horizon_seconds": 3153600000,
+        "memo_max_len": 256
+      },
+      "next_stream_id": 1,
+      "streams": null
+    },
+    "contract": {
+      "params": {
+        "max_contracts": 50000,
+        "max_contracts_per_party": 1000,
+        "min_settlement_period_seconds": 60,
+        "max_settlement_period_seconds": 31622400,
+        "default_grace_period_seconds": 86400,
+        "max_oracle_staleness_seconds_cap": 604800,
+        "max_catchup_periods_per_settle": 24,
+        "memo_max_len": 512
+      },
+      "next_contract_id": 1,
+      "contracts": null
+    },
+    "auction": {
+      "params": {
+        "max_auctions": 50000,
+        "max_auctions_per_seller": 1000,
+        "max_bids_per_auction": 10000,
+        "min_auction_duration_seconds": 60,
+        "max_auction_duration_seconds": 31536000,
+        "memo_max_len": 512
+      },
+      "next_auction_id": 1,
+      "next_bid_id": 1,
+      "auctions": null,
+      "bids": null
+    },
+    "market": {
+      "params": {
+        "max_pairs": 1000,
+        "max_open_orders_per_pair": 50000,
+        "max_open_orders_per_user_per_pair": 500,
+        "max_fills_per_match": 100,
+        "max_matches_per_clear": 1000,
+        "memo_max_len": 256
+      },
+      "next_pair_id": 1,
+      "next_order_id": 1,
+      "pairs": null,
+      "orders": null,
+      "positions": null
+    },
+    "clearing": {
+      "params": {
+        "max_open_cycles": 16,
+        "max_obligations_per_cycle": 10000,
+        "max_members": 10000,
+        "memo_max_len": 256,
+        "source_ref_max_len": 256
+      },
+      "next_member_id": 1,
+      "next_cycle_id": 1,
+      "next_obligation_id": 1,
+      "members": null,
+      "cycles": null,
+      "obligations": null,
+      "net_positions": null,
+      "default_events": null,
+      "margin": null,
+      "default_fund": null,
+      "reservations": null
+    },
+    "mrv": {
+      "params": {
+        "max_schemas": 1024,
+        "max_verifiers": 256,
+        "max_reports_per_subject": 65536,
+        "max_view_key_grants": 4096,
+        "memo_max_len": 256,
+        "uri_max_len": 512,
+        "max_jurisdictions_per_verifier": 64,
+        "max_standards_per_verifier": 64,
+        "reason_max_len": 256,
+        "max_grant_ttl_seconds": 31536000,
+        "max_grants_per_block_sweep": 256
+      },
+      "next_schema_id": 1,
+      "next_verifier_id": 1,
+      "next_report_id": 1,
+      "next_grant_id": 1,
+      "schemas": null,
+      "verifiers": null,
+      "reports": null,
+      "grants": null
+    },
+    "dispute": {
+      "params": {
+        "max_arbitrators": 256,
+        "max_open_disputes": 1024,
+        "max_evidence_per_dispute": 256,
+        "panel_size": 3,
+        "quorum_bps": 6700,
+        "respond_period_seconds": 604800,
+        "deliberation_period_seconds": 1209600,
+        "min_plaintiff_bond": 1,
+        "max_plaintiff_bond": 1000000000,
+        "default_slash_bps": 10000,
+        "memo_max_len": 256,
+        "reason_max_len": 512,
+        "uri_max_len": 512,
+        "max_jurisdictions_per_arbitrator": 64,
+        "max_standards_per_arbitrator": 64,
+        "max_finalizations_per_block": 64
+      },
+      "next_arbitrator_id": 1,
+      "next_dispute_id": 1,
+      "arbitrators": null,
+      "disputes": null,
+      "tribunal_members": null,
+      "votes": null,
+      "evidence": null,
+      "evidence_seqs": null
+    },
+    "dataslash": {
+      "params": {
+        "max_providers": 4096,
+        "max_infractions_per_provider": 1024,
+        "max_jurisdictions_per_provider": 64,
+        "min_bond_default": 1,
+        "bond_denom_default": "uecy",
+        "default_slash_bps_misreport": 1000,
+        "default_slash_bps_stale": 100,
+        "default_slash_bps_missing_sig": 200,
+        "default_slash_bps_equivocation": 10000,
+        "default_slash_bps_unreachable": 50,
+        "default_slash_bps_dispute_ruling": 5000,
+        "default_slash_bps_other": 500,
+        "auto_jail_threshold": 3,
+        "auto_jail_seconds": 604800,
+        "auto_ban_threshold": 10,
+        "unbond_cooldown_seconds": 1209600,
+        "memo_max_len": 256,
+        "reason_max_len": 512,
+        "uri_max_len": 512,
+        "max_processings_per_block": 128
+      },
+      "next_provider_id": 1,
+      "next_infraction_id": 1,
+      "next_jail_record_id": 1,
+      "next_ban_record_id": 1,
+      "providers": null,
+      "infractions": null,
+      "jail_records": null,
+      "ban_records": null
     }
   }
 }
