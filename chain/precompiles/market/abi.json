@@ -1,0 +1,110 @@
+[
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "pairId",   "type": "uint256" },
+      { "internalType": "uint8",   "name": "side",     "type": "uint8"   },
+      { "internalType": "uint256", "name": "price",    "type": "uint256" },
+      { "internalType": "uint256", "name": "quantity", "type": "uint256" },
+      { "internalType": "string",  "name": "memo",     "type": "string"  }
+    ],
+    "name": "placeLimitOrder",
+    "outputs": [
+      { "internalType": "uint256", "name": "orderId",      "type": "uint256" },
+      { "internalType": "uint256", "name": "filledQty",    "type": "uint256" },
+      { "internalType": "uint256", "name": "remainingQty", "type": "uint256" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "orderId", "type": "uint256" },
+      { "internalType": "string",  "name": "reason",  "type": "string"  }
+    ],
+    "name": "cancelOrder",
+    "outputs": [
+      { "internalType": "uint256", "name": "refundedAmount", "type": "uint256" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "orderId", "type": "uint256" }
+    ],
+    "name": "getOrder",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id",           "type": "uint256" },
+          { "internalType": "uint256", "name": "pairId",       "type": "uint256" },
+          { "internalType": "address", "name": "owner",        "type": "address" },
+          { "internalType": "uint8",   "name": "side",         "type": "uint8"   },
+          { "internalType": "uint256", "name": "price",        "type": "uint256" },
+          { "internalType": "uint256", "name": "quantity",     "type": "uint256" },
+          { "internalType": "uint256", "name": "remainingQty", "type": "uint256" },
+          { "internalType": "uint8",   "name": "status",       "type": "uint8"   },
+          { "internalType": "uint256", "name": "placedAt",     "type": "uint256" },
+          { "internalType": "uint256", "name": "lastFilledAt", "type": "uint256" },
+          { "internalType": "uint256", "name": "filledQty",    "type": "uint256" },
+          { "internalType": "bool",    "name": "exists",       "type": "bool"    }
+        ],
+        "internalType": "struct OrderInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "pairId", "type": "uint256" },
+      { "internalType": "address", "name": "owner",  "type": "address" }
+    ],
+    "name": "getPosition",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "pairId",           "type": "uint256" },
+          { "internalType": "address", "name": "owner",            "type": "address" },
+          { "internalType": "uint256", "name": "magnitude",        "type": "uint256" },
+          { "internalType": "bool",    "name": "isShort",          "type": "bool"    },
+          { "internalType": "uint256", "name": "cumulativeBought", "type": "uint256" },
+          { "internalType": "uint256", "name": "cumulativeSold",   "type": "uint256" }
+        ],
+        "internalType": "struct PositionInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true,  "internalType": "uint256", "name": "pairId",     "type": "uint256" },
+      { "indexed": true,  "internalType": "address", "name": "owner",      "type": "address" },
+      { "indexed": true,  "internalType": "uint256", "name": "orderId",    "type": "uint256" },
+      { "indexed": false, "internalType": "uint8",   "name": "side",       "type": "uint8"   },
+      { "indexed": false, "internalType": "uint256", "name": "price",      "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "quantity",   "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "filledQty",  "type": "uint256" }
+    ],
+    "name": "LimitOrderPlaced",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true,  "internalType": "uint256", "name": "pairId",         "type": "uint256" },
+      { "indexed": true,  "internalType": "address", "name": "owner",          "type": "address" },
+      { "indexed": true,  "internalType": "uint256", "name": "orderId",        "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "refundedAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "string",  "name": "reason",         "type": "string"  }
+    ],
+    "name": "OrderCancelled",
+    "type": "event"
+  }
+]

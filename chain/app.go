@@ -32,6 +32,7 @@ import (
 
 	carbonprecompile "energychain/precompiles/carbon"
 	eacprecompile "energychain/precompiles/eac"
+	marketprecompile "energychain/precompiles/market"
 	stablecoinprecompile "energychain/precompiles/stablecoin"
 	cosmosevmserver "github.com/cosmos/evm/server"
 	srvflags "github.com/cosmos/evm/server/flags"
@@ -967,6 +968,10 @@ func NewEnergyChainApp(
 	app.EVMKeeper.RegisterStaticPrecompile(
 		carbonprecompile.PrecompileAddress,
 		carbonprecompile.NewPrecompile(app.CarbonKeeper),
+	)
+	app.EVMKeeper.RegisterStaticPrecompile(
+		marketprecompile.PrecompileAddress,
+		marketprecompile.NewPrecompile(app.MarketKeeper),
 	)
 
 	/*

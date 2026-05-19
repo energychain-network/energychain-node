@@ -12,6 +12,7 @@ import (
 
 	carbonprecompile "energychain/precompiles/carbon"
 	eacprecompile "energychain/precompiles/eac"
+	marketprecompile "energychain/precompiles/market"
 	stablecoinprecompile "energychain/precompiles/stablecoin"
 )
 
@@ -60,9 +61,10 @@ func NativePrecompileAddresses() []string {
 		stablecoinprecompile.PrecompileAddressHex,
 		eacprecompile.PrecompileAddressHex,
 		carbonprecompile.PrecompileAddressHex,
-		// market precompile address appended here as it lands —
-		// keep this list in lockstep with the
-		// RegisterStaticPrecompile calls inside NewEnergyChainApp.
+		marketprecompile.PrecompileAddressHex,
+		// New native precompiles MUST be appended here and registered
+		// via EVMKeeper.RegisterStaticPrecompile in NewEnergyChainApp;
+		// the two lists are kept in lockstep.
 	}
 }
 
