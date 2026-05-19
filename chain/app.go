@@ -703,12 +703,12 @@ func NewEnergyChainApp(
 	// SanctionsKeeper must be constructed before PolicyKeeper because
 	// PolicyKeeper consumes it via the SanctionsKeeper expected_keeper.
 	// Audit hook is still nil pending the M2 wiring milestone.
-	app.SanctionsKeeper = sanctionskeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[sanctionstypes.StoreKey]), authAddr, nil)
+	app.SanctionsKeeper = sanctionskeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[sanctionstypes.StoreKey]), authAddr, app.AuditKeeper)
 	// PolicyKeeper now consumes the live x/did surface (via
 	// adapter that fills in the un-modelled Jurisdiction
 	// field with empty string) plus x/sanctions; x/audit
 	// hook remains nil pending the policy-denial recorder.
-	app.PolicyKeeper = policykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[policytypes.StoreKey]), authAddr, didPolicyAdapter{k: app.DIDKeeper}, app.SanctionsKeeper, nil)
+	app.PolicyKeeper = policykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[policytypes.StoreKey]), authAddr, didPolicyAdapter{k: app.DIDKeeper}, app.SanctionsKeeper, app.AuditKeeper)
 	// StablecoinKeeper depends on x/policy (transfer DSL), x/sanctions
 	// (defense-in-depth address gate), and x/oracle (reserve attestation
 	// gate on mint, via a thin adapter that flattens the AggregatedValue
@@ -723,7 +723,7 @@ func NewEnergyChainApp(
 		app.SanctionsKeeper,
 		didStablecoinAdapter{k: app.DIDKeeper},
 		stablecoinOracleAdapter{k: app.OracleKeeper},
-		nil,
+		app.AuditKeeper,
 	)
 	// EACKeeper depends on x/policy (per-certificate DSL),
 	// x/sanctions (defense-in-depth) and x/oracle (bridge attestation
@@ -736,7 +736,7 @@ func NewEnergyChainApp(
 		app.PolicyKeeper,
 		app.SanctionsKeeper,
 		eacOracleAdapter{k: app.OracleKeeper},
-		nil,
+		app.AuditKeeper,
 	)
 	// CarbonKeeper depends on x/policy (per-asset DSL),
 	// x/sanctions (defense-in-depth), x/oracle (cross-registry
@@ -752,7 +752,7 @@ func NewEnergyChainApp(
 		app.SanctionsKeeper,
 		carbonOracleAdapter{k: app.OracleKeeper},
 		app.EACKeeper,
-		nil,
+		app.AuditKeeper,
 	)
 	// CFE247Keeper depends on x/eac (read-only retirement+certificate
 	// join via cfe247EACAdapter) and x/sanctions (subject-side gate).
@@ -763,7 +763,7 @@ func NewEnergyChainApp(
 		authAddr,
 		cfe247EACAdapter{k: app.EACKeeper},
 		app.SanctionsKeeper,
-		nil,
+		app.AuditKeeper,
 	)
 	// RWAKeeper plumbs:
 	//   - x/policy   for transfer DSL gating (compliance pipeline)
@@ -778,7 +778,7 @@ func NewEnergyChainApp(
 		app.PolicyKeeper,
 		app.SanctionsKeeper,
 		rwaStablecoinAdapter{k: app.StablecoinKeeper},
-		nil,
+		app.AuditKeeper,
 	)
 	// EscrowKeeper plumbs:
 	//   - x/sanctions    address-only blacklist (re-checked at every payout)
@@ -796,7 +796,7 @@ func NewEnergyChainApp(
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
 		escrowRWAAdapter{k: app.RWAKeeper},
 		escrowOracleAdapter{k: app.OracleKeeper},
-		nil,
+		app.AuditKeeper,
 	)
 	// SchedulerKeeper plumbs:
 	//   - x/stablecoin   for fee-pool funding / withdraw / per-tick fee
@@ -810,7 +810,7 @@ func NewEnergyChainApp(
 		authAddr,
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
 		schedulerMsgRouterAdapter{msr: app.MsgServiceRouter()},
-		nil,
+		app.AuditKeeper,
 	)
 	// StreamPayKeeper reuses the same stablecoin adapter as
 	// x/escrow / x/scheduler (the freeze + paused-denom gates
@@ -823,7 +823,7 @@ func NewEnergyChainApp(
 		authAddr,
 		app.SanctionsKeeper,
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		nil,
+		app.AuditKeeper,
 	)
 	// ContractKeeper underpins bilateral PPA / VPPA / CFD
 	// settlement. It re-uses the same stablecoin adapter for
@@ -840,7 +840,7 @@ func NewEnergyChainApp(
 		app.SanctionsKeeper,
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
 		contractOracleAdapter{k: app.OracleKeeper},
-		nil,
+		app.AuditKeeper,
 	)
 	// AuctionKeeper underpins the generic auction primitive used
 	// by capacity-market lots, EAC bundles, RWA tranches, etc.
@@ -854,7 +854,7 @@ func NewEnergyChainApp(
 		authAddr,
 		app.SanctionsKeeper,
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		nil,
+		app.AuditKeeper,
 	)
 	// MarketKeeper runs the chain-native limit-order book + FBA
 	// matcher. Both legs of every fill route through x/stablecoin
@@ -868,7 +868,7 @@ func NewEnergyChainApp(
 		authAddr,
 		app.SanctionsKeeper,
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		nil,
+		app.AuditKeeper,
 	)
 	// ClearingKeeper is the multilateral netting + DvP/DvD
 	// settlement engine. It funnels every margin / default-
@@ -884,7 +884,7 @@ func NewEnergyChainApp(
 		authAddr,
 		app.SanctionsKeeper,
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		nil,
+		app.AuditKeeper,
 	)
 
 	// MRVKeeper hosts the M4 monitoring / reporting /
@@ -901,7 +901,7 @@ func NewEnergyChainApp(
 		authAddr,
 		app.SanctionsKeeper,
 		didControllerAdapter{k: app.DIDKeeper},
-		nil, // AuditKeeper hook awaits the x/audit RecordMRVAction surface
+		app.AuditKeeper,
 	)
 
 	// DisputeKeeper hosts the arbitration tribunal + bond
@@ -920,7 +920,7 @@ func NewEnergyChainApp(
 		app.SanctionsKeeper,
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
 		didControllerAdapter{k: app.DIDKeeper},
-		nil, // AuditKeeper hook awaits the x/audit RecordDisputeAction surface
+		app.AuditKeeper,
 	)
 
 	// DataslashKeeper backs the data-provider misbehavior
@@ -938,7 +938,7 @@ func NewEnergyChainApp(
 		authAddr,
 		app.SanctionsKeeper,
 		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		nil,
+		app.AuditKeeper,
 	)
 
 	// Register custom EVM precompiles. Precompiles MUST be registered
