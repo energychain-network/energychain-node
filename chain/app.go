@@ -30,6 +30,7 @@ import (
 	evmmempool "github.com/cosmos/evm/mempool"
 	precompiletypes "github.com/cosmos/evm/precompiles/types"
 
+	carbonprecompile "energychain/precompiles/carbon"
 	eacprecompile "energychain/precompiles/eac"
 	stablecoinprecompile "energychain/precompiles/stablecoin"
 	cosmosevmserver "github.com/cosmos/evm/server"
@@ -962,6 +963,10 @@ func NewEnergyChainApp(
 	app.EVMKeeper.RegisterStaticPrecompile(
 		eacprecompile.PrecompileAddress,
 		eacprecompile.NewPrecompile(app.EACKeeper),
+	)
+	app.EVMKeeper.RegisterStaticPrecompile(
+		carbonprecompile.PrecompileAddress,
+		carbonprecompile.NewPrecompile(app.CarbonKeeper),
 	)
 
 	/*
