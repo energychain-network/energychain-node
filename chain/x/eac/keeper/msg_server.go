@@ -89,8 +89,45 @@ func (s msgServer) RegisterIssuer(ctx context.Context, m *types.MsgRegisterIssue
 		[2]string{"did", m.Did},
 		[2]string{"authority", m.IssuerAuthority},
 	)
+	s.maybeRegisterERC20(sdk.UnwrapSDKContext(ctx), m.Id)
 	return &types.MsgRegisterIssuerResponse{}, nil
 }
+
+// maybeRegisterERC20 is the nil-safe hook into x/erc20. Issuer-id
+// is namespaced via the "eac" prefix so EAC issuers cannot collide
+// with x/bank coin denoms or the stablecoin module's "scn"-
+// prefixed denoms. Failure is logged + surfaced as an event but
+// MUST NOT roll back the underlying RegisterIssuer message —
+// otherwise an EVM-side outage would block all new issuers.
+func (s msgServer) maybeRegisterERC20(ctx sdk.Context, issuerID string) {
+	if s.k.erc20 == nil {
+		return
+	}
+	hooked := eacIssuerToERC20(issuerID)
+	if s.k.erc20.IsDenomRegistered(ctx, hooked) {
+		return
+	}
+	if err := s.k.erc20.CreateNewTokenPair(ctx, hooked); err != nil {
+		ctx.Logger().With("module", types.ModuleName).
+			Error("auto-register ERC20 TokenPair failed",
+				"issuer_id", issuerID, "hooked_denom", hooked, "err", err)
+		emit(ctx, "eac_erc20_register_failed",
+			[2]string{"issuer_id", issuerID},
+			[2]string{"hooked_denom", hooked},
+			[2]string{"err", err.Error()},
+		)
+		return
+	}
+	emit(ctx, "eac_erc20_registered",
+		[2]string{"issuer_id", issuerID},
+		[2]string{"hooked_denom", hooked},
+	)
+}
+
+// eacIssuerToERC20 builds the canonical x/erc20 denom string for an
+// EAC issuer. Centralised so off-chain tooling can reproduce the
+// mapping without grepping the keeper.
+func eacIssuerToERC20(issuerID string) string { return "eac" + issuerID }
 
 func (s msgServer) UpdateIssuer(ctx context.Context, m *types.MsgUpdateIssuer) (*types.MsgUpdateIssuerResponse, error) {
 	if err := m.ValidateBasic(); err != nil {

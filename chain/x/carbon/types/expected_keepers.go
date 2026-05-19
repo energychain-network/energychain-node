@@ -38,3 +38,13 @@ type EACKeeper interface {
 type AuditKeeper interface {
 	RecordCarbonAction(ctx sdk.Context, assetID uint64, issuerID, action, actor, beneficiary, detail string)
 }
+
+// ERC20Keeper is the optional auto-registration hook into the
+// Cosmos EVM x/erc20 module. RegisterIssuer reserves a TokenPair
+// entry for the synthetic denom "carbon"+issuer_id so EVM tooling
+// can discover the issuer's allowance / offset namespace. Failure
+// is never fatal to MsgRegisterIssuer.
+type ERC20Keeper interface {
+	IsDenomRegistered(ctx sdk.Context, denom string) bool
+	CreateNewTokenPair(ctx sdk.Context, denom string) error
+}

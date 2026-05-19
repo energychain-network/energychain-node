@@ -24,6 +24,12 @@ type Keeper struct {
 	sanctions types.SanctionsKeeper
 	oracle    types.OracleKeeper
 	audit     types.AuditKeeper
+	// erc20 is the optional auto-registration hook into the
+	// Cosmos EVM x/erc20 module. When wired, RegisterIssuer
+	// reserves a TokenPair entry for the issuer's synthetic
+	// denom ("eac"+issuer_id) so EVM tooling can list every
+	// issuer's certificates as a single ERC20 namespace.
+	erc20 types.ERC20Keeper
 
 	Schema collections.Schema
 
@@ -102,6 +108,15 @@ func NewKeeper(
 }
 
 func (k Keeper) GetAuthority() string { return k.authority }
+
+// WithERC20Keeper returns a Keeper value with the optional ERC20
+// auto-registration hook attached. Callers MUST reassign the result
+// (Keeper is a value type) and MUST do so BEFORE constructing the
+// MsgServer / precompile that wraps the keeper.
+func (k Keeper) WithERC20Keeper(erc20 types.ERC20Keeper) Keeper {
+	k.erc20 = erc20
+	return k
+}
 
 // GetCertificateIssuedUnits is the cross-module read used by x/carbon
 // to enforce the "1 MWh cannot be both RE-claimed and offset-claimed"

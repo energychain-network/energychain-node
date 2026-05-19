@@ -38,6 +38,12 @@ type Keeper struct {
 	did       types.DIDKeeper
 	oracle    types.OracleKeeper
 	audit     types.AuditKeeper
+	// erc20 is the optional Cosmos EVM x/erc20 hook used by
+	// RegisterDenom to auto-reserve a TokenPair for the new denom.
+	// Wired post-construction via WithERC20Keeper so the keeper can
+	// be instantiated before the Erc20Keeper is available (the EVM
+	// stack is wired in a separate slice of app.go).
+	erc20 types.ERC20Keeper
 
 	Schema collections.Schema
 
@@ -137,6 +143,17 @@ func NewKeeper(
 }
 
 func (k Keeper) GetAuthority() string { return k.authority }
+
+// WithERC20Keeper returns a Keeper value with the optional ERC20
+// hook attached. Callers must reassign the result back to the field
+// holding the Keeper (e.g. app.StablecoinKeeper = k.WithERC20Keeper(e))
+// — Keeper is a value type, so any MsgServer/QueryServer instantiated
+// before WithERC20Keeper will not see the new hook. The returned
+// Keeper shares the same underlying schema and collection handles.
+func (k Keeper) WithERC20Keeper(erc20 types.ERC20Keeper) Keeper {
+	k.erc20 = erc20
+	return k
+}
 
 // ---------------------------------------------------------------------------
 // Params

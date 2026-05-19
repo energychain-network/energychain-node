@@ -6,6 +6,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	erc20keeper "github.com/cosmos/evm/x/erc20/keeper"
+
 	cfe247types "energychain/x/cfe247/types"
 	didkeeper "energychain/x/did/keeper"
 	eackeeper "energychain/x/eac/keeper"
@@ -278,5 +280,29 @@ func (a schedulerMsgRouterAdapter) RouteMsg(ctx sdk.Context, msg sdk.Msg) error 
 		return fmt.Errorf("no handler registered for %T", msg)
 	}
 	_, err := handler(ctx, msg)
+	return err
+}
+
+// erc20RegistrationAdapter bridges the rich x/erc20 keeper API down
+// to the two-method ERC20Keeper interface shared by x/stablecoin,
+// x/eac and x/carbon. The CreateNewTokenPair sibling on the
+// upstream keeper returns (TokenPair, error); we drop the value
+// here because the asset modules only need the success/failure
+// signal — the TokenPair is also available off-chain via the
+// standard x/erc20 query API.
+//
+// All three modules share the same adapter shape because the
+// hooked-denom string is the only varying piece (each module
+// produces its own namespaced denom: "scn..", "eac..", "carbon..").
+type erc20RegistrationAdapter struct {
+	k erc20keeper.Keeper
+}
+
+func (a erc20RegistrationAdapter) IsDenomRegistered(ctx sdk.Context, denom string) bool {
+	return a.k.IsDenomRegistered(ctx, denom)
+}
+
+func (a erc20RegistrationAdapter) CreateNewTokenPair(ctx sdk.Context, denom string) error {
+	_, err := a.k.CreateNewTokenPair(ctx, denom)
 	return err
 }

@@ -72,8 +72,49 @@ func (m msgServer) RegisterDenom(goCtx context.Context, msg *types.MsgRegisterDe
 		return nil, sdkerrors.ErrLogic.Wrapf("set: %s", err)
 	}
 	emit(ctx, "stablecoin_denom_registered", "denom_id", d.Id, "symbol", d.Symbol)
+	// Best-effort: auto-reserve an ERC20 TokenPair so the new denom
+	// is discoverable by EVM tooling. Failure is non-fatal —
+	// stablecoin operations do not depend on the ERC20 mapping, and
+	// a missed registration can be replayed via x/erc20's own
+	// MsgRegisterERC20 governance flow. The hook is nil-safe so the
+	// keeper still functions when the EVM stack is absent.
+	m.maybeRegisterERC20(ctx, d.Id)
 	return &types.MsgRegisterDenomResponse{}, nil
 }
+
+// maybeRegisterERC20 is the nil-safe hook into x/erc20. The hooked
+// denom string is prefixed with "scn" to namespace stablecoin denoms
+// away from regular x/bank coins (e.g. denom_id "usd" becomes
+// "scnusd" in the TokenPair). The prefix also makes the source
+// denom obvious in block explorers.
+func (m msgServer) maybeRegisterERC20(ctx sdk.Context, denomID string) {
+	if m.erc20 == nil {
+		return
+	}
+	hooked := stablecoinDenomToERC20(denomID)
+	if m.erc20.IsDenomRegistered(ctx, hooked) {
+		return
+	}
+	if err := m.erc20.CreateNewTokenPair(ctx, hooked); err != nil {
+		// Log and emit an event but do NOT roll back. The denom is
+		// already on-chain; failing here would force the operator
+		// to re-issue the registration with the ERC20 keeper
+		// unwired, which defeats the purpose of the hook.
+		ctx.Logger().With("module", types.ModuleName).
+			Error("auto-register ERC20 TokenPair failed",
+				"denom_id", denomID, "hooked_denom", hooked, "err", err)
+		emit(ctx, "stablecoin_erc20_register_failed",
+			"denom_id", denomID, "hooked_denom", hooked, "err", err.Error())
+		return
+	}
+	emit(ctx, "stablecoin_erc20_registered",
+		"denom_id", denomID, "hooked_denom", hooked)
+}
+
+// stablecoinDenomToERC20 builds the canonical x/erc20 denom string
+// for a stablecoin denom. Centralised so off-chain tooling can
+// reproduce the mapping without grepping the keeper.
+func stablecoinDenomToERC20(denomID string) string { return "scn" + denomID }
 
 func (m msgServer) UpdateDenom(goCtx context.Context, msg *types.MsgUpdateDenom) (*types.MsgUpdateDenomResponse, error) {
 	if err := m.onlyAuthority(msg.Authority); err != nil {

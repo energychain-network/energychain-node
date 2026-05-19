@@ -55,3 +55,29 @@ type OracleKeeper interface {
 type AuditKeeper interface {
 	RecordStablecoinAction(ctx sdk.Context, denomID, issuerID, action, actor, subject, detail string)
 }
+
+// ERC20Keeper is the slice of Cosmos EVM's x/erc20 the stablecoin
+// keeper invokes immediately after a new denom is registered. The
+// hook reserves a deterministic ERC20 contract address for the
+// stablecoin denom so EVM wallets and tooling can list it without
+// the operator having to issue a separate governance proposal
+// against x/erc20.
+//
+// Optional: when wired to nil the stablecoin keeper skips the
+// registration. Failures from CreateNewTokenPair are NEVER fatal
+// to the underlying RegisterDenom message — they are logged via
+// the SDK logger and surfaced as an event so the operator can
+// re-attempt registration manually. This keeps the stablecoin
+// module functional even when the EVM stack is down or has been
+// removed from the build (smaller validator binaries).
+type ERC20Keeper interface {
+	// IsDenomRegistered reports whether the denom already has a
+	// TokenPair entry. Used to make CreateNewTokenPair idempotent
+	// across re-runs of the same Tx (e.g. ante handler retries).
+	IsDenomRegistered(ctx sdk.Context, denom string) bool
+	// CreateNewTokenPair allocates an STRv2-style ERC20 address
+	// derived from the denom string and stores the TokenPair.
+	// Returns ErrTokenPairAlreadyExists when an EVM contract has
+	// already deployed code at the derived address.
+	CreateNewTokenPair(ctx sdk.Context, denom string) error
+}

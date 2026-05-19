@@ -957,6 +957,18 @@ func NewEnergyChainApp(
 	// Each precompile reuses its module's MsgServer for state-mutating
 	// methods so the EVM surface never bypasses the keeper's
 	// ComplianceCheck pipeline.
+	//
+	// Auto-register the ERC20 hooks on stablecoin / EAC / carbon
+	// BEFORE constructing each module's precompile. The precompile
+	// captures its keeper by value into the MsgServer adapter, so
+	// any hook added later would be invisible to EVM-side
+	// operations. The shared adapter routes every new denom /
+	// issuer registration through x/erc20.CreateNewTokenPair so
+	// new assets are discoverable by EVM wallets immediately.
+	erc20Hook := erc20RegistrationAdapter{k: app.Erc20Keeper}
+	app.StablecoinKeeper = app.StablecoinKeeper.WithERC20Keeper(erc20Hook)
+	app.EACKeeper = app.EACKeeper.WithERC20Keeper(erc20Hook)
+	app.CarbonKeeper = app.CarbonKeeper.WithERC20Keeper(erc20Hook)
 	app.EVMKeeper.RegisterStaticPrecompile(
 		stablecoinprecompile.PrecompileAddress,
 		stablecoinprecompile.NewPrecompile(app.StablecoinKeeper),

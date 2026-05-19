@@ -35,3 +35,14 @@ type OracleKeeper interface {
 type AuditKeeper interface {
 	RecordEACAction(ctx sdk.Context, certificateID uint64, issuerID, action, actor, beneficiary, detail string)
 }
+
+// ERC20Keeper is the optional auto-registration hook into
+// Cosmos EVM's x/erc20 module. RegisterIssuer reserves a TokenPair
+// entry for the synthetic denom "eac"+issuer_id so EVM tooling can
+// discover the issuer's certificates as a single namespace. Failure
+// is never fatal to MsgRegisterIssuer — see msg_server.go for the
+// non-rollback contract.
+type ERC20Keeper interface {
+	IsDenomRegistered(ctx sdk.Context, denom string) bool
+	CreateNewTokenPair(ctx sdk.Context, denom string) error
+}

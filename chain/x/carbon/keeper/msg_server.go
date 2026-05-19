@@ -101,8 +101,45 @@ func (s msgServer) RegisterIssuer(ctx context.Context, m *types.MsgRegisterIssue
 		[2]string{"did", m.Did},
 		[2]string{"authority", m.IssuerAuthority},
 	)
+	s.maybeRegisterERC20(sdk.UnwrapSDKContext(ctx), m.Id)
 	return &types.MsgRegisterIssuerResponse{}, nil
 }
+
+// maybeRegisterERC20 is the nil-safe hook into x/erc20. The issuer
+// ID is namespaced via the "carbon" prefix so it cannot collide
+// with x/bank denoms, stablecoin "scn"-prefixed denoms, or EAC
+// "eac"-prefixed denoms. Failure is logged and surfaced as an
+// event but MUST NOT roll back the underlying RegisterIssuer
+// message.
+func (s msgServer) maybeRegisterERC20(ctx sdk.Context, issuerID string) {
+	if s.k.erc20 == nil {
+		return
+	}
+	hooked := carbonIssuerToERC20(issuerID)
+	if s.k.erc20.IsDenomRegistered(ctx, hooked) {
+		return
+	}
+	if err := s.k.erc20.CreateNewTokenPair(ctx, hooked); err != nil {
+		ctx.Logger().With("module", types.ModuleName).
+			Error("auto-register ERC20 TokenPair failed",
+				"issuer_id", issuerID, "hooked_denom", hooked, "err", err)
+		emit(ctx, "carbon_erc20_register_failed",
+			[2]string{"issuer_id", issuerID},
+			[2]string{"hooked_denom", hooked},
+			[2]string{"err", err.Error()},
+		)
+		return
+	}
+	emit(ctx, "carbon_erc20_registered",
+		[2]string{"issuer_id", issuerID},
+		[2]string{"hooked_denom", hooked},
+	)
+}
+
+// carbonIssuerToERC20 builds the canonical x/erc20 denom string for
+// a carbon issuer. Centralised so off-chain tooling can reproduce
+// the mapping without grepping the keeper.
+func carbonIssuerToERC20(issuerID string) string { return "carbon" + issuerID }
 
 func (s msgServer) UpdateIssuer(ctx context.Context, m *types.MsgUpdateIssuer) (*types.MsgUpdateIssuerResponse, error) {
 	if err := m.ValidateBasic(); err != nil {
