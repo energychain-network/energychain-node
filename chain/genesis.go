@@ -10,6 +10,7 @@ import (
 
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 
+	eacprecompile "energychain/precompiles/eac"
 	stablecoinprecompile "energychain/precompiles/stablecoin"
 )
 
@@ -56,7 +57,8 @@ func NewEVMGenesisState() *evmtypes.GenesisState {
 func NativePrecompileAddresses() []string {
 	return []string{
 		stablecoinprecompile.PrecompileAddressHex,
-		// eac, carbon, market precompile addresses appended here as
+		eacprecompile.PrecompileAddressHex,
+		// carbon, market precompile addresses appended here as
 		// they land — keep this list in lockstep with the
 		// RegisterStaticPrecompile calls inside NewEnergyChainApp.
 	}
