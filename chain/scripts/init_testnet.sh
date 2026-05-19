@@ -137,26 +137,28 @@ $BINARY keys add circulation \
     > /dev/null 2>&1
 CIRCULATION_ADDR=$($BINARY keys show circulation --keyring-backend "$KEYRING_BACKEND" --home "$NODE0_HOME" --address)
 
-# Add team/ecosystem/treasury/circulation genesis accounts
-$BINARY add-genesis-account "$TEAM_ADDR" "$TEAM_AMOUNT" \
+# Add team/ecosystem/treasury/circulation genesis accounts.
+# Cosmos SDK 0.50+ relocated add-genesis-account / gentx /
+# collect-gentxs / validate-genesis under the `genesis` subcommand.
+$BINARY genesis add-genesis-account "$TEAM_ADDR" "$TEAM_AMOUNT" \
     --home "$NODE0_HOME" --keyring-backend "$KEYRING_BACKEND"
 log "  Team account:        ${TEAM_ADDR}"
 
-$BINARY add-genesis-account "$ECOSYSTEM_ADDR" "$ECOSYSTEM_AMOUNT" \
+$BINARY genesis add-genesis-account "$ECOSYSTEM_ADDR" "$ECOSYSTEM_AMOUNT" \
     --home "$NODE0_HOME" --keyring-backend "$KEYRING_BACKEND"
 log "  Ecosystem account:   ${ECOSYSTEM_ADDR}"
 
-$BINARY add-genesis-account "$TREASURY_ADDR" "$TREASURY_AMOUNT" \
+$BINARY genesis add-genesis-account "$TREASURY_ADDR" "$TREASURY_AMOUNT" \
     --home "$NODE0_HOME" --keyring-backend "$KEYRING_BACKEND"
 log "  Treasury account:    ${TREASURY_ADDR}"
 
-$BINARY add-genesis-account "$CIRCULATION_ADDR" "$CIRCULATION_AMOUNT" \
+$BINARY genesis add-genesis-account "$CIRCULATION_ADDR" "$CIRCULATION_AMOUNT" \
     --home "$NODE0_HOME" --keyring-backend "$KEYRING_BACKEND"
 log "  Circulation account: ${CIRCULATION_ADDR}"
 
 # Add each validator's genesis account
 for i in $(seq 0 $((NUM_VALIDATORS - 1))); do
-    $BINARY add-genesis-account "${VALIDATOR_ADDRESSES[$i]}" "$VALIDATOR_ALLOC" \
+    $BINARY genesis add-genesis-account "${VALIDATOR_ADDRESSES[$i]}" "$VALIDATOR_ALLOC" \
         --home "$NODE0_HOME" --keyring-backend "$KEYRING_BACKEND"
     log "  Validator ${i} account: ${VALIDATOR_ADDRESSES[$i]}"
 done
@@ -175,7 +177,7 @@ for i in $(seq 0 $((NUM_VALIDATORS - 1))); do
     NODE_HOME="$(node_home $i)"
     KEY_NAME="validator${i}"
 
-    $BINARY gentx "$KEY_NAME" "$VALIDATOR_STAKE" \
+    $BINARY genesis gentx "$KEY_NAME" "$VALIDATOR_STAKE" \
         --chain-id "$CHAIN_ID" \
         --keyring-backend "$KEYRING_BACKEND" \
         --home "$NODE_HOME" \
@@ -198,13 +200,145 @@ for i in $(seq 1 $((NUM_VALIDATORS - 1))); do
     cp "$(node_home $i)/config/gentx/"*.json "${NODE0_HOME}/config/gentx/" 2>/dev/null || true
 done
 
-$BINARY collect-gentxs --home "$NODE0_HOME" > /dev/null 2>&1
+$BINARY genesis collect-gentxs --home "$NODE0_HOME" > /dev/null 2>&1
 
 # Validate the genesis
-$BINARY validate-genesis --home "$NODE0_HOME"
+$BINARY genesis validate-genesis --home "$NODE0_HOME"
 log "Genesis validated successfully."
 
-# ─────────────────────────── Step 7: Distribute Genesis ───────────────────────────
+# ─────────────────────────── Step 7: Seed native module app_state ───────────────────────────
+#
+# At this point node0's genesis.json contains:
+#   - every SDK / EVM module hydrated from the binary's default genesis
+#   - every native module hydrated from its DefaultGenesis (empty entries)
+#   - collected gentxs for all 4 validators
+#
+# Before we distribute the genesis we patch in the *minimum* governance
+# seeds needed for the 22 native modules to be immediately useful on a
+# fresh testnet:
+#
+#   - one default sanctions list  (OFAC_SDN_TESTNET, ACTIVE, 0 entries)
+#   - one default compliance policy (ACTIVE, no rules ⇒ allow-all)
+#   - three oracle topics (power-spot price, USD reserve attest,
+#     EAC bridge attest) covering the three cross-module flows
+#     (stablecoin, EAC issuance, market settlement) that need
+#     external data on day 1
+#
+# All seeds use the team account as `created_by`; the rows are still
+# governance-mutable post-genesis. ValidateGenesis is re-run at the
+# end of this step to fail fast on shape regressions.
+
+log "Seeding native module app_state..."
+
+if ! command -v jq >/dev/null 2>&1; then
+    err "jq is required to seed native module state. Install with: brew install jq"
+fi
+
+GENESIS="${NODE0_HOME}/config/genesis.json"
+NOW="$(date -u +%s)"
+
+# 7.a  sanctions: register an empty OFAC list so subsequent
+# add-entry txs do not need governance to first create the list.
+jq --argjson now "$NOW" \
+   --arg creator "$TEAM_ADDR" \
+   '.app_state.sanctions.lists = [
+       {
+           "id": "ofac_sdn_testnet",
+           "name": "OFAC SDN (testnet seed)",
+           "description": "Default testnet sanctions list. Entries added via x/sanctions MsgAddEntry under the gov authority.",
+           "source_uri": "https://www.treasury.gov/ofac/downloads/sdn.xml",
+           "jurisdiction": "US",
+           "authority": $creator,
+           "status": 1,
+           "created_by": $creator,
+           "created_at": $now,
+           "updated_at": $now,
+           "entry_count": 0
+       }
+   ]' "$GENESIS" > "${GENESIS}.tmp" && mv "${GENESIS}.tmp" "$GENESIS"
+
+# 7.b  policy: register a default allow-all compliance policy.
+# Empty rules ⇒ every transfer eval short-circuits to ALLOW. Operators
+# bind real DSL rules via MsgUpdatePolicy or governance proposals.
+jq --argjson now "$NOW" \
+   --arg creator "$TEAM_ADDR" \
+   '.app_state.policy.policies = [
+       {
+           "id": "default_compliance_v1",
+           "name": "Default Compliance Pipeline",
+           "description": "Allow-all testnet baseline. Replace with jurisdiction-specific DSL via x/policy MsgUpdatePolicy.",
+           "version": "1",
+           "status": 1,
+           "rules": [],
+           "created_by": $creator,
+           "created_at": $now,
+           "updated_at": $now
+       }
+   ]' "$GENESIS" > "${GENESIS}.tmp" && mv "${GENESIS}.tmp" "$GENESIS"
+
+# 7.c  oracle: register the three day-1 topics. Providers must register
+# + bond before they can submit (Step 7 of seed_testnet.sh).
+jq --argjson now "$NOW" \
+   '.app_state.oracle.topics = [
+       {
+           "id": "power.spot.day_ahead",
+           "description": "Day-ahead spot power price (USD per MWh, 6-decimal fixed point).",
+           "kind": 1,
+           "aggregation": 0,
+           "min_submissions": 3,
+           "max_data_age_seconds": 600,
+           "outlier_band_bps": 2000,
+           "value_decimals": 6,
+           "quote": "USD",
+           "paused": false,
+           "enabled": true,
+           "created_at": $now,
+           "updated_at": $now,
+           "allow_list": []
+       },
+       {
+           "id": "usd.reserve.bank_attest",
+           "description": "Stablecoin reserve attestation (USD cents per stablecoin unit).",
+           "kind": 4,
+           "aggregation": 0,
+           "min_submissions": 1,
+           "max_data_age_seconds": 86400,
+           "outlier_band_bps": 0,
+           "value_decimals": 2,
+           "quote": "USD",
+           "paused": false,
+           "enabled": true,
+           "created_at": $now,
+           "updated_at": $now,
+           "allow_list": []
+       },
+       {
+           "id": "eac.bridge.attest",
+           "description": "Cross-registry EAC bridge attestation (opaque payload).",
+           "kind": 0,
+           "aggregation": 3,
+           "min_submissions": 2,
+           "max_data_age_seconds": 3600,
+           "outlier_band_bps": 0,
+           "value_decimals": 0,
+           "quote": "",
+           "paused": false,
+           "enabled": true,
+           "created_at": $now,
+           "updated_at": $now,
+           "allow_list": []
+       }
+   ]' "$GENESIS" > "${GENESIS}.tmp" && mv "${GENESIS}.tmp" "$GENESIS"
+
+# Re-validate the patched genesis. If a future schema change breaks
+# any of the seeds above, this will fail loudly before peers diverge.
+$BINARY genesis validate-genesis --home "$NODE0_HOME"
+log "Native module app_state seeded:"
+log "  sanctions: 1 list (ofac_sdn_testnet, ACTIVE)"
+log "  policy:    1 policy (default_compliance_v1, ACTIVE, allow-all)"
+log "  oracle:    3 topics (power.spot.day_ahead, usd.reserve.bank_attest, eac.bridge.attest)"
+
+# ─────────────────────────── Step 8: Distribute Genesis ───────────────────────────
 
 log "Copying final genesis to all nodes..."
 for i in $(seq 1 $((NUM_VALIDATORS - 1))); do
@@ -212,7 +346,7 @@ for i in $(seq 1 $((NUM_VALIDATORS - 1))); do
 done
 log "Genesis distributed."
 
-# ─────────────────────────── Step 8: Configure Persistent Peers ───────────────────────────
+# ─────────────────────────── Step 9: Configure Persistent Peers ───────────────────────────
 
 log "Configuring persistent peers..."
 
@@ -220,7 +354,7 @@ log "Configuring persistent peers..."
 declare -a NODE_IDS
 for i in $(seq 0 $((NUM_VALIDATORS - 1))); do
     NODE_HOME="$(node_home $i)"
-    NODE_ID=$($BINARY tendermint show-node-id --home "$NODE_HOME")
+    NODE_ID=$($BINARY comet show-node-id --home "$NODE_HOME")
     NODE_IDS+=("$NODE_ID")
     log "  Node ${i} ID: ${NODE_ID}"
 done
