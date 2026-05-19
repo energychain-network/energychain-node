@@ -5,3 +5,20 @@ plugins:
     opt:
       - plugins=grpc
       - Mgoogle/protobuf/any.proto=github.com/cosmos/cosmos-sdk/codec/types
+
+  # grpc-gateway emits one *.pb.gw.go per query.proto so the REST
+  # endpoints can be wired in each module's RegisterGRPCGatewayRoutes.
+  #
+  # generate_unbound_methods=true lets us expose every Query RPC
+  # without adding per-RPC google.api.http annotations to the 22
+  # query.proto files. The auto-generated route is
+  #   POST /<fully.qualified.Service>/<Method>
+  # with the request as a JSON body. Modules that want a prettier
+  # RESTful URL can later add explicit annotations; the gateway
+  # plugin honours both modes side by side.
+  - local: protoc-gen-grpc-gateway
+    out: ..
+    opt:
+      - generate_unbound_methods=true
+      - logtostderr=true
+      - Mgoogle/protobuf/any.proto=github.com/cosmos/cosmos-sdk/codec/types
