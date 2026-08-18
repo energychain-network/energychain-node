@@ -26,6 +26,10 @@ if [ "${DEVNET_SNAPSHOT:-0}" != "1" ]; then
 fi
 
 BRANCH="${BRANCH:-devnet/primcast-deploy}"
+# Per-repo override, because a repo is not always deployable at the same ref as
+# the rest: the explorer's devnet branch carries half-finished module work that
+# does not build, so it deploys from its last good UX branch instead.
+EXPLORER_BRANCH="${EXPLORER_BRANCH:-$BRANCH}"
 ORG="${ORG:-https://github.com/energychain-network}"
 SRC="${SRC:-$HOME/src}"
 PUBLIC_HOST="${PUBLIC_HOST:?set PUBLIC_HOST (browser-facing address)}"
@@ -53,15 +57,17 @@ want repos && {
 phase "repos ($BRANCH)"
 mkdir -p "$SRC"
 for r in energychain-node energychain-dex energychain-explorer energychain-contracts; do
+  br="$BRANCH"
+  [ "$r" = "energychain-explorer" ] && br="$EXPLORER_BRANCH"
   if [ -d "$SRC/$r/.git" ]; then
-    echo "--- $r: fetch ---"
-    git -C "$SRC/$r" fetch --depth=1 origin "$BRANCH" -q \
-      && git -C "$SRC/$r" checkout -q -B "$BRANCH" FETCH_HEAD \
+    echo "--- $r: fetch ($br) ---"
+    git -C "$SRC/$r" fetch --depth=1 origin "$br" -q \
+      && git -C "$SRC/$r" checkout -q -B "$br" FETCH_HEAD \
       || die "git fetch $r"
   else
-    echo "--- $r: clone ---"
+    echo "--- $r: clone ($br) ---"
     rm -rf "$SRC/$r"
-    git clone --depth=1 -b "$BRANCH" -q "$ORG/$r.git" "$SRC/$r" || die "git clone $r"
+    git clone --depth=1 -b "$br" -q "$ORG/$r.git" "$SRC/$r" || die "git clone $r"
   fi
   echo "    $(git -C "$SRC/$r" log --oneline -1)"
 done
