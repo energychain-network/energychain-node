@@ -91,17 +91,27 @@ echo "docker: $(docker --version)"
 want chain && {
 phase "chain"
 # Mnemonics are generated once and kept out of the repo. They are the validator
-# and treasury keys; regenerating them would orphan the existing chain state.
-if [ ! -f "$SECRETS" ]; then
+# and treasury keys; regenerating them would orphan any existing chain state.
+# Validate rather than just test for the file: `keys mnemonic` failing inside a
+# command substitution still leaves an empty but present secrets file behind,
+# and the resulting error surfaces much later inside init_node.sh.
+mnemonics_ok() {
+  [ -f "$SECRETS" ] || return 1
+  # shellcheck disable=SC1090
+  . "$SECRETS" 2>/dev/null || return 1
+  [ "$(echo "${VAL_MNEMONIC:-}" | wc -w)" -ge 12 ] && [ "$(echo "${DEV_MNEMONIC:-}" | wc -w)" -ge 12 ]
+}
+if ! mnemonics_ok; then
   echo "--- generating validator/treasury mnemonics ---"
+  rm -f "$SECRETS"
   mkdir -p "$(dirname "$SECRETS")"; chmod 700 "$(dirname "$SECRETS")"
   ( cd "$CHAIN_REPO/chain" && go build -o energychaind ./cmd/energychaind ) || die "go build (for keygen)"
-  { echo "VAL_MNEMONIC='$("$CHAIN_REPO/chain/energychaind" keys mnemonic)'"
-    echo "DEV_MNEMONIC='$("$CHAIN_REPO/chain/energychaind" keys mnemonic)'"; } > "$SECRETS"
+  val="$("$CHAIN_REPO/chain/energychaind" keys mnemonic)" || die "keys mnemonic"
+  dev="$("$CHAIN_REPO/chain/energychaind" keys mnemonic)" || die "keys mnemonic"
+  printf "VAL_MNEMONIC='%s'\nDEV_MNEMONIC='%s'\n" "$val" "$dev" > "$SECRETS"
   chmod 600 "$SECRETS"
+  mnemonics_ok || die "generated mnemonics look wrong (is the binary healthy? try: energychaind keys mnemonic)"
 fi
-# shellcheck disable=SC1090
-. "$SECRETS"
 
 sudo systemctl stop ec-loadgen ec-swapbot 2>/dev/null
 sudo systemctl stop ec-node 2>/dev/null
