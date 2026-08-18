@@ -91,18 +91,28 @@ fire() {
 
 trap 'echo "[loadgen] stopping"; exit 0' TERM INT
 
-# CYCLE_SLEEP: pause between cycles. Tuned so each account fires at most once
-# per block (avoids account-sequence CheckTx failures) while the pool averages
-# ~50 tx/block. With a ~72-account pool and ~2s blocks, ~1.2s lands near target.
-CYCLE_SLEEP="${CYCLE_SLEEP:-1.2}"
+# Firing the whole pool at once emptied it into a single block (~70 tx) and left
+# the next two or three empty, because a cycle costs as long as the slowest CLI
+# invocation. Staggering the launches spreads the same volume evenly instead:
+# with STAGGER_MS=40 a 72-account pool submits over ~2.9s, so each ~2s block
+# receives roughly 50 tx.
+#
+# The stagger doubles as the sequence guard the old CYCLE_SLEEP provided: an
+# account's next tx is one full cycle away, which is longer than the block it
+# needs to commit in, so its sequence is never read stale.
+STAGGER_MS="${STAGGER_MS:-40}"
+CYCLE_SLEEP="${CYCLE_SLEEP:-0}"
 c=0
 while true; do
-  for i in $(seq 0 $((N-1))); do fire "$i" "$c" & done
+  for i in $(seq 0 $((N-1))); do
+    ( sleep "$(awk -v i="$i" -v s="$STAGGER_MS" 'BEGIN{printf "%.3f", i*s/1000}')"
+      fire "$i" "$c" ) &
+  done
   wait
-  sleep "$CYCLE_SLEEP"
+  [ "$CYCLE_SLEEP" != "0" ] && sleep "$CYCLE_SLEEP"
   c=$(( c + 1 ))
   if [ $(( c % 10 )) -eq 0 ]; then
     ntx=$(curl -s "http://${NODE#tcp://}/num_unconfirmed_txs" 2>/dev/null | jq -r '.result.total // "?"')
-    echo "[loadgen] cycle=$c height=$(height) mempool=${ntx} (~${N} tx/cycle across 9 modules)"
+    echo "[loadgen] cycle=$c height=$(height) mempool=${ntx} (~${N} tx/cycle across 9 modules, ${STAGGER_MS}ms stagger)"
   fi
 done
