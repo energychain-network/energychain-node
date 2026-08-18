@@ -286,10 +286,19 @@ services:
       DEX_USDT: \${DEX_USDT:-}
       DEX_STABLE_TOKENS: \${DEX_STABLE_TOKENS:-}
       DEX_VERIFIED_TOKENS: \${DEX_VERIFIED_TOKENS:-}
+  # NEXT_PUBLIC_* values that appear in server-rendered markup have to be present
+  # at runtime as well as at build time: the runner stage does not inherit the
+  # build stage's ENV, so the first paint fell back to the compiled-in localhost
+  # defaults even though the client bundle carried the right origins.
   web:
     environment:
       NEXT_PUBLIC_DEX_API_BASE: ${DEX_API_INTERNAL}
       DEX_API_INTERNAL_BASE: ${DEX_API_INTERNAL}
+      NEXT_PUBLIC_EXPLORER_BASE: \${NEXT_PUBLIC_EXPLORER_BASE:-}
+      NEXT_PUBLIC_DEX_WS: \${NEXT_PUBLIC_DEX_WS:-}
+      NEXT_PUBLIC_DEX_RPC: \${NEXT_PUBLIC_DEX_RPC:-}
+      NEXT_PUBLIC_DEX_COSMOS_RPC: \${NEXT_PUBLIC_DEX_COSMOS_RPC:-}
+      NEXT_PUBLIC_DEX_COSMOS_REST: \${NEXT_PUBLIC_DEX_COSMOS_REST:-}
 EOF
   # apply DB migrations (the indexer expects the schema to already exist) then
   # bring the stack up.
