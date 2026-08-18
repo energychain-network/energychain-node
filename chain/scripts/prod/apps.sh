@@ -272,11 +272,20 @@ open(path,"w").write("\n".join(out)+"\n")
 print("dex .env written")
 PY
   # remap nginx off 8080 (used by the explorer api)
+  # The indexer's pricing layer anchors every USD figure to a stablecoin, but the
+  # base compose never forwards the anchor variables, so with .env alone the
+  # container starts without them and TVL, 24h volume and every token price stay
+  # zero while pairs and candles look fine.
   cat > "$DEX_DIR/deploy/docker-compose.override.yml" <<EOF
 services:
   nginx:
     ports: !override
       - "8090:80"
+  indexer:
+    environment:
+      DEX_USDT: \${DEX_USDT:-}
+      DEX_STABLE_TOKENS: \${DEX_STABLE_TOKENS:-}
+      DEX_VERIFIED_TOKENS: \${DEX_VERIFIED_TOKENS:-}
   web:
     environment:
       NEXT_PUBLIC_DEX_API_BASE: ${DEX_API_INTERNAL}
