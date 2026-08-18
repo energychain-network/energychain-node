@@ -14,6 +14,17 @@
 # ===========================================================================
 set -uo pipefail
 
+# The repos phase checks out this very file. Bash reads a script lazily by byte
+# offset, so replacing it mid-run makes execution resume at a stale offset in
+# the new content — phases get silently skipped rather than failing. Re-exec
+# from a snapshot outside the repo before touching git.
+if [ "${DEVNET_SNAPSHOT:-0}" != "1" ]; then
+  _snap="$(mktemp /tmp/devnet_up.XXXXXX)"
+  cat "${BASH_SOURCE[0]}" > "$_snap"
+  export DEVNET_SNAPSHOT=1
+  exec bash "$_snap" "$@"
+fi
+
 BRANCH="${BRANCH:-devnet/primcast-deploy}"
 ORG="${ORG:-https://github.com/energychain-network}"
 SRC="${SRC:-$HOME/src}"
