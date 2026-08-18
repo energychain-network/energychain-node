@@ -7,9 +7,14 @@
 #   ~/energychain/explorer   (energychain-explorer)
 #
 # Both indexers point at the chain over the host LAN IP (the node binds
-# 0.0.0.0). The DEX EVM layer is disabled (no DEX contracts are deployed on
-# this net); its Cosmos layer indexes x/market / x/stableusd / x/rwatoken /
-# x/mincast. The Explorer indexes consensus + EVM + the custom modules.
+# 0.0.0.0). The DEX Cosmos layer indexes x/market / x/stableusd / x/rwatoken /
+# x/mincast; the Explorer indexes consensus + EVM + the custom modules.
+#
+# The DEX EVM layer (Uniswap-V2 pools, /pools and /charts, OHLCV candles built
+# from Swap logs) only works once the contracts from energychain-contracts are
+# on chain. Point DEX_DEPLOYMENT_JSON at the dex-deployment.json that Hardhat
+# writes and this script enables EVM indexing and wires the addresses through;
+# without it the EVM layer stays off and only the Cosmos pages have data.
 #
 # Ports (host):
 #   explorer web 3000   explorer api 8080
@@ -29,6 +34,7 @@ GOPROXY_ENV="${GOPROXY_ENV:-https://proxy.golang.org,direct}"
 DEX_DIR="${DEX_DIR:-$HOME/energychain/dex}"
 EXP_DIR="${EXP_DIR:-$HOME/energychain/explorer}"
 CHAIN_DIR="${CHAIN_DIR:-$HOME/energychain/chain}"
+DEX_DEPLOYMENT_JSON="${DEX_DEPLOYMENT_JSON:-}"
 WHICH="${1:-all}"   # all | dex | explorer
 
 # Both repos keep their compose under deploy/, so the default project name
@@ -156,13 +162,41 @@ deploy_dex() {
   cp "$DEX_DIR/deploy/.env.example" "$DEX_DIR/deploy/.env"
   # Server-side keys get the in-VPC chain address; NEXT_PUBLIC_* keys get the
   # browser-routable one (see CHAIN_HOST / PUBLIC_HOST at the top).
-  python3 - "$DEX_DIR/deploy/.env" "$CHAIN_HOST" "$PUBLIC_HOST" <<'PY'
-import sys,re
-path,ch,pub=sys.argv[1],sys.argv[2],sys.argv[3]
+  python3 - "$DEX_DIR/deploy/.env" "$CHAIN_HOST" "$PUBLIC_HOST" "$DEX_DEPLOYMENT_JSON" <<'PY'
+import sys,re,json,os
+path,ch,pub,depjson=sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4]
+
+# Uniswap-V2 addresses, if the contracts have been deployed. The indexer only
+# builds OHLCV candles from EVM Swap logs, so without these the /charts and
+# /pools pages stay empty no matter how much Cosmos activity there is.
+evm={}
+if depjson and os.path.exists(depjson):
+    c=json.load(open(depjson)).get("contracts",{})
+    need=("UniswapV2Factory","UniswapV2Router02","WECY")
+    if all(c.get(k) for k in need):
+        evm={
+         "DEX_EVM_ENABLED":"true",
+         "DEX_FACTORY":c["UniswapV2Factory"],
+         "DEX_ROUTER":c["UniswapV2Router02"],
+         "DEX_WECY":c["WECY"],
+         "NEXT_PUBLIC_DEX_FACTORY":c["UniswapV2Factory"],
+         "NEXT_PUBLIC_DEX_ROUTER":c["UniswapV2Router02"],
+         "NEXT_PUBLIC_DEX_WECY":c["WECY"],
+        }
+        if c.get("Multicall3"): evm["DEX_MULTICALL"]=c["Multicall3"]
+        # USDT anchors the USD price of every WECY pair; without it the UI can
+        # quote ECY only in token terms.
+        if c.get("TestUSDT"):
+            evm["DEX_USDT"]=c["TestUSDT"]
+            evm["DEX_STABLE_TOKENS"]=c["TestUSDT"]
+        print(f"dex EVM layer ON — factory={c['UniswapV2Factory']}")
+if not evm:
+    evm={"DEX_EVM_ENABLED":"false"}
+    print("dex EVM layer OFF — no dex-deployment.json (Cosmos pages only)")
+
 ov={
  "DEX_EVM_RPC":f"http://{ch}:8545",
  "DEX_EVM_WS":f"ws://{ch}:8546",
- "DEX_EVM_ENABLED":"false",
  "DEX_COSMOS_ENABLED":"true",
  "DEX_COSMOS_RPC":f"http://{ch}:26657",
  "DEX_COSMOS_REST":f"http://{ch}:1317",
@@ -176,6 +210,8 @@ ov={
  # makes AppKit/WalletConnect SSR-init crash (web 500). Empty disables WC.
  "NEXT_PUBLIC_WC_PROJECT_ID":"",
 }
+# Last, so the freshly deployed addresses win over .env.example's stale ones.
+ov.update(evm)
 lines=open(path).read().splitlines()
 seen=set()
 out=[]
