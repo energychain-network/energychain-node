@@ -29,13 +29,27 @@ BRANCH="${BRANCH:-devnet/primcast-deploy}"
 # Per-repo override, because a repo is not always deployable at the same ref as
 # the rest: the explorer's devnet branch carries half-finished module work that
 # does not build, so it deploys from its last good UX branch instead.
-EXPLORER_BRANCH="${EXPLORER_BRANCH:-$BRANCH}"
+EXPLORER_BRANCH="${EXPLORER_BRANCH:-devnet/primcast-explorer}"
 ORG="${ORG:-https://github.com/energychain-network}"
 SRC="${SRC:-$HOME/src}"
 PUBLIC_HOST="${PUBLIC_HOST:?set PUBLIC_HOST (browser-facing address)}"
 CHAIN_HOST="${CHAIN_HOST:-$(hostname -I | awk '{print $1}')}"
 FRESH="${FRESH:-0}"
-PHASES="${PHASES:-repos,toolchain,chain,contracts,apps,swapbot}"
+PHASES="${PHASES:-repos,toolchain,chain,contracts,nginx,apps,swapbot}"
+
+# Set BASE_DOMAIN to serve everything through nginx over TLS. Empty means the
+# bare host:port deploy, and apps.sh keeps its direct-address defaults.
+BASE_DOMAIN="${BASE_DOMAIN:-}"
+ACME_EMAIL="${ACME_EMAIL:-admin@primcast.io}"
+if [ -n "$BASE_DOMAIN" ]; then
+  export SCAN_ORIGIN="https://scan.${BASE_DOMAIN}"
+  export SCAN_WS_URL="wss://scan.${BASE_DOMAIN}/ws"
+  export DEX_ORIGIN="https://dex.${BASE_DOMAIN}"
+  export DEX_WS_URL="wss://dex.${BASE_DOMAIN}/ws"
+  export RPC_ORIGIN="https://rpc.${BASE_DOMAIN}"
+  export REST_ORIGIN="https://rpc.${BASE_DOMAIN}/rest"
+  export EVM_ORIGIN="https://evm.${BASE_DOMAIN}"
+fi
 
 CHAIN_REPO="$SRC/energychain-node"
 DEX_REPO="$SRC/energychain-dex"
@@ -174,6 +188,14 @@ npx hardhat run scripts/seed_dex.ts --network energychain_local 2>&1 | tail -20 
 }
 
 # --------------------------------------------------------------------------
+# Ahead of `apps`, so the proxy and certificates are in place by the time the
+# frontends come up on the origins they were compiled against.
+want nginx && [ -n "$BASE_DOMAIN" ] && {
+phase "nginx ($BASE_DOMAIN)"
+BASE="$BASE_DOMAIN" EMAIL="$ACME_EMAIL" bash "$PROD/_nginx_tls.sh" || die "_nginx_tls.sh"
+}
+
+# --------------------------------------------------------------------------
 want apps && {
 phase "apps"
 CHAIN_HOST="$CHAIN_HOST" PUBLIC_HOST="$PUBLIC_HOST" \
@@ -221,6 +243,14 @@ systemctl is-active ec-swapbot
 
 phase "DONE"
 echo ""
-echo "chain   rpc=http://${PUBLIC_HOST}:26657  rest=http://${PUBLIC_HOST}:1317  evm=http://${PUBLIC_HOST}:8545"
-echo "explorer http://${PUBLIC_HOST}:3000   api :8080"
-echo "dex      http://${PUBLIC_HOST}:3001   api :8081"
+if [ -n "$BASE_DOMAIN" ]; then
+  echo "landing  https://${BASE_DOMAIN}"
+  echo "explorer https://scan.${BASE_DOMAIN}"
+  echo "dex      https://dex.${BASE_DOMAIN}"
+  echo "rpc      https://rpc.${BASE_DOMAIN}        rest https://rpc.${BASE_DOMAIN}/rest"
+  echo "evm      https://evm.${BASE_DOMAIN}        ws   wss://evm.${BASE_DOMAIN}/ws"
+else
+  echo "chain   rpc=http://${PUBLIC_HOST}:26657  rest=http://${PUBLIC_HOST}:1317  evm=http://${PUBLIC_HOST}:8545"
+  echo "explorer http://${PUBLIC_HOST}:3000   api :8080"
+  echo "dex      http://${PUBLIC_HOST}:3001   api :8081"
+fi

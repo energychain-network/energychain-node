@@ -35,6 +35,30 @@ DEX_DIR="${DEX_DIR:-$HOME/energychain/dex}"
 EXP_DIR="${EXP_DIR:-$HOME/energychain/explorer}"
 CHAIN_DIR="${CHAIN_DIR:-$HOME/energychain/chain}"
 DEX_DEPLOYMENT_JSON="${DEX_DEPLOYMENT_JSON:-}"
+
+# Browser-facing origins, baked into the JS bundles. They default to the direct
+# host:port form for a bare deploy; put the https:// origins here once nginx
+# terminates TLS in front, or the pages load over https and then get their
+# http:// API and WebSocket calls blocked as mixed content.
+#
+# Web and API live on different ports without a proxy but share one origin
+# behind it, so the API/WS endpoints are separate knobs rather than derived.
+SCAN_ORIGIN="${SCAN_ORIGIN:-http://${PUBLIC_HOST}:3000}"
+SCAN_WS_URL="${SCAN_WS_URL:-ws://${PUBLIC_HOST}:8080/ws}"
+DEX_ORIGIN="${DEX_ORIGIN:-http://${PUBLIC_HOST}:3001}"
+DEX_WS_URL="${DEX_WS_URL:-ws://${PUBLIC_HOST}:8081/ws}"
+RPC_ORIGIN="${RPC_ORIGIN:-http://${PUBLIC_HOST}:26657}"
+REST_ORIGIN="${REST_ORIGIN:-http://${PUBLIC_HOST}:1317}"
+EVM_ORIGIN="${EVM_ORIGIN:-http://${PUBLIC_HOST}:8545}"
+CHAIN_NAME="${CHAIN_NAME:-Primcast Devnet}"
+
+# Both frontends proxy browser API calls through their own Next server
+# (/api-proxy), and both resolve the rewrite target from the environment at
+# runtime — in the runner stage, which does not inherit the build stage's ENV.
+# Left unset it falls back to localhost inside the web container and every proxied
+# call 502s, so the in-network address is passed explicitly on both sides.
+EXP_API_INTERNAL="http://api:8080"
+DEX_API_INTERNAL="http://api:8081"
 WHICH="${1:-all}"   # all | dex | explorer
 
 # Both repos keep their compose under deploy/, so the default project name
@@ -117,9 +141,12 @@ API_CACHE_TTL_SECONDS=2
 API_CORS_ALLOWED_ORIGINS=*
 API_METRICS_ADDR=:7071
 EOF
-  # web NEXT_PUBLIC_* point the browser at the public host (override the
-  # localhost defaults baked into the base compose). postgres/redis host ports
-  # are remapped off 5432/6379 because the host already runs those services.
+  # postgres/redis host ports are remapped off 5432/6379 because the host
+  # already runs those services.
+  #
+  # The web NEXT_PUBLIC_* values are passed as *build args* as well as runtime
+  # environment: Next.js inlines them into the client bundle while compiling, so
+  # anything supplied only at runtime never reaches the browser.
   cat > "$EXP_DIR/deploy/docker-compose.override.yml" <<EOF
 services:
   postgres:
@@ -129,15 +156,23 @@ services:
     ports: !override
       - "56380:6379"
   web:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: ${EXP_API_INTERNAL}
+        NEXT_PUBLIC_WS_URL: ${SCAN_WS_URL}
+        NEXT_PUBLIC_EVM_RPC: ${EVM_ORIGIN}
+        NEXT_PUBLIC_EXPLORER_URL: ${SCAN_ORIGIN}
+        NEXT_PUBLIC_CHAIN_NAME: ${CHAIN_NAME}
     environment:
-      NEXT_PUBLIC_API_URL: http://${PUBLIC_HOST}:8080
-      NEXT_PUBLIC_WS_URL: ws://${PUBLIC_HOST}:8080/ws
-      NEXT_PUBLIC_CHAIN_NAME: EnergyChain
+      NEXT_PUBLIC_API_URL: ${EXP_API_INTERNAL}
+      NEXT_PUBLIC_WS_URL: ${SCAN_WS_URL}
+      NEXT_PUBLIC_EVM_RPC: ${EVM_ORIGIN}
+      NEXT_PUBLIC_EXPLORER_URL: ${SCAN_ORIGIN}
+      NEXT_PUBLIC_CHAIN_NAME: ${CHAIN_NAME}
       NEXT_PUBLIC_DISPLAY_DENOM: ECY
       NEXT_PUBLIC_NATIVE_DECIMALS: "18"
       NEXT_PUBLIC_BECH32_PREFIX: energy
       NEXT_PUBLIC_EVM_CHAIN_ID: "9001"
-      NEXT_PUBLIC_EXPLORER_URL: http://${PUBLIC_HOST}:3000
 EOF
   build_explorer_indexer
   # api + web build cleanly from their own contexts (no local chain replace).
@@ -162,9 +197,12 @@ deploy_dex() {
   cp "$DEX_DIR/deploy/.env.example" "$DEX_DIR/deploy/.env"
   # Server-side keys get the in-VPC chain address; NEXT_PUBLIC_* keys get the
   # browser-routable one (see CHAIN_HOST / PUBLIC_HOST at the top).
+  SCAN_ORIGIN="$SCAN_ORIGIN" DEX_WS_URL="$DEX_WS_URL" RPC_ORIGIN="$RPC_ORIGIN" \
+  REST_ORIGIN="$REST_ORIGIN" EVM_ORIGIN="$EVM_ORIGIN" DEX_API_INTERNAL="$DEX_API_INTERNAL" \
   python3 - "$DEX_DIR/deploy/.env" "$CHAIN_HOST" "$PUBLIC_HOST" "$DEX_DEPLOYMENT_JSON" <<'PY'
 import sys,re,json,os
 path,ch,pub,depjson=sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4]
+env=os.environ
 
 # Uniswap-V2 addresses, if the contracts have been deployed. The indexer only
 # builds OHLCV candles from EVM Swap logs, so without these the /charts and
@@ -195,17 +233,24 @@ if not evm:
     print("dex EVM layer OFF — no dex-deployment.json (Cosmos pages only)")
 
 ov={
+ # server-side (indexer/api inside the VPC)
  "DEX_EVM_RPC":f"http://{ch}:8545",
  "DEX_EVM_WS":f"ws://{ch}:8546",
  "DEX_COSMOS_ENABLED":"true",
  "DEX_COSMOS_RPC":f"http://{ch}:26657",
  "DEX_COSMOS_REST":f"http://{ch}:1317",
- "NEXT_PUBLIC_DEX_API_BASE":f"http://{pub}:8081",
- "NEXT_PUBLIC_DEX_WS":f"ws://{pub}:8081/ws",
- "NEXT_PUBLIC_DEX_RPC":f"http://{pub}:8545",
- "NEXT_PUBLIC_DEX_COSMOS_RPC":f"http://{pub}:26657",
- "NEXT_PUBLIC_DEX_COSMOS_REST":f"http://{pub}:1317",
- "NEXT_PUBLIC_EXPLORER_BASE":f"http://{pub}:3000",
+ # The web container reaches the api over the compose network; the browser goes
+ # through the Next server's /api-proxy rewrite, which resolves this same value
+ # at runtime, so it must stay an in-network address.
+ "NEXT_PUBLIC_DEX_API_BASE":env["DEX_API_INTERNAL"],
+ "DEX_API_INTERNAL_BASE":env["DEX_API_INTERNAL"],
+ # browser-facing (a rewrite cannot carry a WebSocket upgrade, and wallet calls
+ # go straight from the page to the chain)
+ "NEXT_PUBLIC_DEX_WS":env["DEX_WS_URL"],
+ "NEXT_PUBLIC_DEX_RPC":env["EVM_ORIGIN"],
+ "NEXT_PUBLIC_DEX_COSMOS_RPC":env["RPC_ORIGIN"],
+ "NEXT_PUBLIC_DEX_COSMOS_REST":env["REST_ORIGIN"],
+ "NEXT_PUBLIC_EXPLORER_BASE":env["SCAN_ORIGIN"],
  # blank: .env.example ships an inline comment that leaks into the value and
  # makes AppKit/WalletConnect SSR-init crash (web 500). Empty disables WC.
  "NEXT_PUBLIC_WC_PROJECT_ID":"",
@@ -232,6 +277,10 @@ services:
   nginx:
     ports: !override
       - "8090:80"
+  web:
+    environment:
+      NEXT_PUBLIC_DEX_API_BASE: ${DEX_API_INTERNAL}
+      DEX_API_INTERNAL_BASE: ${DEX_API_INTERNAL}
 EOF
   # apply DB migrations (the indexer expects the schema to already exist) then
   # bring the stack up.
