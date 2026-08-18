@@ -114,7 +114,10 @@ fi
 echo "[4/6] waiting for node to become healthy"
 ok=0
 for _ in $(seq 1 60); do
-  h=$(curl -s http://127.0.0.1:26657/status 2>/dev/null | jq -r '.result.sync_info.latest_block_height // "0"')
+  # A refused connection is the expected state on the first probes, but under
+  # `set -e` with pipefail curl's exit 7 propagates out of the assignment and
+  # aborts the script before the loop ever sleeps — so swallow it explicitly.
+  h=$(curl -s http://127.0.0.1:26657/status 2>/dev/null | jq -r '.result.sync_info.latest_block_height // "0"' 2>/dev/null) || h=""
   if [ -n "$h" ] && [ "$h" != "0" ] && [ "$h" -ge 2 ] 2>/dev/null; then ok=1; echo "  height=$h"; break; fi
   sleep 2
 done
