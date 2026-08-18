@@ -73,17 +73,26 @@ func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// and the CLI options for the modules
 	// add keyring to autocli opts
-	// The temp app must be given a home even though it never serves traffic:
-	// with EmptyAppOptions the upgrade keeper gets homePath "" and resolves
-	// upgrade-info.json to a *relative* "data/" path, so constructing the root
-	// command panics whenever the working directory is not writable — which is
-	// exactly the case under systemd (WorkingDirectory defaults to /).
+	// This app never serves traffic — it exists only to read back the encoding
+	// config and autocli options — but it still runs full app construction, so
+	// it has to satisfy the same invariants a real node does:
+	//
+	//   - a writable home, because the upgrade keeper resolves
+	//     upgrade-info.json relative to it and an empty home means a relative
+	//     "data/" that fails wherever the working directory is not writable
+	//     (under systemd that is /).
+	//   - the mempool fallback opt-in, because no app.toml is loaded here so
+	//     operate-exclusively reads false and the EVM mempool guard would
+	//     otherwise refuse to build a mempool this app will never use.
 	tempApp := evmd.NewEnergyChainApp(
 		log.NewNopLogger(),
 		dbm.NewMemDB(),
 		nil,
 		true,
-		cliAppOptions{flags.FlagHome: tempAppHome()},
+		cliAppOptions{
+			flags.FlagHome: tempAppHome(),
+			flagAllowUnsafeExperimentalMempoolFallback: true,
+		},
 	)
 
 	encodingConfig := sdktestutil.TestEncodingConfig{

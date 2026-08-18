@@ -22,22 +22,25 @@ RUN_AS="${SSM_RUN_AS:-ubuntu}"
 aws_ssm() { aws ssm "$@" --profile "$PROFILE" --region "$REGION"; }
 
 # SSM runs commands as root. Nearly everything here wants to be ubuntu (chain
-# home, go cache, docker group), so wrap the payload in a login shell for that
+# home, go cache, docker group), so pipe the payload into a login shell for that
 # user unless the caller opts out with SSM_RUN_AS=root.
+#
+# The payload travels base64-encoded: it passes through shell quoting, JSON
+# encoding and the SSM document before reaching the host, and any of those
+# layers will otherwise eat backslashes and newlines out of a heredoc.
 wrap() {
-  local body="$1"
+  local b64
+  b64="$(printf '%s' "$1" | base64 | tr -d '\n')"
   if [[ "$RUN_AS" == "root" ]]; then
-    printf '%s' "$body"
+    printf 'echo %s | base64 -d | bash -l' "$b64"
   else
-    printf 'sudo -H -u %s bash -lc %s' "$RUN_AS" "$(printf '%q' "$body")"
+    printf 'echo %s | base64 -d | sudo -H -u %s bash -l' "$b64" "$RUN_AS"
   fi
 }
 
 send() {
-  local body="$1"
   local payload
-  payload="$(wrap "$body")"
-  # JSON-encode via python to survive quotes/newlines in the payload.
+  payload="$(wrap "$1")"
   local params
   params="$(SSM_PAYLOAD="$payload" python3 -c '
 import json, os
@@ -85,10 +88,12 @@ case "$cmd" in
   runf) collect "$(send "$(cat "$1")")" ;;
   bg)
     tag="$1"; body="$2"
-    # setsid detaches from the SSM worker so the job outlives the invocation.
+    # Land the body in a file rather than inlining it: it may contain quotes of
+    # either kind, and setsid's argument is already quoted here.
+    b64="$(printf '%s' "$body" | base64 | tr -d '\n')"
     collect "$(send "rm -f ~/${tag}.done ~/${tag}.log
-setsid bash -lc '{ ${body}
-} > ~/${tag}.log 2>&1; echo \$? > ~/${tag}.done' >/dev/null 2>&1 &
+echo ${b64} | base64 -d > ~/${tag}.sh
+setsid bash -c 'bash -l ~/${tag}.sh > ~/${tag}.log 2>&1; echo \$? > ~/${tag}.done' >/dev/null 2>&1 &
 echo LAUNCHED ${tag}")"
     ;;
   log)
@@ -100,11 +105,14 @@ if [ -f ~/${tag}.done ]; then echo \"[done exit=\$(cat ~/${tag}.done)]\"; else e
     tag="$1"; max="${2:-30}"; waited=0
     while (( waited < max*60 )); do
       out="$(SSM_TIMEOUT=120 collect "$(send "if [ -f ~/${tag}.done ]; then echo \"DONE \$(cat ~/${tag}.done)\"; else tail -n 2 ~/${tag}.log 2>/dev/null | tr '\n' '|'; echo; fi")" 2>/dev/null)"
-      if [[ "$out" == DONE* ]]; then echo "$out"; [[ "$out" == "DONE 0" ]] && return 0 || return 1; fi
+      if [[ "$out" == DONE* ]]; then
+        echo "$out"
+        [[ "$out" == "DONE 0" ]] && exit 0 || exit 1
+      fi
       printf '[%s] %s\n' "$(date +%H:%M:%S)" "${out:-waiting}"
       sleep 30; waited=$((waited+30))
     done
-    echo "[ssm] timed out after ${max}min"; return 1
+    echo "[ssm] timed out after ${max}min"; exit 1
     ;;
   *)
     sed -n '2,14p' "$0"; exit 1 ;;
