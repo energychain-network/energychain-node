@@ -1,13 +1,14 @@
 package types
 
-import (
-	"fmt"
+import sdk "github.com/cosmos/cosmos-sdk/types"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-)
+func signer(addr string) []sdk.AccAddress {
+	a, _ := sdk.AccAddressFromBech32(addr)
+	return []sdk.AccAddress{a}
+}
 
-func (m *MsgCreatePair) ValidateBasic() error {
-	if err := ValidateAddr("authority", m.Authority); err != nil {
+func (m *MsgCreateMarket) ValidateBasic() error {
+	if err := MustBech32(m.Authority); err != nil {
 		return err
 	}
 	if err := ValidateDenom(m.BaseDenom); err != nil {
@@ -17,116 +18,97 @@ func (m *MsgCreatePair) ValidateBasic() error {
 		return err
 	}
 	if m.BaseDenom == m.QuoteDenom {
-		return fmt.Errorf("base_denom == quote_denom")
+		return ErrInvalidField.Wrap("base and quote denom must differ")
 	}
-	if !ModeValid(m.Mode) {
-		return fmt.Errorf("invalid mode")
+	if m.FeeBps > HardMaxFeeBps {
+		return ErrInvalidField.Wrap("fee_bps too high")
 	}
-	if m.Mode == MatchMode_MATCH_MODE_FBA && m.BatchIntervalSeconds <= 0 {
-		return fmt.Errorf("batch_interval_seconds must be > 0 for FBA")
+	if m.MinBaseQty == 0 {
+		return ErrInvalidField.Wrap("min_base_qty must be > 0")
 	}
-	if m.PriceBandLo > 0 && m.PriceBandHi > 0 && m.PriceBandLo > m.PriceBandHi {
-		return fmt.Errorf("price_band_lo > price_band_hi")
+	if m.BatchInterval < 1 {
+		return ErrInvalidField.Wrap("batch_interval must be >= 1")
 	}
-	return ValidateMemo(m.Memo, 0)
-}
-func (m *MsgCreatePair) GetSigners() []sdk.AccAddress {
-	a, _ := sdk.AccAddressFromBech32(m.Authority)
-	return []sdk.AccAddress{a}
-}
-
-func (m *MsgPauseUnpausePair) ValidateBasic() error {
-	if err := ValidateAddr("authority", m.Authority); err != nil {
-		return err
-	}
-	if m.PairId == 0 {
-		return fmt.Errorf("pair_id must be > 0")
-	}
-	return ValidateReason(m.Reason)
-}
-func (m *MsgPauseUnpausePair) GetSigners() []sdk.AccAddress {
-	a, _ := sdk.AccAddressFromBech32(m.Authority)
-	return []sdk.AccAddress{a}
-}
-
-func (m *MsgUpdatePairRisk) ValidateBasic() error {
-	if err := ValidateAddr("authority", m.Authority); err != nil {
-		return err
-	}
-	if m.PairId == 0 {
-		return fmt.Errorf("pair_id must be > 0")
-	}
-	if m.PriceBandLo > 0 && m.PriceBandHi > 0 && m.PriceBandLo > m.PriceBandHi {
-		return fmt.Errorf("price_band_lo > price_band_hi")
+	if m.Operator != "" {
+		if err := MustBech32(m.Operator); err != nil {
+			return err
+		}
 	}
 	return nil
 }
-func (m *MsgUpdatePairRisk) GetSigners() []sdk.AccAddress {
-	a, _ := sdk.AccAddressFromBech32(m.Authority)
-	return []sdk.AccAddress{a}
-}
+func (m *MsgCreateMarket) GetSigners() []sdk.AccAddress { return signer(m.Authority) }
 
-func (m *MsgPlaceLimitOrder) ValidateBasic() error {
-	if err := ValidateAddr("owner", m.Owner); err != nil {
+func (m *MsgPostBond) ValidateBasic() error {
+	if err := MustBech32(m.Operator); err != nil {
 		return err
 	}
-	if m.PairId == 0 {
-		return fmt.Errorf("pair_id must be > 0")
+	if m.MarketId == 0 {
+		return ErrInvalidField.Wrap("market_id must be > 0")
 	}
-	if !SideValid(m.Side) {
-		return fmt.Errorf("invalid side")
+	return nil
+}
+func (m *MsgPostBond) GetSigners() []sdk.AccAddress { return signer(m.Operator) }
+
+func (m *MsgDelistMarket) ValidateBasic() error {
+	if err := MustBech32(m.Authority); err != nil {
+		return err
+	}
+	if m.MarketId == 0 {
+		return ErrInvalidField.Wrap("market_id must be > 0")
+	}
+	return nil
+}
+func (m *MsgDelistMarket) GetSigners() []sdk.AccAddress { return signer(m.Authority) }
+
+func (m *MsgSetMarketStatus) ValidateBasic() error {
+	if err := MustBech32(m.Authority); err != nil {
+		return err
+	}
+	if m.MarketId == 0 {
+		return ErrInvalidField.Wrap("market_id must be > 0")
+	}
+	if !MarketStatusValid(m.Status) {
+		return ErrInvalidField.Wrap("invalid market status")
+	}
+	return nil
+}
+func (m *MsgSetMarketStatus) GetSigners() []sdk.AccAddress { return signer(m.Authority) }
+
+func (m *MsgPlaceOrder) ValidateBasic() error {
+	if err := MustBech32(m.Owner); err != nil {
+		return err
+	}
+	if m.MarketId == 0 {
+		return ErrInvalidField.Wrap("market_id must be > 0")
+	}
+	if !OrderSideValid(m.Side) {
+		return ErrInvalidField.Wrap("invalid order side")
 	}
 	if m.Price == 0 {
-		return fmt.Errorf("price must be > 0")
+		return ErrInvalidField.Wrap("price must be > 0")
 	}
 	if m.Quantity == 0 {
-		return fmt.Errorf("quantity must be > 0")
+		return ErrInvalidField.Wrap("quantity must be > 0")
 	}
-	if m.Price > MaxPrice {
-		return fmt.Errorf("price %d exceeds max %d (buy-book sort sentinel)", m.Price, MaxPrice)
-	}
-	return ValidateMemo(m.Memo, 0)
+	return nil
 }
-func (m *MsgPlaceLimitOrder) GetSigners() []sdk.AccAddress {
-	a, _ := sdk.AccAddressFromBech32(m.Owner)
-	return []sdk.AccAddress{a}
-}
+func (m *MsgPlaceOrder) GetSigners() []sdk.AccAddress { return signer(m.Owner) }
 
 func (m *MsgCancelOrder) ValidateBasic() error {
-	if err := ValidateAddr("owner", m.Owner); err != nil {
+	if err := MustBech32(m.Owner); err != nil {
 		return err
 	}
 	if m.OrderId == 0 {
-		return fmt.Errorf("order_id must be > 0")
-	}
-	return ValidateReason(m.Reason)
-}
-func (m *MsgCancelOrder) GetSigners() []sdk.AccAddress {
-	a, _ := sdk.AccAddressFromBech32(m.Owner)
-	return []sdk.AccAddress{a}
-}
-
-func (m *MsgClearBatch) ValidateBasic() error {
-	if err := ValidateAddr("caller", m.Caller); err != nil {
-		return err
-	}
-	if m.PairId == 0 {
-		return fmt.Errorf("pair_id must be > 0")
+		return ErrInvalidField.Wrap("order_id must be > 0")
 	}
 	return nil
 }
-func (m *MsgClearBatch) GetSigners() []sdk.AccAddress {
-	a, _ := sdk.AccAddressFromBech32(m.Caller)
-	return []sdk.AccAddress{a}
-}
+func (m *MsgCancelOrder) GetSigners() []sdk.AccAddress { return signer(m.Owner) }
 
 func (m *MsgUpdateParams) ValidateBasic() error {
-	if err := ValidateAddr("authority", m.Authority); err != nil {
+	if err := MustBech32(m.Authority); err != nil {
 		return err
 	}
 	return m.Params.Validate()
 }
-func (m *MsgUpdateParams) GetSigners() []sdk.AccAddress {
-	a, _ := sdk.AccAddressFromBech32(m.Authority)
-	return []sdk.AccAddress{a}
-}
+func (m *MsgUpdateParams) GetSigners() []sdk.AccAddress { return signer(m.Authority) }

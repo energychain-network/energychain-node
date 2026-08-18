@@ -1,0 +1,81 @@
+syntax = "proto3";
+package energychain.automation.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/automation/types";
+
+// ActionKind is the typed cron payload. Each kind maps to a single bounded,
+// authorization-checked cross-module keeper call executed by the EndBlocker.
+enum ActionKind {
+  ACTION_KIND_UNSPECIFIED = 0;
+  ACTION_KIND_MINCAST_INJECT = 1;        // inject amount_per_run into a mincast market treasury (lifts floor)
+  ACTION_KIND_RWA_SNAPSHOT = 2;          // take a holder snapshot of an rwatoken token
+  ACTION_KIND_RWA_DIVIDEND = 3;          // snapshot + fund a pro-rata dividend of amount_per_run
+  ACTION_KIND_MINCAST_CLOSE_MATURED = 4; // close all matured invests of a mincast market
+}
+
+enum ScheduleStatus {
+  SCHEDULE_STATUS_UNSPECIFIED = 0;
+  SCHEDULE_STATUS_ACTIVE      = 1;
+  SCHEDULE_STATUS_PAUSED      = 2;
+  SCHEDULE_STATUS_COMPLETED   = 3;
+}
+
+enum StreamStatus {
+  STREAM_STATUS_UNSPECIFIED = 0;
+  STREAM_STATUS_ACTIVE      = 1;
+  STREAM_STATUS_COMPLETED   = 2;
+  STREAM_STATUS_CANCELLED   = 3;
+}
+
+// Schedule is a recurring cron task. The creator authorizes a standing order:
+// at each due tick the EndBlocker invokes the action against the target
+// module with the creator as the acting authority, funding from the creator's
+// own settlement balance. A failed tick is recorded and the schedule keeps
+// ticking; the creator can pause/cancel at any time.
+message Schedule {
+  uint64 id = 1;
+  string creator = 2;
+  ActionKind action = 3;
+  uint64 target_id = 4;       // mincast market id or rwatoken token id
+  uint64 amount_per_run = 5;  // settlement injected/distributed per run (0 for snapshot/close)
+  int64 interval_seconds = 6;
+  int64 next_run = 7;
+  int64 end_time = 8;         // 0 = open-ended
+  uint64 max_runs = 9;        // 0 = unlimited
+  uint64 runs_done = 10;
+  uint64 successes = 11;
+  uint64 failures = 12;
+  string last_error = 13;
+  int64 last_run = 14;
+  ScheduleStatus status = 15;
+  int64 created_at = 16;
+}
+
+// Stream is a per-second linear settlement flow. The full deposit is escrowed
+// up-front; the receiver vests rate_per_sec each second and may withdraw the
+// vested-but-unwithdrawn balance at any time. The sender may cancel, paying
+// the receiver the vested remainder and refunding the unvested balance.
+message Stream {
+  uint64 id = 1;
+  string sender = 2;
+  string receiver = 3;
+  string denom = 4;          // settlement denom
+  uint64 deposit = 5;        // total escrowed
+  uint64 withdrawn = 6;      // already paid to receiver
+  uint64 rate_per_sec = 7;
+  int64 start_time = 8;
+  int64 stop_time = 9;       // start_time + ceil(deposit/rate)
+  StreamStatus status = 10;
+  int64 created_at = 11;
+}
+
+message Params {
+  uint32 max_schedules = 1;
+  uint32 max_streams = 2;
+  uint32 max_runs_per_block = 3;        // cron ticks executed per block
+  uint32 max_finalize_per_block = 4;    // streams auto-finalized per block
+  uint32 max_close_per_run = 5;         // matured invests closed per MINCAST_CLOSE_MATURED run
+  int64 min_interval_seconds = 6;       // floor on schedule interval
+}

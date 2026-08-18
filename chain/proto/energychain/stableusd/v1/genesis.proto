@@ -1,0 +1,18 @@
+syntax = "proto3";
+package energychain.stableusd.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/stableusd/v1/types.proto";
+
+option go_package = "energychain/x/stableusd/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated StableDenom denoms = 2 [(gogoproto.nullable) = false];
+  repeated Balance balances = 3 [(gogoproto.nullable) = false];
+  repeated Supply supplies = 4 [(gogoproto.nullable) = false];
+  repeated Allowance allowances = 5 [(gogoproto.nullable) = false];
+  repeated AccountFlags flags = 6 [(gogoproto.nullable) = false];
+  repeated Redemption redemptions = 7 [(gogoproto.nullable) = false];
+  uint64 redemption_id_seq = 8;
+}

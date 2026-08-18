@@ -1,0 +1,116 @@
+syntax = "proto3";
+package energychain.bridge.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+import "energychain/bridge/v1/types.proto";
+
+option go_package = "energychain/x/bridge/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc RegisterChain(MsgRegisterChain) returns (MsgRegisterChainResponse);
+  rpc UpdateChain(MsgUpdateChain) returns (MsgUpdateChainResponse);
+  rpc SetChainStatus(MsgSetChainStatus) returns (MsgSetChainStatusResponse);
+
+  rpc RegisterAsset(MsgRegisterAsset) returns (MsgRegisterAssetResponse);
+  rpc SetAssetStatus(MsgSetAssetStatus) returns (MsgSetAssetStatusResponse);
+
+  rpc Lock(MsgLock) returns (MsgLockResponse);
+  rpc Attest(MsgAttest) returns (MsgAttestResponse);
+  rpc Release(MsgRelease) returns (MsgReleaseResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+// RegisterChain / UpdateChain / SetChainStatus / RegisterAsset / SetAssetStatus
+// are authority-gated (governance).
+message MsgRegisterChain {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string name = 2;
+  string chain_ref = 3;
+  repeated string attestors = 4;
+  uint32 threshold = 5;
+}
+message MsgRegisterChainResponse { uint64 chain_id = 1; }
+
+message MsgUpdateChain {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 chain_id = 2;
+  repeated string attestors = 3;
+  uint32 threshold = 4;
+}
+message MsgUpdateChainResponse {}
+
+message MsgSetChainStatus {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 chain_id = 2;
+  ChainStatus status = 3;
+}
+message MsgSetChainStatusResponse {}
+
+message MsgRegisterAsset {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string denom = 2;
+}
+message MsgRegisterAssetResponse { uint64 asset_id = 1; }
+
+message MsgSetAssetStatus {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 asset_id = 2;
+  AssetStatus status = 3;
+}
+message MsgSetAssetStatusResponse {}
+
+// Lock BURNS `amount` of the asset's denom from the sender and records an
+// outbound withdrawal to (dest_chain_id, dest_addr); an off-chain relayer
+// releases the underlying collateral on the destination chain.
+message MsgLock {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  uint64 asset_id = 2;
+  uint64 amount = 3;
+  uint64 dest_chain_id = 4;
+  string dest_addr = 5;
+}
+message MsgLockResponse { uint64 nonce = 1; }
+
+// Attest records one attestor's signature over an inbound transfer payload.
+// The signer must be a registered attestor of src_chain_id. When the distinct
+// attestation count reaches the chain threshold the inbound flips to ATTESTED.
+message MsgAttest {
+  option (cosmos.msg.v1.signer) = "attestor";
+  string attestor = 1;
+  uint64 src_chain_id = 2;
+  uint64 src_nonce = 3;
+  string recipient = 4;
+  uint64 asset_id = 5;
+  uint64 amount = 6;
+}
+message MsgAttestResponse {
+  uint64 inbound_id = 1;
+  InboundStatus status = 2;
+}
+
+// Release MINTS an ATTESTED inbound's amount 1:1 to the recipient as the native
+// stablecoin. Permissionless (anyone can trigger) but gated by current attestor
+// quorum, recipient compliance, reserve coverage, and mint rate limits.
+message MsgRelease {
+  option (cosmos.msg.v1.signer) = "caller";
+  string caller = 1;
+  uint64 inbound_id = 2;
+}
+message MsgReleaseResponse {}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

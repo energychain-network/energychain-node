@@ -1,0 +1,44 @@
+syntax = "proto3";
+package energychain.automation.v1;
+
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+import "energychain/automation/v1/types.proto";
+
+option go_package = "energychain/x/automation/types";
+
+service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Schedule(QueryScheduleRequest) returns (QueryScheduleResponse);
+  rpc Schedules(QuerySchedulesRequest) returns (QuerySchedulesResponse);
+  rpc Stream(QueryStreamRequest) returns (QueryStreamResponse);
+  rpc Streams(QueryStreamsRequest) returns (QueryStreamsResponse);
+  rpc StreamWithdrawable(QueryStreamWithdrawableRequest) returns (QueryStreamWithdrawableResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+
+message QueryScheduleRequest { uint64 id = 1; }
+message QueryScheduleResponse { Schedule schedule = 1 [(gogoproto.nullable) = false]; }
+
+message QuerySchedulesRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QuerySchedulesResponse {
+  repeated Schedule schedules = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryStreamRequest { uint64 id = 1; }
+message QueryStreamResponse { Stream stream = 1 [(gogoproto.nullable) = false]; }
+
+message QueryStreamsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryStreamsResponse {
+  repeated Stream streams = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryStreamWithdrawableRequest { uint64 id = 1; }
+message QueryStreamWithdrawableResponse {
+  uint64 withdrawable = 1;
+  uint64 vested = 2;
+}

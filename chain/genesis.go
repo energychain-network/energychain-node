@@ -9,11 +9,6 @@ import (
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-
-	carbonprecompile "energychain/precompiles/carbon"
-	eacprecompile "energychain/precompiles/eac"
-	marketprecompile "energychain/precompiles/market"
-	stablecoinprecompile "energychain/precompiles/stablecoin"
 )
 
 const (
@@ -57,15 +52,12 @@ func NewEVMGenesisState() *evmtypes.GenesisState {
 // Returning a fresh slice on every call avoids accidental mutation of the
 // shared state by callers that sort/append the result.
 func NativePrecompileAddresses() []string {
-	return []string{
-		stablecoinprecompile.PrecompileAddressHex,
-		eacprecompile.PrecompileAddressHex,
-		carbonprecompile.PrecompileAddressHex,
-		marketprecompile.PrecompileAddressHex,
-		// New native precompiles MUST be appended here and registered
-		// via EVMKeeper.RegisterStaticPrecompile in NewEnergyChainApp;
-		// the two lists are kept in lockstep.
-	}
+	// The consolidated RWA-core module set defers EVM precompiles to a future
+	// pass; the legacy stablecoin/eac/carbon precompiles were removed with
+	// their modules. New native precompiles MUST be appended here AND
+	// registered via EVMKeeper.RegisterStaticPrecompile in NewEnergyChainApp;
+	// the two lists are kept in lockstep.
+	return []string{}
 }
 
 // NewErc20GenesisState returns the default genesis state for the ERC20 module.

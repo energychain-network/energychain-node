@@ -1,0 +1,89 @@
+syntax = "proto3";
+package energychain.identity.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/identity/types";
+
+// AccountStatus is the compliance state of an on-chain identity.
+enum AccountStatus {
+  ACCOUNT_STATUS_UNSPECIFIED = 0;
+  ACCOUNT_STATUS_ACTIVE      = 1;
+  ACCOUNT_STATUS_FROZEN      = 2; // compliance hold; transfers gated off
+}
+
+// Account is the on-chain compliance/identity record for one address.
+// It consolidates the essentials of the legacy x/did document with the
+// per-account KYC / accredited / jurisdiction flags that the legacy
+// x/rwa stored per (token, account). A single Account is reused by
+// every asset on the chain via the policy engine.
+message Account {
+  string address = 1;        // bech32, primary key
+  string did = 2;            // optional W3C DID URI
+  bool kyc_cleared = 3;
+  bool accredited = 4;
+  string jurisdiction = 5;   // ISO-3166 / region tag (may be empty)
+  int64 kyc_expires_at = 6;  // unix seconds; 0 = never expires
+  AccountStatus status = 7;
+  string registrar = 8;      // registrar that last wrote this record
+  int64 created_at = 9;
+  int64 updated_at = 10;
+}
+
+// Registrar is an address authorised to manage Account records (KYC
+// onboarding / off-boarding). Added and removed by the governance
+// authority only.
+message Registrar {
+  string address = 1;
+  string display_name = 2;
+  string added_by = 3;
+  int64 added_at = 4;
+}
+
+// Sanction is one blocked address. Any transfer touching a sanctioned
+// address is refused by EvaluateTransfer when the global gate is on.
+message Sanction {
+  string address = 1;
+  string list_source = 2; // e.g. OFAC / EU / UN / internal
+  string reason = 3;
+  string added_by = 4;
+  int64 added_at = 5;
+}
+
+// Policy is a composable transfer-rule set bound to an asset by id.
+// The keeper's EvaluateTransfer enforces these rules against the
+// sender's and receiver's Account records.
+message Policy {
+  string id = 1;
+  string description = 2;
+  bool require_kyc = 3;          // both parties must be kyc_cleared & unexpired
+  bool require_accredited = 4;   // receiver must be accredited
+  bool deny_frozen = 5;          // refuse if either party FROZEN
+  repeated string allowed_jurisdictions = 6; // empty = any allowed
+  repeated string denied_jurisdictions = 7;  // always refused
+  bool paused = 8;               // hard stop on all transfers under this policy
+  string owner = 9;              // may update; authority may always update
+  int64 created_at = 10;
+  int64 updated_at = 11;
+}
+
+// AuditEntry is one append-only compliance event. Other modules write
+// entries through the keeper; identity assigns the monotonic seq.
+message AuditEntry {
+  uint64 seq = 1;
+  int64 time = 2;
+  int64 height = 3;
+  string module = 4;
+  string action = 5;
+  string actor = 6;
+  string subject = 7;
+  string detail = 8;
+}
+
+message Params {
+  uint32 max_registrars = 1;
+  uint32 max_policies = 2;
+  uint32 max_jurisdictions_per_policy = 3;
+  bool require_sanctions_clear = 4; // global sanctions gate toggle
+  uint32 audit_max_detail_len = 5;
+}

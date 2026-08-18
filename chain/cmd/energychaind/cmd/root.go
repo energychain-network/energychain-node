@@ -39,7 +39,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/snapshot"
 	sdkserver "github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -49,33 +48,24 @@ import (
 	txmodule "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
-
-	auditcli "energychain/x/audit/client/cli"
-	metercli "energychain/x/meter/client/cli"
-	carboncli "energychain/x/carbon/client/cli"
-	cfe247cli "energychain/x/cfe247/client/cli"
-	eaccli "energychain/x/eac/client/cli"
-	escrowcli "energychain/x/escrow/client/cli"
-	oraclecli "energychain/x/oracle/client/cli"
-	policycli "energychain/x/policy/client/cli"
-	rwacli "energychain/x/rwa/client/cli"
-	sanctionscli "energychain/x/sanctions/client/cli"
-	schedulercli "energychain/x/scheduler/client/cli"
-	stablecoincli "energychain/x/stablecoin/client/cli"
-	streampaycli "energychain/x/streampay/client/cli"
-
-	contractcli "energychain/x/contract/client/cli"
-	marketcli "energychain/x/market/client/cli"
-	clearingcli "energychain/x/clearing/client/cli"
-	disputecli "energychain/x/dispute/client/cli"
-	dataslashcli "energychain/x/dataslash/client/cli"
-	mrvcli "energychain/x/mrv/client/cli"
-
-	devicecli "energychain/x/device/client/cli"
-	didcli "energychain/x/did/client/cli"
-
-	auctioncli "energychain/x/auction/client/cli"
 )
+
+// cliAppOptions is the minimal servertypes.AppOptions needed to construct the
+// throwaway app in NewRootCmd.
+type cliAppOptions map[string]any
+
+func (o cliAppOptions) Get(key string) any { return o[key] }
+
+// tempAppHome returns a scratch directory for the throwaway app built while
+// assembling the root command. Falls back to the OS temp dir so that building
+// the CLI never fails on a read-only working directory.
+func tempAppHome() string {
+	dir, err := os.MkdirTemp("", "energychaind-cli")
+	if err != nil {
+		return os.TempDir()
+	}
+	return dir
+}
 
 // NewRootCmd creates a new root command for evmd. It is called once in the
 // main function.
@@ -83,12 +73,17 @@ func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// and the CLI options for the modules
 	// add keyring to autocli opts
+	// The temp app must be given a home even though it never serves traffic:
+	// with EmptyAppOptions the upgrade keeper gets homePath "" and resolves
+	// upgrade-info.json to a *relative* "data/" path, so constructing the root
+	// command panics whenever the working directory is not writable — which is
+	// exactly the case under systemd (WorkingDirectory defaults to /).
 	tempApp := evmd.NewEnergyChainApp(
 		log.NewNopLogger(),
 		dbm.NewMemDB(),
 		nil,
 		true,
-		simtestutil.EmptyAppOptions{},
+		cliAppOptions{flags.FlagHome: tempAppHome()},
 	)
 
 	encodingConfig := sdktestutil.TestEncodingConfig{
@@ -300,33 +295,10 @@ func txCommand() *cobra.Command {
 		authcmd.GetEncodeCommand(),
 		authcmd.GetDecodeCommand(),
 		authcmd.GetSimulateCmd(),
-		// Custom EnergyChain modules. These do not appear automatically
-		// because the repo does not generate the pulsar proto descriptors
-		// that client/v2 autocli needs to walk the Msg services. Wire
-		// them manually so operators can `tx audit ...` etc out of the
-		// box. New modules from M1–M4 will be appended here as they land.
-		oraclecli.GetTxCmd(),
-		auditcli.GetTxCmd(),
-		metercli.GetTxCmd(),
-		policycli.GetTxCmd(),
-		sanctionscli.GetTxCmd(),
-		stablecoincli.GetTxCmd(),
-		eaccli.GetTxCmd(),
-		carboncli.GetTxCmd(),
-		cfe247cli.GetTxCmd(),
-		rwacli.GetTxCmd(),
-		escrowcli.GetTxCmd(),
-		schedulercli.GetTxCmd(),
-		streampaycli.GetTxCmd(),
-		contractcli.GetTxCmd(),
-		auctioncli.GetTxCmd(),
-		marketcli.GetTxCmd(),
-		clearingcli.GetTxCmd(),
-		mrvcli.GetTxCmd(),
-		disputecli.GetTxCmd(),
-		dataslashcli.GetTxCmd(),
-		didcli.GetTxCmd(),
-		devicecli.GetTxCmd(),
+		// The consolidated RWA-core modules (identity, assethub, stableusd,
+		// rwatoken, offering, mincast, automation, bridge, market) expose
+		// their tx/query commands via client/v2 autocli, so no manual
+		// GetTxCmd wiring is required here.
 	)
 
 	cmd.PersistentFlags().String(flags.FlagChainID, "", "The network chain ID")

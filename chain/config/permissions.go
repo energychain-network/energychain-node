@@ -64,10 +64,12 @@ var maccPerms = map[string][]string{
 	feemarkettypes.ModuleName: nil,
 	erc20types.ModuleName:     {authtypes.Minter, authtypes.Burner},
 
-	// EnergyChain native modules. The oracle module account holds
-	// escrowed provider bonds; no minting/burning permissions are
-	// granted because bonds are user-supplied coins.
-	"oracle": nil,
+	// EnergyChain native modules. assethub custodies provider bonds in its
+	// module account and burns the slashed fraction on misreporting, so it
+	// needs Burner. market custodies listing bonds (escrowed on PostBond,
+	// refunded in full on DelistMarket) so it needs no extra permissions.
+	"assethub": {authtypes.Burner},
+	"market":   nil,
 }
 
 // GetMaccPerms returns a copy of the module account permissions

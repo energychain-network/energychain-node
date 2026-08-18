@@ -1,0 +1,15 @@
+syntax = "proto3";
+package energychain.automation.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/automation/v1/types.proto";
+
+option go_package = "energychain/x/automation/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated Schedule schedules = 2 [(gogoproto.nullable) = false];
+  repeated Stream streams = 3 [(gogoproto.nullable) = false];
+  uint64 schedule_id_seq = 4;
+  uint64 stream_id_seq = 5;
+}

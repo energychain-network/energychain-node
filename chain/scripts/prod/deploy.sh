@@ -78,6 +78,10 @@ Wants=network-online.target
 User=${RUN_USER}
 Type=simple
 Environment=HOME=${RUN_HOME}
+# Anything in the binary that still resolves a path relative to the working
+# directory (the SDK upgrade keeper does, when no home is configured) then
+# lands inside the chain home instead of failing against /.
+WorkingDirectory=${CHAINDIR}
 ExecStart=${BIN} start --home ${CHAINDIR} --chain-id ${CHAINID} --pruning ${PRUNING} --log_level info --minimum-gas-prices=10000000000${DENOM} --evm.min-tip=0 --json-rpc.api eth,txpool,net,web3 --rpc.laddr ${RPC_LADDR} --p2p.laddr ${P2P_LADDR} --grpc.address ${GRPC_ADDR} --json-rpc.address ${JSONRPC_ADDR} --json-rpc.ws-address ${JSONRPC_WS_ADDR}
 Restart=always
 RestartSec=3

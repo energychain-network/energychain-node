@@ -137,9 +137,17 @@ $BINARY keys add circulation \
     > /dev/null 2>&1
 CIRCULATION_ADDR=$($BINARY keys show circulation --keyring-backend "$KEYRING_BACKEND" --home "$NODE0_HOME" --address)
 
+# Secondary account for transfer / market / escrow tests
+$BINARY keys add trader \
+    --keyring-backend "$KEYRING_BACKEND" \
+    --home "$NODE0_HOME" \
+    > /dev/null 2>&1
+TRADER_ADDR=$($BINARY keys show trader --keyring-backend "$KEYRING_BACKEND" --home "$NODE0_HOME" --address)
+TRADER_AMOUNT="1000000000000000000000000${DENOM}" # 1M ECY
+
 # Add team/ecosystem/treasury/circulation genesis accounts.
 # Cosmos SDK 0.50+ relocated add-genesis-account / gentx /
-# collect-gentxs / validate-genesis under the `genesis` subcommand.
+# collect-gentxs / genesis validate under the `genesis` subcommand.
 $BINARY genesis add-genesis-account "$TEAM_ADDR" "$TEAM_AMOUNT" \
     --home "$NODE0_HOME" --keyring-backend "$KEYRING_BACKEND"
 log "  Team account:        ${TEAM_ADDR}"
@@ -155,6 +163,10 @@ log "  Treasury account:    ${TREASURY_ADDR}"
 $BINARY genesis add-genesis-account "$CIRCULATION_ADDR" "$CIRCULATION_AMOUNT" \
     --home "$NODE0_HOME" --keyring-backend "$KEYRING_BACKEND"
 log "  Circulation account: ${CIRCULATION_ADDR}"
+
+$BINARY genesis add-genesis-account "$TRADER_ADDR" "$TRADER_AMOUNT" \
+    --home "$NODE0_HOME" --keyring-backend "$KEYRING_BACKEND"
+log "  Trader account:      ${TRADER_ADDR}"
 
 # Add each validator's genesis account
 for i in $(seq 0 $((NUM_VALIDATORS - 1))); do
@@ -203,7 +215,7 @@ done
 $BINARY genesis collect-gentxs --home "$NODE0_HOME" > /dev/null 2>&1
 
 # Validate the genesis
-$BINARY genesis validate-genesis --home "$NODE0_HOME"
+$BINARY genesis validate --home "$NODE0_HOME"
 log "Genesis validated successfully."
 
 # ─────────────────────────── Step 7: Seed native module app_state ───────────────────────────
@@ -228,115 +240,29 @@ log "Genesis validated successfully."
 # governance-mutable post-genesis. ValidateGenesis is re-run at the
 # end of this step to fail fast on shape regressions.
 
-log "Seeding native module app_state..."
+log "Patching genesis (uecy denom, EVM precompiles, native module seeds)..."
 
 if ! command -v jq >/dev/null 2>&1; then
-    err "jq is required to seed native module state. Install with: brew install jq"
+    err "jq is required. Install with: brew install jq (Mac) / apt install jq (Linux)"
 fi
+
+SCRIPT_LIB="$(cd "$(dirname "$0")/lib" && pwd)"
+# shellcheck source=lib/common.sh
+source "${SCRIPT_LIB}/common.sh"
+# shellcheck source=lib/patch_genesis.sh
+source "${SCRIPT_LIB}/patch_genesis.sh"
 
 GENESIS="${NODE0_HOME}/config/genesis.json"
 NOW="$(date -u +%s)"
 
-# 7.a  sanctions: register an empty OFAC list so subsequent
-# add-entry txs do not need governance to first create the list.
-jq --argjson now "$NOW" \
-   --arg creator "$TEAM_ADDR" \
-   '.app_state.sanctions.lists = [
-       {
-           "id": "ofac_sdn_testnet",
-           "name": "OFAC SDN (testnet seed)",
-           "description": "Default testnet sanctions list. Entries added via x/sanctions MsgAddEntry under the gov authority.",
-           "source_uri": "https://www.treasury.gov/ofac/downloads/sdn.xml",
-           "jurisdiction": "US",
-           "authority": $creator,
-           "status": 1,
-           "created_by": $creator,
-           "created_at": $now,
-           "updated_at": $now,
-           "entry_count": 0
-       }
-   ]' "$GENESIS" > "${GENESIS}.tmp" && mv "${GENESIS}.tmp" "$GENESIS"
+patch_genesis_core "$GENESIS" "$DENOM"
+patch_genesis_native_seeds "$GENESIS" "$NOW" "$TEAM_ADDR" "$DENOM"
+# fix_genesis_json_floats is called at end of patch_genesis_native_seeds
 
-# 7.b  policy: register a default allow-all compliance policy.
-# Empty rules ⇒ every transfer eval short-circuits to ALLOW. Operators
-# bind real DSL rules via MsgUpdatePolicy or governance proposals.
-jq --argjson now "$NOW" \
-   --arg creator "$TEAM_ADDR" \
-   '.app_state.policy.policies = [
-       {
-           "id": "default_compliance_v1",
-           "name": "Default Compliance Pipeline",
-           "description": "Allow-all testnet baseline. Replace with jurisdiction-specific DSL via x/policy MsgUpdatePolicy.",
-           "version": "1",
-           "status": 1,
-           "rules": [],
-           "created_by": $creator,
-           "created_at": $now,
-           "updated_at": $now
-       }
-   ]' "$GENESIS" > "${GENESIS}.tmp" && mv "${GENESIS}.tmp" "$GENESIS"
-
-# 7.c  oracle: register the three day-1 topics. Providers must register
-# + bond before they can submit (Step 7 of seed_testnet.sh).
-jq --argjson now "$NOW" \
-   '.app_state.oracle.topics = [
-       {
-           "id": "power.spot.day_ahead",
-           "description": "Day-ahead spot power price (USD per MWh, 6-decimal fixed point).",
-           "kind": 1,
-           "aggregation": 0,
-           "min_submissions": 3,
-           "max_data_age_seconds": 600,
-           "outlier_band_bps": 2000,
-           "value_decimals": 6,
-           "quote": "USD",
-           "paused": false,
-           "enabled": true,
-           "created_at": $now,
-           "updated_at": $now,
-           "allow_list": []
-       },
-       {
-           "id": "usd.reserve.bank_attest",
-           "description": "Stablecoin reserve attestation (USD cents per stablecoin unit).",
-           "kind": 4,
-           "aggregation": 0,
-           "min_submissions": 1,
-           "max_data_age_seconds": 86400,
-           "outlier_band_bps": 0,
-           "value_decimals": 2,
-           "quote": "USD",
-           "paused": false,
-           "enabled": true,
-           "created_at": $now,
-           "updated_at": $now,
-           "allow_list": []
-       },
-       {
-           "id": "eac.bridge.attest",
-           "description": "Cross-registry EAC bridge attestation (opaque payload).",
-           "kind": 0,
-           "aggregation": 3,
-           "min_submissions": 2,
-           "max_data_age_seconds": 3600,
-           "outlier_band_bps": 0,
-           "value_decimals": 0,
-           "quote": "",
-           "paused": false,
-           "enabled": true,
-           "created_at": $now,
-           "updated_at": $now,
-           "allow_list": []
-       }
-   ]' "$GENESIS" > "${GENESIS}.tmp" && mv "${GENESIS}.tmp" "$GENESIS"
-
-# Re-validate the patched genesis. If a future schema change breaks
-# any of the seeds above, this will fail loudly before peers diverge.
-$BINARY genesis validate-genesis --home "$NODE0_HOME"
-log "Native module app_state seeded:"
-log "  sanctions: 1 list (ofac_sdn_testnet, ACTIVE)"
-log "  policy:    1 policy (default_compliance_v1, ACTIVE, allow-all)"
-log "  oracle:    3 topics (power.spot.day_ahead, usd.reserve.bank_attest, eac.bridge.attest)"
+$BINARY genesis validate --home "$NODE0_HOME"
+log "Genesis patched:"
+log "  core:      uecy bond/mint/evm denom + bank metadata + erc20/native precompiles"
+log "  native:    sanctions, policy, oracle, stablecoin, eac, carbon, market, clearing, mrv"
 
 # ─────────────────────────── Step 8: Distribute Genesis ───────────────────────────
 
@@ -458,6 +384,7 @@ echo "    Team:         ${TEAM_ADDR}"
 echo "    Ecosystem:    ${ECOSYSTEM_ADDR}"
 echo "    Treasury:     ${TREASURY_ADDR}"
 echo "    Circulation:  ${CIRCULATION_ADDR}"
+echo "    Trader:       ${TRADER_ADDR}"
 echo ""
-echo "  Next: run ./start_testnet.sh to start the network"
+echo "  Next: ./start_testnet.sh && bash test/setup.sh && bash test/run_all.sh"
 echo "=============================================="

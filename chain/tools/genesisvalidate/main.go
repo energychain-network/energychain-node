@@ -11,28 +11,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 
-	auditm "energychain/x/audit"
-	auctionm "energychain/x/auction"
-	carbonm "energychain/x/carbon"
-	cfe247m "energychain/x/cfe247"
-	clearingm "energychain/x/clearing"
-	contractm "energychain/x/contract"
-	dataslashm "energychain/x/dataslash"
-	devicem "energychain/x/device"
-	didm "energychain/x/did"
-	disputem "energychain/x/dispute"
-	eacm "energychain/x/eac"
-	escrowm "energychain/x/escrow"
+	assethubm "energychain/x/assethub"
+	automationm "energychain/x/automation"
+	bridgem "energychain/x/bridge"
+	identitym "energychain/x/identity"
 	marketm "energychain/x/market"
-	meterm "energychain/x/meter"
-	mrvm "energychain/x/mrv"
-	oraclem "energychain/x/oracle"
-	policym "energychain/x/policy"
-	rwam "energychain/x/rwa"
-	sanctionsm "energychain/x/sanctions"
-	schedulerm "energychain/x/scheduler"
-	stablecoinm "energychain/x/stablecoin"
-	streampaym "energychain/x/streampay"
+	mincastm "energychain/x/mincast"
+	offeringm "energychain/x/offering"
+	rwatokenm "energychain/x/rwatoken"
+	stableusdm "energychain/x/stableusd"
 )
 
 type basicMod interface {
@@ -44,28 +31,15 @@ func main() {
 	ir := cdctypes.NewInterfaceRegistry()
 	cdc := codec.NewProtoCodec(ir)
 	mods := map[string]basicMod{
-		"did":        didm.AppModuleBasic{},
-		"device":     devicem.AppModuleBasic{},
-		"audit":      auditm.AppModuleBasic{},
-		"oracle":     oraclem.AppModuleBasic{},
-		"meter":      meterm.AppModuleBasic{},
-		"policy":     policym.AppModuleBasic{},
-		"sanctions":  sanctionsm.AppModuleBasic{},
-		"stablecoin": stablecoinm.AppModuleBasic{},
-		"eac":        eacm.AppModuleBasic{},
-		"carbon":     carbonm.AppModuleBasic{},
-		"cfe247":     cfe247m.AppModuleBasic{},
-		"rwa":        rwam.AppModuleBasic{},
-		"escrow":     escrowm.AppModuleBasic{},
-		"scheduler":  schedulerm.AppModuleBasic{},
-		"streampay":  streampaym.AppModuleBasic{},
-		"contract":   contractm.AppModuleBasic{},
-		"auction":    auctionm.AppModuleBasic{},
+		"identity":   identitym.AppModuleBasic{},
+		"assethub":   assethubm.AppModuleBasic{},
+		"stableusd":  stableusdm.AppModuleBasic{},
+		"rwatoken":   rwatokenm.AppModuleBasic{},
+		"mincast":    mincastm.AppModuleBasic{},
+		"offering":   offeringm.AppModuleBasic{},
 		"market":     marketm.AppModuleBasic{},
-		"clearing":   clearingm.AppModuleBasic{},
-		"mrv":        mrvm.AppModuleBasic{},
-		"dispute":    disputem.AppModuleBasic{},
-		"dataslash":  dataslashm.AppModuleBasic{},
+		"automation": automationm.AppModuleBasic{},
+		"bridge":     bridgem.AppModuleBasic{},
 	}
 
 	mode := "dump"
@@ -130,5 +104,5 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%d module(s) failed validation\n", failed)
 		os.Exit(1)
 	}
-	fmt.Println("all 22 native modules: ValidateGenesis OK")
+	fmt.Println("all 9 native modules: ValidateGenesis OK")
 }

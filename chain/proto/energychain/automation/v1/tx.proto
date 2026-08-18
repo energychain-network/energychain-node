@@ -1,0 +1,95 @@
+syntax = "proto3";
+package energychain.automation.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+import "energychain/automation/v1/types.proto";
+
+option go_package = "energychain/x/automation/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc CreateSchedule(MsgCreateSchedule) returns (MsgCreateScheduleResponse);
+  rpc PauseSchedule(MsgPauseSchedule) returns (MsgPauseScheduleResponse);
+  rpc ResumeSchedule(MsgResumeSchedule) returns (MsgResumeScheduleResponse);
+  rpc CancelSchedule(MsgCancelSchedule) returns (MsgCancelScheduleResponse);
+
+  rpc CreateStream(MsgCreateStream) returns (MsgCreateStreamResponse);
+  rpc WithdrawStream(MsgWithdrawStream) returns (MsgWithdrawStreamResponse);
+  rpc CancelStream(MsgCancelStream) returns (MsgCancelStreamResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+message MsgCreateSchedule {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1;
+  ActionKind action = 2;
+  uint64 target_id = 3;
+  uint64 amount_per_run = 4;
+  int64 interval_seconds = 5;
+  int64 start_time = 6;  // first run time; 0 = block time + interval
+  int64 end_time = 7;
+  uint64 max_runs = 8;
+}
+message MsgCreateScheduleResponse { uint64 schedule_id = 1; }
+
+message MsgPauseSchedule {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1;
+  uint64 schedule_id = 2;
+}
+message MsgPauseScheduleResponse {}
+
+message MsgResumeSchedule {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1;
+  uint64 schedule_id = 2;
+}
+message MsgResumeScheduleResponse {}
+
+message MsgCancelSchedule {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1;
+  uint64 schedule_id = 2;
+}
+message MsgCancelScheduleResponse {}
+
+message MsgCreateStream {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string receiver = 2;
+  string denom = 3;
+  uint64 deposit = 4;
+  uint64 rate_per_sec = 5;
+  int64 start_time = 6; // 0 = block time
+}
+message MsgCreateStreamResponse {
+  uint64 stream_id = 1;
+  int64 stop_time = 2;
+}
+
+message MsgWithdrawStream {
+  option (cosmos.msg.v1.signer) = "caller";
+  string caller = 1;
+  uint64 stream_id = 2;
+}
+message MsgWithdrawStreamResponse { uint64 withdrawn = 1; }
+
+message MsgCancelStream {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  uint64 stream_id = 2;
+}
+message MsgCancelStreamResponse {
+  uint64 receiver_paid = 1;
+  uint64 sender_refunded = 2;
+}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

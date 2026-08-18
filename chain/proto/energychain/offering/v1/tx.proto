@@ -1,0 +1,117 @@
+syntax = "proto3";
+package energychain.offering.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/offering/v1/types.proto";
+
+option go_package = "energychain/x/offering/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc CreateOffering(MsgCreateOffering) returns (MsgCreateOfferingResponse);
+  rpc Subscribe(MsgSubscribe) returns (MsgSubscribeResponse);
+  rpc CancelOffering(MsgCancelOffering) returns (MsgCancelOfferingResponse);
+  rpc CloseOffering(MsgCloseOffering) returns (MsgCloseOfferingResponse);
+
+  rpc ClaimAllocation(MsgClaimAllocation) returns (MsgClaimAllocationResponse);
+
+  rpc InjectReturn(MsgInjectReturn) returns (MsgInjectReturnResponse);
+  rpc ReleaseTranche(MsgReleaseTranche) returns (MsgReleaseTrancheResponse);
+  rpc ClaimReturns(MsgClaimReturns) returns (MsgClaimReturnsResponse);
+
+  rpc FlagDefault(MsgFlagDefault) returns (MsgFlagDefaultResponse);
+  rpc ClaimRefund(MsgClaimRefund) returns (MsgClaimRefundResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+message MsgCreateOffering {
+  option (cosmos.msg.v1.signer) = "issuer";
+  string issuer = 1;
+  uint64 token_id = 2;
+  uint64 unit_price = 3;
+  uint64 soft_cap = 4;
+  uint64 hard_cap = 5;
+  int64 start_time = 6;
+  int64 end_time = 7;
+  uint32 total_tranches = 8;
+  uint64 required_injection = 9;
+  int64 injection_interval = 10;
+}
+message MsgCreateOfferingResponse { uint64 offering_id = 1; }
+
+message MsgSubscribe {
+  option (cosmos.msg.v1.signer) = "investor";
+  string investor = 1;
+  uint64 offering_id = 2;
+  uint64 amount = 3; // settlement units; must be a multiple of unit_price
+}
+message MsgSubscribeResponse { uint64 units = 1; }
+
+message MsgCancelOffering {
+  option (cosmos.msg.v1.signer) = "issuer";
+  string issuer = 1;
+  uint64 offering_id = 2;
+  string reason = 3;
+}
+message MsgCancelOfferingResponse {}
+
+message MsgCloseOffering {
+  option (cosmos.msg.v1.signer) = "caller";
+  string caller = 1;
+  uint64 offering_id = 2;
+}
+message MsgCloseOfferingResponse { OfferingStatus status = 1; }
+
+message MsgClaimAllocation {
+  option (cosmos.msg.v1.signer) = "investor";
+  string investor = 1;
+  uint64 offering_id = 2;
+}
+message MsgClaimAllocationResponse { uint64 units = 1; }
+
+message MsgInjectReturn {
+  option (cosmos.msg.v1.signer) = "issuer";
+  string issuer = 1;
+  uint64 offering_id = 2;
+  uint64 amount = 3; // settlement units (>= required_injection)
+}
+message MsgInjectReturnResponse {}
+
+message MsgReleaseTranche {
+  option (cosmos.msg.v1.signer) = "issuer";
+  string issuer = 1;
+  uint64 offering_id = 2;
+}
+message MsgReleaseTrancheResponse { uint64 amount = 1; }
+
+message MsgClaimReturns {
+  option (cosmos.msg.v1.signer) = "investor";
+  string investor = 1;
+  uint64 offering_id = 2;
+}
+message MsgClaimReturnsResponse { uint64 amount = 1; }
+
+message MsgFlagDefault {
+  option (cosmos.msg.v1.signer) = "caller";
+  string caller = 1;
+  uint64 offering_id = 2;
+}
+message MsgFlagDefaultResponse {}
+
+message MsgClaimRefund {
+  option (cosmos.msg.v1.signer) = "investor";
+  string investor = 1;
+  uint64 offering_id = 2;
+}
+message MsgClaimRefundResponse { uint64 amount = 1; }
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

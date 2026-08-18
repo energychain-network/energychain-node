@@ -1,0 +1,65 @@
+syntax = "proto3";
+package energychain.offering.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/offering/types";
+
+enum OfferingStatus {
+  OFFERING_STATUS_UNSPECIFIED = 0;
+  OFFERING_STATUS_OPEN        = 1; // accepting subscriptions
+  OFFERING_STATUS_SUCCEEDED   = 2; // soft cap met; allocations + tranche releases active
+  OFFERING_STATUS_FAILED      = 3; // soft cap not met; full refunds
+  OFFERING_STATUS_CANCELLED   = 4; // issuer cancelled while OPEN; full refunds
+  OFFERING_STATUS_DEFAULTED   = 5; // issuer missed APY injection; pro-rata refund of remaining treasury
+}
+
+// Offering is an Initial RWA Offering (IRO): a fundraising round that
+// escrows investor settlement funds into a per-offering treasury, then —
+// on success — allocates RWA token units and releases the raised capital
+// to the issuer in tranches gated by periodic yield ("APY") injections.
+// Failure to keep injecting lets anyone flag a default, after which
+// investors reclaim the remaining treasury pro-rata.
+message Offering {
+  uint64 id = 1;
+  uint64 token_id = 2;
+  string issuer = 3;              // must be the RWA token admin
+  string denom = 4;              // settlement denom (token's settlement denom)
+  uint64 unit_price = 5;         // settlement units per 1 RWA unit
+  uint64 soft_cap = 6;           // min settlement raised for success
+  uint64 hard_cap = 7;           // max settlement raised
+  uint64 raised = 8;             // total subscribed
+  int64 start_time = 9;
+  int64 end_time = 10;
+  OfferingStatus status = 11;
+
+  uint32 total_tranches = 12;        // number of capital-release tranches
+  uint32 released_tranches = 13;
+  uint64 released_amount = 14;       // settlement released to issuer so far
+  uint32 injections_done = 15;       // APY injections completed
+  uint64 injected_total = 16;        // cumulative settlement injected as yield
+  uint64 required_injection = 17;    // settlement required per injection
+  int64 injection_interval = 18;     // seconds between injection deadlines
+
+  uint64 allocated_units = 19;       // total RWA units (== raised/unit_price)
+  uint64 default_treasury = 20;      // treasury balance snapshot at default
+  int64 succeeded_at = 21;
+  int64 created_at = 22;
+  int64 updated_at = 23;
+}
+
+// Subscription is one investor's position in an offering.
+message Subscription {
+  uint64 offering_id = 1;
+  string investor = 2;
+  uint64 contributed = 3;    // settlement units paid in
+  uint64 units = 4;          // RWA units owed (contributed/unit_price)
+  bool allocated = 5;        // RWA units minted (success path)
+  uint64 returns_claimed = 6;// cumulative yield claimed
+  bool refunded = 7;         // capital refunded (fail/cancel/default)
+}
+
+message Params {
+  uint32 max_offerings = 1;
+  uint32 max_tranches = 2; // hard cap on total_tranches per offering
+}

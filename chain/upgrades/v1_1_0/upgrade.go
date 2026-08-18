@@ -45,26 +45,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 
-	auctiontypes "energychain/x/auction/types"
-	carbontypes "energychain/x/carbon/types"
-	cfe247types "energychain/x/cfe247/types"
-	clearingtypes "energychain/x/clearing/types"
-	contracttypes "energychain/x/contract/types"
-	dataslashtypes "energychain/x/dataslash/types"
-	devicetypes "energychain/x/device/types"
-	didtypes "energychain/x/did/types"
-	disputetypes "energychain/x/dispute/types"
-	eactypes "energychain/x/eac/types"
-	escrowtypes "energychain/x/escrow/types"
+	assethubtypes "energychain/x/assethub/types"
+	automationtypes "energychain/x/automation/types"
+	bridgetypes "energychain/x/bridge/types"
+	identitytypes "energychain/x/identity/types"
 	markettypes "energychain/x/market/types"
-	metertypes "energychain/x/meter/types"
-	mrvtypes "energychain/x/mrv/types"
-	policytypes "energychain/x/policy/types"
-	rwatypes "energychain/x/rwa/types"
-	sanctionstypes "energychain/x/sanctions/types"
-	schedulertypes "energychain/x/scheduler/types"
-	stablecointypes "energychain/x/stablecoin/types"
-	streampaytypes "energychain/x/streampay/types"
+	mincasttypes "energychain/x/mincast/types"
+	offeringtypes "energychain/x/offering/types"
+	rwatokentypes "energychain/x/rwatoken/types"
+	stableusdtypes "energychain/x/stableusd/types"
 )
 
 // UpgradeName is the on-chain plan name validators must include in
@@ -88,43 +77,32 @@ const UpgradeName = "v1.1.0"
 // invisible to the multistore.
 var StoreUpgrades = storetypes.StoreUpgrades{
 	Added: []string{
-		// M1: identity + data-trust layer
-		didtypes.StoreKey,
-		devicetypes.StoreKey,
-		metertypes.StoreKey,
+		// Identity + compliance + data-trust layer
+		identitytypes.StoreKey,
+		assethubtypes.StoreKey,
 
-		// M2: asset + compliance layer
-		policytypes.StoreKey,
-		sanctionstypes.StoreKey,
-		stablecointypes.StoreKey,
-		eactypes.StoreKey,
-		carbontypes.StoreKey,
-		cfe247types.StoreKey,
-		rwatypes.StoreKey,
+		// Settlement + asset layer
+		stableusdtypes.StoreKey,
+		rwatokentypes.StoreKey,
+		mincasttypes.StoreKey,
+		offeringtypes.StoreKey,
 
-		// M3: market + settlement layer
-		escrowtypes.StoreKey,
-		schedulertypes.StoreKey,
-		streampaytypes.StoreKey,
-		contracttypes.StoreKey,
-		auctiontypes.StoreKey,
+		// Market + automation + interop layer
 		markettypes.StoreKey,
-		clearingtypes.StoreKey,
-
-		// M4: compliance + interop layer
-		mrvtypes.StoreKey,
-		disputetypes.StoreKey,
-		dataslashtypes.StoreKey,
+		automationtypes.StoreKey,
+		bridgetypes.StoreKey,
 	},
 	Renamed: []storetypes.StoreRename{},
 	Deleted: []string{
-		// The legacy x/energy + x/identity store keys.
-		// Kept as a defensive marker — if a long-paused node
-		// catches up across an in-flight v1.0.x → v1.1.0
-		// boundary, the multistore must drop the dangling
-		// kvstores from its commit set.
+		// The legacy x/energy store key. Kept as a defensive marker —
+		// if a long-paused node catches up across an in-flight
+		// v1.0.x → v1.1.0 boundary, the multistore must drop the
+		// dangling kvstore from its commit set.
+		//
+		// NOTE: "identity" is intentionally NOT listed here. The
+		// new consolidated x/identity module reuses that exact store
+		// key, so it is an Added key above, not a deleted one.
 		"energy",
-		"identity",
 	},
 }
 

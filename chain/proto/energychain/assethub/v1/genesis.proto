@@ -1,0 +1,17 @@
+syntax = "proto3";
+package energychain.assethub.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/assethub/v1/types.proto";
+
+option go_package = "energychain/x/assethub/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated Provider providers = 2 [(gogoproto.nullable) = false];
+  repeated Device devices = 3 [(gogoproto.nullable) = false];
+  repeated MeteringReading readings = 4 [(gogoproto.nullable) = false];
+  repeated OracleTopic topics = 5 [(gogoproto.nullable) = false];
+  repeated OracleSubmission submissions = 6 [(gogoproto.nullable) = false];
+  uint64 reading_id_seq = 7;
+}

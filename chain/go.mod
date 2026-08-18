@@ -5,7 +5,9 @@ go 1.25.8
 require (
 	cosmossdk.io/api v1.0.0
 	cosmossdk.io/client/v2 v2.0.0-beta.10.0.20260227212600-39d4711b8970
+	cosmossdk.io/collections v1.4.0
 	cosmossdk.io/core v1.1.0
+	cosmossdk.io/errors v1.1.0
 	cosmossdk.io/log/v2 v2.0.2-0.20260311135820-ea452a1660fd
 	cosmossdk.io/math v1.5.3
 	cosmossdk.io/store v1.10.0-rc.2.0.20260311135820-ea452a1660fd
@@ -17,11 +19,16 @@ require (
 	github.com/cosmos/gogoproto v1.7.2
 	github.com/cosmos/ibc-go/v10 v10.0.0-beta.0.0.20260311202420-1b48494ae021
 	github.com/ethereum/go-ethereum v1.16.8
+	github.com/golang/protobuf v1.5.4
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.66.0
+	golang.org/x/sync v0.20.0
+	google.golang.org/grpc v1.79.2
 )
 
 require (
@@ -33,9 +40,7 @@ require (
 	cloud.google.com/go/iam v1.5.3 // indirect
 	cloud.google.com/go/monitoring v1.24.3 // indirect
 	cloud.google.com/go/storage v1.60.0 // indirect
-	cosmossdk.io/collections v1.4.0 // indirect
 	cosmossdk.io/depinject v1.2.1 // indirect
-	cosmossdk.io/errors v1.1.0 // indirect
 	cosmossdk.io/schema v1.1.0 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
@@ -144,7 +149,6 @@ require (
 	github.com/gofrs/flock v0.12.1 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
@@ -159,7 +163,6 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.70 // indirect
@@ -302,7 +305,6 @@ require (
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/otelslog v0.17.0 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.39.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.66.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/host v0.67.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.67.0 // indirect
@@ -344,7 +346,6 @@ require (
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260209163413-e7419c687ee4 // indirect
 	golang.org/x/term v0.40.0 // indirect
@@ -355,7 +356,6 @@ require (
 	google.golang.org/genproto v0.0.0-20260128011058-8636f8732409 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
-	google.golang.org/grpc v1.79.2 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

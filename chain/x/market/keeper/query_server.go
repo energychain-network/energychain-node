@@ -2,9 +2,8 @@ package keeper
 
 import (
 	"context"
-	"fmt"
+	"sort"
 
-	"cosmossdk.io/collections"
 	"github.com/cosmos/cosmos-sdk/types/query"
 
 	"energychain/x/market/types"
@@ -12,7 +11,9 @@ import (
 
 type queryServer struct{ k Keeper }
 
-func NewQueryServerImpl(k Keeper) types.QueryServer { return queryServer{k: k} }
+func NewQueryServerImpl(k Keeper) types.QueryServer { return &queryServer{k: k} }
+
+var _ types.QueryServer = (*queryServer)(nil)
 
 func (q queryServer) Params(ctx context.Context, _ *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
 	p, err := q.k.GetParams(ctx)
@@ -22,125 +23,70 @@ func (q queryServer) Params(ctx context.Context, _ *types.QueryParamsRequest) (*
 	return &types.QueryParamsResponse{Params: p}, nil
 }
 
-func (q queryServer) Pair(ctx context.Context, req *types.QueryPairRequest) (*types.QueryPairResponse, error) {
-	if req == nil || req.Id == 0 {
-		return nil, fmt.Errorf("id required")
-	}
-	p, ok, err := q.k.GetPair(ctx, req.Id)
+func (q queryServer) Market(ctx context.Context, req *types.QueryMarketRequest) (*types.QueryMarketResponse, error) {
+	m, ok, err := q.k.GetMarket(ctx, req.Id)
 	if err != nil {
 		return nil, err
 	}
 	if !ok {
-		return nil, fmt.Errorf("pair %d not found", req.Id)
+		return nil, types.ErrNotFound.Wrapf("market %d", req.Id)
 	}
-	return &types.QueryPairResponse{Pair: p}, nil
+	return &types.QueryMarketResponse{Market: m}, nil
 }
 
-func (q queryServer) Pairs(ctx context.Context, req *types.QueryPairsRequest) (*types.QueryPairsResponse, error) {
-	if req == nil {
-		req = &types.QueryPairsRequest{}
-	}
-	page, pageResp, err := query.CollectionPaginate(ctx, q.k.Pairs, req.Pagination,
-		func(_ uint64, v types.Pair) (types.Pair, error) { return v, nil })
+func (q queryServer) Markets(ctx context.Context, req *types.QueryMarketsRequest) (*types.QueryMarketsResponse, error) {
+	items, page, err := query.CollectionPaginate(ctx, q.k.Markets, req.Pagination,
+		func(_ uint64, v types.Market) (types.Market, error) { return v, nil })
 	if err != nil {
 		return nil, err
 	}
-	return &types.QueryPairsResponse{Pairs: page, Pagination: pageResp}, nil
+	return &types.QueryMarketsResponse{Markets: items, Pagination: page}, nil
 }
 
 func (q queryServer) Order(ctx context.Context, req *types.QueryOrderRequest) (*types.QueryOrderResponse, error) {
-	if req == nil || req.Id == 0 {
-		return nil, fmt.Errorf("id required")
-	}
 	o, ok, err := q.k.GetOrder(ctx, req.Id)
 	if err != nil {
 		return nil, err
 	}
 	if !ok {
-		return nil, fmt.Errorf("order %d not found", req.Id)
+		return nil, types.ErrNotFound.Wrapf("order %d", req.Id)
 	}
 	return &types.QueryOrderResponse{Order: o}, nil
 }
 
-// OpenOrders walks the BOOK indices (not the Orders map) so
-// only open orders surface — terminal rows are not on a book.
-func (q queryServer) OpenOrders(ctx context.Context, req *types.QueryOpenOrdersRequest) (*types.QueryOpenOrdersResponse, error) {
-	if req == nil || req.PairId == 0 {
-		return nil, fmt.Errorf("pair_id required")
-	}
-	rngBuy := collections.NewPrefixedTripleRange[uint64, uint64, uint64](req.PairId)
-	rngSell := collections.NewPrefixedTripleRange[uint64, uint64, uint64](req.PairId)
-	var out []types.Order
-	walk := func(orderID uint64) error {
-		o, ok, err := q.k.GetOrder(ctx, orderID)
-		if err != nil {
-			return err
-		}
-		if !ok || o.Status.IsTerminal() {
-			return nil
-		}
-		out = append(out, o)
-		return nil
-	}
-	if req.Side == types.Side_SIDE_UNSPECIFIED || req.Side == types.Side_SIDE_BUY {
-		if err := q.k.BuyBook.Walk(ctx, rngBuy, func(key collections.Triple[uint64, uint64, uint64]) (bool, error) {
-			return false, walk(key.K3())
-		}); err != nil {
-			return nil, err
-		}
-	}
-	if req.Side == types.Side_SIDE_UNSPECIFIED || req.Side == types.Side_SIDE_SELL {
-		if err := q.k.SellBook.Walk(ctx, rngSell, func(key collections.Triple[uint64, uint64, uint64]) (bool, error) {
-			return false, walk(key.K3())
-		}); err != nil {
-			return nil, err
-		}
-	}
-	// Note: pagination is not applied here because the side-
-	// dual walk would interleave incorrectly; clients should
-	// request side-specific pages when needed.
-	return &types.QueryOpenOrdersResponse{Orders: out}, nil
-}
-
-func (q queryServer) OrdersByOwner(ctx context.Context, req *types.QueryOrdersByOwnerRequest) (*types.QueryOrdersByOwnerResponse, error) {
-	if req == nil || req.Owner == "" {
-		return nil, fmt.Errorf("owner required")
-	}
-	if err := types.ValidateAddr("owner", req.Owner); err != nil {
-		return nil, err
-	}
-	page, pageResp, err := query.CollectionFilteredPaginate(ctx, q.k.OrderByOwner, req.Pagination,
-		func(_ collections.Pair[string, uint64], _ collections.NoValue) (bool, error) { return true, nil },
-		func(key collections.Pair[string, uint64], _ collections.NoValue) (types.Order, error) {
-			o, ok, err := q.k.GetOrder(ctx, key.K2())
-			if err != nil {
-				return types.Order{}, err
-			}
-			if !ok {
-				return types.Order{}, fmt.Errorf("dangling order index %d", key.K2())
-			}
-			return o, nil
-		}, query.WithCollectionPaginationPairPrefix[string, uint64](req.Owner))
+func (q queryServer) Orders(ctx context.Context, req *types.QueryOrdersRequest) (*types.QueryOrdersResponse, error) {
+	items, page, err := query.CollectionPaginate(ctx, q.k.Orders, req.Pagination,
+		func(_ uint64, v types.Order) (types.Order, error) { return v, nil })
 	if err != nil {
 		return nil, err
 	}
-	return &types.QueryOrdersByOwnerResponse{Orders: page, Pagination: pageResp}, nil
+	return &types.QueryOrdersResponse{Orders: items, Pagination: page}, nil
 }
 
-func (q queryServer) Position(ctx context.Context, req *types.QueryPositionRequest) (*types.QueryPositionResponse, error) {
-	if req == nil || req.PairId == 0 {
-		return nil, fmt.Errorf("pair_id required")
-	}
-	if err := types.ValidateAddr("owner", req.Owner); err != nil {
-		return nil, err
-	}
-	p, err := q.k.GetPosition(ctx, req.PairId, req.Owner)
+func (q queryServer) OrderBook(ctx context.Context, req *types.QueryOrderBookRequest) (*types.QueryOrderBookResponse, error) {
+	orders, err := q.k.openOrders(ctx, req.MarketId)
 	if err != nil {
 		return nil, err
 	}
-	return &types.QueryPositionResponse{Position: p}, nil
-}
-
-func (q queryServer) PoolAddress(_ context.Context, _ *types.QueryPoolAddressRequest) (*types.QueryPoolAddressResponse, error) {
-	return &types.QueryPoolAddressResponse{Pool: PoolAddress()}, nil
+	var buys, sells []types.Order
+	for _, o := range orders {
+		if o.Side == types.OrderSide_ORDER_SIDE_BUY {
+			buys = append(buys, o)
+		} else {
+			sells = append(sells, o)
+		}
+	}
+	sort.Slice(buys, func(i, j int) bool {
+		if buys[i].Price != buys[j].Price {
+			return buys[i].Price > buys[j].Price
+		}
+		return buys[i].Seq < buys[j].Seq
+	})
+	sort.Slice(sells, func(i, j int) bool {
+		if sells[i].Price != sells[j].Price {
+			return sells[i].Price < sells[j].Price
+		}
+		return sells[i].Seq < sells[j].Seq
+	})
+	return &types.QueryOrderBookResponse{Buys: buys, Sells: sells}, nil
 }

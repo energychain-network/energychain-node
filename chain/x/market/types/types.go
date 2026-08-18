@@ -2,133 +2,170 @@ package types
 
 import (
 	"fmt"
+	"math/big"
 
+	errorsmod "cosmossdk.io/errors"
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// PriceScale fixes the price fixed-point: a price of `PriceScale` means 1 quote
+// unit per 1 base unit. quote_notional = price * base_qty / PriceScale.
+const PriceScale uint64 = 1_000_000
+
 const (
-	MemoMaxLen   = 256
-	ReasonMaxLen = 256
-	DenomMaxLen  = 64
+	DenomMaxLen = 64
 
-	// PriceScale is the fixed-point unit for `price` in micro-
-	// units of quote_denom per unit-of-base_denom.
-	PriceScaleDecimals = 6
-	PriceScale         = uint64(1_000_000)
+	DefaultMaxMarkets             uint32 = 1024
+	DefaultMaxOpenOrdersPerMarket uint32 = 10000
+	DefaultMaxFillsPerBatch       uint32 = 1000
+	DefaultMaxFeeBps              uint32 = 1000 // 10%
+	DefaultMinBatchInterval       int64  = 1
 
-	// MaxPrice is the sentinel used to invert keys for the buy
-	// book so that highest-price-first iteration is achieved by
-	// natural ascending iteration on (MaxPrice - price). Sized
-	// so any realistic price comfortably fits inside, while
-	// leaving the top of the uint64 range free.
-	MaxPrice = uint64(1 << 60)
+	HardMaxMarkets uint32 = 1 << 20
+	HardMaxFeeBps  uint32 = 10000
+	BpsDenominator uint64 = 10000
 
-	DefaultMaxPairs                       uint32 = 1_000
-	DefaultMaxOpenOrdersPerPair           uint32 = 50_000
-	DefaultMaxOpenOrdersPerUserPerPair    uint32 = 500
-	DefaultMaxFillsPerMatch               uint32 = 100
-	DefaultMaxMatchesPerClear             uint32 = 1_000
-	DefaultMemoMaxLen                     uint32 = MemoMaxLen
-
-	HardMaxPairs                       uint32 = 100_000
-	HardMaxOpenOrdersPerPair           uint32 = 10_000_000
-	HardMaxOpenOrdersPerUserPerPair    uint32 = 100_000
-	HardMaxFillsPerMatch               uint32 = 100_000
-	HardMaxMatchesPerClear             uint32 = 1_000_000
-	HardMemoMaxLen                     uint32 = 4096
+	// DefaultListingBondDenom is the native staking denom the market
+	// operator escrows to open a newly created market for trading.
+	DefaultListingBondDenom = "uecy"
 )
 
-func ValidateMemo(s string, maxLen uint32) error {
-	if maxLen == 0 {
-		maxLen = MemoMaxLen
-	}
-	if uint32(len(s)) > maxLen {
-		return fmt.Errorf("memo too long (max %d)", maxLen)
-	}
-	return nil
-}
-func ValidateReason(s string) error {
-	if len(s) > ReasonMaxLen {
-		return fmt.Errorf("reason too long (max %d)", ReasonMaxLen)
-	}
-	return nil
-}
-func ValidateDenom(s string) error {
-	if s == "" {
-		return fmt.Errorf("denom must be non-empty")
-	}
-	if len(s) > DenomMaxLen {
-		return fmt.Errorf("denom too long (max %d)", DenomMaxLen)
-	}
-	return nil
-}
-func ValidateAddr(field, s string) error {
-	if s == "" {
-		return fmt.Errorf("%s must be non-empty", field)
-	}
-	if _, err := sdk.AccAddressFromBech32(s); err != nil {
-		return fmt.Errorf("%s %q invalid bech32: %w", field, s, err)
+// DefaultListingBond is 10,000 ECY in 18-decimal base units. Governance
+// tunes it via MsgUpdateParams; 0 disables the bond gate.
+func DefaultListingBond() sdkmath.Int { return sdkmath.NewIntWithDecimal(10_000, 18) }
+
+func MustBech32(addr string) error {
+	if _, err := sdk.AccAddressFromBech32(addr); err != nil {
+		return errorsmod.Wrapf(ErrInvalidAddress, "%q: %v", addr, err)
 	}
 	return nil
 }
 
-func SideValid(s Side) bool { return s == Side_SIDE_BUY || s == Side_SIDE_SELL }
-func ModeValid(m MatchMode) bool {
-	return m == MatchMode_MATCH_MODE_CONTINUOUS || m == MatchMode_MATCH_MODE_FBA
-}
-func PairStatusValid(s PairStatus) bool {
-	return s == PairStatus_PAIR_STATUS_ACTIVE || s == PairStatus_PAIR_STATUS_PAUSED
-}
-func OrderStatusValid(s OrderStatus) bool {
-	switch s {
-	case OrderStatus_ORDER_STATUS_OPEN,
-		OrderStatus_ORDER_STATUS_PARTIALLY_FILLED,
-		OrderStatus_ORDER_STATUS_FILLED,
-		OrderStatus_ORDER_STATUS_CANCELLED:
-		return true
+func ValidateDenom(d string) error {
+	if l := len(d); l < 1 || l > DenomMaxLen {
+		return errorsmod.Wrapf(ErrInvalidField, "denom length %d out of range", l)
 	}
-	return false
-}
-func (s OrderStatus) IsTerminal() bool {
-	return s == OrderStatus_ORDER_STATUS_FILLED || s == OrderStatus_ORDER_STATUS_CANCELLED
-}
-
-// SafeMulUint64 guards `price * quantity` from overflow. The
-// chain refuses orders whose implied notional would exceed
-// uint64 because the BUY-leg escrow accounting cannot otherwise
-// represent it; SELL-leg escrow is in base units so this only
-// affects BUY-side calculations.
-func SafeMul(a, b uint64) (uint64, bool) {
-	if a == 0 || b == 0 {
-		return 0, false
-	}
-	if a > ^uint64(0)/b {
-		return 0, true
-	}
-	return a * b, false
+	return nil
 }
 
 func SafeAdd(x, y uint64) (uint64, error) {
 	if y > 0 && x > ^uint64(0)-y {
-		return 0, fmt.Errorf("uint64 overflow: %d + %d", x, y)
+		return 0, errorsmod.Wrapf(ErrOverflow, "%d + %d", x, y)
 	}
 	return x + y, nil
 }
+
 func SafeSub(x, y uint64) (uint64, error) {
 	if y > x {
-		return 0, fmt.Errorf("uint64 underflow: %d - %d", x, y)
+		return 0, errorsmod.Wrapf(ErrOverflow, "underflow %d - %d", x, y)
 	}
 	return x - y, nil
 }
 
-// QuoteForFill returns the quote_denom amount transferred at
-// `price` for `qty` of base_denom. Uses fixed-point PriceScale
-// division — i.e. price=1.5 (= 1_500_000 micro) on qty=10
-// produces 15 quote units.
-func QuoteForFill(price, qty uint64) (uint64, error) {
-	raw, overflow := SafeMul(price, qty)
-	if overflow {
-		return 0, fmt.Errorf("price*qty overflows uint64: %d * %d", price, qty)
+// MulDivFloor returns floor(a*b/d) computed in 256-bit space (no uint64
+// overflow). d must be > 0.
+func MulDivFloor(a, b, d uint64) (uint64, error) {
+	if d == 0 {
+		return 0, errorsmod.Wrap(ErrOverflow, "division by zero")
 	}
-	return raw / PriceScale, nil
+	prod := new(big.Int).Mul(new(big.Int).SetUint64(a), new(big.Int).SetUint64(b))
+	q := prod.Div(prod, new(big.Int).SetUint64(d))
+	if !q.IsUint64() {
+		return 0, errorsmod.Wrapf(ErrOverflow, "muldiv overflow %d*%d/%d", a, b, d)
+	}
+	return q.Uint64(), nil
+}
+
+// MulDivCeil returns ceil(a*b/d) in 256-bit space. d must be > 0.
+func MulDivCeil(a, b, d uint64) (uint64, error) {
+	if d == 0 {
+		return 0, errorsmod.Wrap(ErrOverflow, "division by zero")
+	}
+	prod := new(big.Int).Mul(new(big.Int).SetUint64(a), new(big.Int).SetUint64(b))
+	bigD := new(big.Int).SetUint64(d)
+	q := new(big.Int).Add(prod, new(big.Int).Sub(bigD, big.NewInt(1)))
+	q.Div(q, bigD)
+	if !q.IsUint64() {
+		return 0, errorsmod.Wrapf(ErrOverflow, "mulceil overflow %d*%d/%d", a, b, d)
+	}
+	return q.Uint64(), nil
+}
+
+// QuoteFloor is the clearing quote owed for `qty` base units at `price`,
+// rounded down. Used cumulatively for telescoping settlement.
+func QuoteFloor(price, qty uint64) (uint64, error) { return MulDivFloor(price, qty, PriceScale) }
+
+// QuoteCeil is the quote a BUY order must escrow to cover `qty` at `price`,
+// rounded up so the order is always fully funded at its limit.
+func QuoteCeil(price, qty uint64) (uint64, error) { return MulDivCeil(price, qty, PriceScale) }
+
+func OrderSideValid(s OrderSide) bool {
+	return s == OrderSide_ORDER_SIDE_BUY || s == OrderSide_ORDER_SIDE_SELL
+}
+
+func OrderStatusValid(s OrderStatus) bool {
+	switch s {
+	case OrderStatus_ORDER_STATUS_OPEN, OrderStatus_ORDER_STATUS_FILLED, OrderStatus_ORDER_STATUS_CANCELLED:
+		return true
+	}
+	return false
+}
+
+// MarketStatusValid reports whether s is a status governance may SET via
+// MsgSetMarketStatus. PENDING_BOND is only entered at creation and DELISTED
+// only through MsgDelistMarket, so neither is settable here.
+func MarketStatusValid(s MarketStatus) bool {
+	return s == MarketStatus_MARKET_STATUS_ACTIVE || s == MarketStatus_MARKET_STATUS_PAUSED
+}
+
+// MarketStatusValidGenesis reports whether s is a status a market may hold
+// in state (genesis import/export).
+func MarketStatusValidGenesis(s MarketStatus) bool {
+	switch s {
+	case MarketStatus_MARKET_STATUS_ACTIVE, MarketStatus_MARKET_STATUS_PAUSED,
+		MarketStatus_MARKET_STATUS_PENDING_BOND, MarketStatus_MARKET_STATUS_DELISTED:
+		return true
+	}
+	return false
+}
+
+func DefaultParams() Params {
+	return Params{
+		MaxMarkets:             DefaultMaxMarkets,
+		MaxOpenOrdersPerMarket: DefaultMaxOpenOrdersPerMarket,
+		MaxFillsPerBatch:       DefaultMaxFillsPerBatch,
+		MaxFeeBps:              DefaultMaxFeeBps,
+		MinBatchInterval:       DefaultMinBatchInterval,
+		Paused:                 false,
+		ListingBond:            DefaultListingBond(),
+		ListingBondDenom:       DefaultListingBondDenom,
+	}
+}
+
+func (p Params) Validate() error {
+	if p.MaxMarkets == 0 || p.MaxMarkets > HardMaxMarkets {
+		return fmt.Errorf("max_markets must be in (0, %d]", HardMaxMarkets)
+	}
+	if p.MaxOpenOrdersPerMarket == 0 {
+		return fmt.Errorf("max_open_orders_per_market must be > 0")
+	}
+	if p.MaxFillsPerBatch == 0 {
+		return fmt.Errorf("max_fills_per_batch must be > 0")
+	}
+	if p.MaxFeeBps > HardMaxFeeBps {
+		return fmt.Errorf("max_fee_bps must be <= %d", HardMaxFeeBps)
+	}
+	if p.MinBatchInterval < 1 {
+		return fmt.Errorf("min_batch_interval must be >= 1")
+	}
+	if p.ListingBond.IsNil() || p.ListingBond.IsNegative() {
+		return fmt.Errorf("listing_bond must be set and >= 0")
+	}
+	if p.ListingBond.IsPositive() {
+		if err := sdk.ValidateDenom(p.ListingBondDenom); err != nil {
+			return fmt.Errorf("listing_bond_denom: %w", err)
+		}
+	}
+	return nil
 }

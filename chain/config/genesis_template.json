@@ -1,616 +1,377 @@
 {
-  "genesis_time": "2026-01-01T00:00:00.000000000Z",
-  "chain_id": "energychain_9001-1",
-  "initial_height": "1",
-  "consensus_params": {
-    "block": {
-      "max_bytes": "22020096",
-      "max_gas": "40000000"
-    },
-    "evidence": {
-      "max_age_num_blocks": "100000",
-      "max_age_duration": "172800000000000",
-      "max_bytes": "1048576"
-    },
-    "validator": {
-      "pub_key_types": ["ed25519"]
-    },
-    "version": {
-      "app": "0"
-    }
+ "genesis_time": "2026-01-01T00:00:00.000000000Z",
+ "chain_id": "energychain_9001-1",
+ "initial_height": "1",
+ "consensus_params": {
+  "block": {
+   "max_bytes": "22020096",
+   "max_gas": "40000000"
   },
-  "app_hash": "",
-  "app_state": {
-    "auth": {
-      "params": {
-        "max_memo_characters": "256",
-        "tx_sig_limit": "7",
-        "tx_size_cost_per_byte": "10",
-        "sig_verify_cost_ed25519": "590",
-        "sig_verify_cost_secp256k1": "1000"
-      },
-      "accounts": []
-    },
-    "bank": {
-      "params": {
-        "send_enabled": [],
-        "default_send_enabled": true
-      },
-      "balances": [
-        {
-          "address": "energy1teamxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-          "coins": [
-            {
-              "denom": "uecy",
-              "amount": "150000000000000000000000000000"
-            }
-          ]
-        },
-        {
-          "address": "energy1ecoxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-          "coins": [
-            {
-              "denom": "uecy",
-              "amount": "300000000000000000000000000000"
-            }
-          ]
-        },
-        {
-          "address": "energy1poolxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-          "coins": [
-            {
-              "denom": "uecy",
-              "amount": "200000000000000000000000000000"
-            }
-          ]
-        },
-        {
-          "address": "energy1valxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx0",
-          "coins": [
-            {
-              "denom": "uecy",
-              "amount": "100000000000000000000000000000"
-            }
-          ]
-        },
-        {
-          "address": "energy1circxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-          "coins": [
-            {
-              "denom": "uecy",
-              "amount": "250000000000000000000000000000"
-            }
-          ]
-        }
-      ],
-      "supply": [
-        {
-          "denom": "uecy",
-          "amount": "1000000000000000000000000000000"
-        }
-      ],
-      "denom_metadata": [
-        {
-          "description": "The native staking and governance token of Energy Chain",
-          "denom_units": [
-            {
-              "denom": "uecy",
-              "exponent": 0,
-              "aliases": ["microecy"]
-            },
-            {
-              "denom": "mecy",
-              "exponent": 9,
-              "aliases": ["milliecy"]
-            },
-            {
-              "denom": "ecy",
-              "exponent": 18,
-              "aliases": ["ECY"]
-            }
-          ],
-          "base": "uecy",
-          "display": "ecy",
-          "name": "Energy Chain Token",
-          "symbol": "ECY"
-        }
-      ]
-    },
-    "staking": {
-      "params": {
-        "unbonding_time": "1209600s",
-        "max_validators": 100,
-        "max_entries": 7,
-        "historical_entries": 10000,
-        "bond_denom": "uecy",
-        "min_commission_rate": "0.050000000000000000"
-      },
-      "last_total_power": "0",
-      "last_validator_powers": [],
-      "validators": [],
-      "delegations": [],
-      "unbonding_delegations": [],
-      "redelegations": [],
-      "exported": false
-    },
-    "slashing": {
-      "params": {
-        "signed_blocks_window": "10000",
-        "min_signed_per_window": "0.050000000000000000",
-        "downtime_jail_duration": "600s",
-        "slash_fraction_double_sign": "0.050000000000000000",
-        "slash_fraction_downtime": "0.000100000000000000"
-      },
-      "signing_infos": [],
-      "missed_blocks": []
-    },
-    "mint": {
-      "minter": {
-        "inflation": "0.080000000000000000",
-        "annual_provisions": "0.000000000000000000"
-      },
-      "params": {
-        "mint_denom": "uecy",
-        "inflation_rate_change": "0.060000000000000000",
-        "inflation_max": "0.080000000000000000",
-        "inflation_min": "0.020000000000000000",
-        "goal_bonded": "0.670000000000000000",
-        "blocks_per_year": "15768000"
-      }
-    },
-    "distribution": {
-      "params": {
-        "community_tax": "0.100000000000000000",
-        "base_proposer_reward": "0.010000000000000000",
-        "bonus_proposer_reward": "0.040000000000000000",
-        "withdraw_addr_enabled": true
-      },
-      "fee_pool": {
-        "community_pool": []
-      },
-      "delegator_withdraw_infos": [],
-      "previous_proposer": "",
-      "outstanding_rewards": [],
-      "validator_accumulated_commissions": [],
-      "validator_historical_rewards": [],
-      "validator_current_rewards": [],
-      "delegator_starting_infos": [],
-      "validator_slash_events": []
-    },
-    "gov": {
-      "starting_proposal_id": "1",
-      "deposits": [],
-      "votes": [],
-      "proposals": [],
-      "deposit_params": {
-        "min_deposit": [
-          {
-            "denom": "uecy",
-            "amount": "10000000000000000000000"
-          }
-        ],
-        "max_deposit_period": "172800s"
-      },
-      "voting_params": {
-        "voting_period": "604800s"
-      },
-      "tally_params": {
-        "quorum": "0.334000000000000000",
-        "threshold": "0.500000000000000000",
-        "veto_threshold": "0.334000000000000000"
-      }
-    },
-    "evm": {
-      "accounts": [],
-      "params": {
-        "evm_denom": "uecy",
-        "enable_create": true,
-        "enable_call": true,
-        "extra_eips": [],
-        "chain_config": {
-          "homestead_block": "0",
-          "dao_fork_block": "0",
-          "dao_fork_support": true,
-          "eip150_block": "0",
-          "eip150_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-          "eip155_block": "0",
-          "eip155_chain_id": "9001",
-          "eip158_block": "0",
-          "byzantium_block": "0",
-          "constantinople_block": "0",
-          "petersburg_block": "0",
-          "istanbul_block": "0",
-          "muir_glacier_block": "0",
-          "berlin_block": "0",
-          "london_block": "0",
-          "arrow_glacier_block": "0",
-          "gray_glacier_block": "0",
-          "merge_netsplit_block": "0",
-          "shanghai_block": "0",
-          "cancun_block": "0"
-        },
-        "allow_unprotected_txs": false
-      }
-    },
-    "feemarket": {
-      "params": {
-        "no_base_fee": false,
-        "base_fee_change_denominator": 8,
-        "elasticity_multiplier": 2,
-        "enable_height": "0",
-        "base_fee": "1000000000",
-        "min_gas_price": "0.025000000000000000",
-        "min_gas_multiplier": "0.500000000000000000"
-      },
-      "block_gas": "0"
-    },
-    "did": {
-      "params": {
-        "max_controllers": 8,
-        "max_verification_methods": 16,
-        "max_service_endpoints": 8,
-        "max_credential_hash_len": 128,
-        "revocation_grace_period": 604800
-      },
-      "documents": [],
-      "credentials": [],
-      "anchors": []
-    },
-    "device": {
-      "params": {
-        "attestation_validity": 2592000,
-        "max_devices_per_owner": 10000
-      },
-      "devices": [],
-      "attestations": [],
-      "next_attestation_id": 1
-    },
-    "audit": {
-      "params": {
-        "large_transfer_threshold": 1000000,
-        "max_data_size": 65536,
-        "permissionless": true,
-        "max_audits_per_block_per_creator": 100,
-        "archive_min_age_blocks": 50000,
-        "view_key_max_validity": 31536000,
-        "archive_max_batch": 1000
-      },
-      "logs": [],
-      "schemas": [],
-      "archive_segments": [],
-      "view_key_grants": []
-    },
-    "oracle": {
-      "params": {
-        "min_submissions": 3,
-        "data_max_age": 600,
-        "max_metadata_size": 4096,
-        "bond_denom": "uecy",
-        "bond_min_amount": "0",
-        "bond_release_cooldown": 100000,
-        "max_topics_per_block": 64,
-        "max_submissions_per_topic": 256
-      },
-      "topics": [],
-      "providers": [],
-      "submissions": [],
-      "aggregated": [],
-      "reserve_attestations": []
-    },
-    "meter": {
-      "params": {
-        "max_metadata_uri_size": 512,
-        "max_commitment_size": 256,
-        "max_batch_count": 4096,
-        "max_signature_size": 256,
-        "stream_max_validity": 31536000,
-        "future_skew_seconds": 60
-      },
-      "metering_points": [],
-      "readings": [],
-      "batches": [],
-      "authorizations": []
-    },
-    "sanctions": {
-      "params": {
-        "max_lists": 64,
-        "max_entries_per_list": 100000,
-        "max_proposal_actions": 1000,
-        "hits_log_max": 4096,
-        "max_pending_proposals": 64
-      },
-      "lists": [],
-      "entries": [],
-      "proposals": [],
-      "hits": []
-    },
-    "policy": {
-      "params": {
-        "max_rules_per_policy": 32,
-        "max_param_value_size": 256,
-        "max_policies": 1024,
-        "max_bindings": 65536,
-        "log_denials": true,
-        "evaluation_log_max": 1024
-      },
-      "policies": [],
-      "bindings": [],
-      "evaluation_logs": []
-    },
-    "stablecoin": {
-      "params": {
-        "max_denoms": 64,
-        "max_issuers": 256,
-        "max_mint_authorities_per_issuer": 16,
-        "max_redemptions_pending_per_holder": 32,
-        "mint_requires_reserve": true
-      },
-      "denoms": null,
-      "issuers": null,
-      "quotas": null,
-      "reserves": null,
-      "balances": null,
-      "allowances": null,
-      "flags": null,
-      "supplies": null,
-      "redemptions": null
-    },
-    "eac": {
-      "params": {
-        "max_issuers": 256,
-        "max_kinds_per_issuer": 8,
-        "max_units_per_batch": 1000000000,
-        "hour_window_seconds": 3600,
-        "require_sanctions_clear": true
-      },
-      "issuers": null,
-      "certificates": null,
-      "balances": null,
-      "retirements": null,
-      "bridges": null
-    },
-    "carbon": {
-      "params": {
-        "max_issuers": 256,
-        "max_categories_per_issuer": 2,
-        "max_units_per_batch": 1000000000,
-        "max_ccp_labels": 16,
-        "require_sanctions_clear": true,
-        "require_article6_for_cross_border": true
-      },
-      "issuers": null,
-      "assets": null,
-      "balances": null,
-      "retirements": null,
-      "authorizations": null,
-      "bridges": null,
-      "eac_claims": null
-    },
-    "cfe247": {
-      "params": {
-        "max_data_providers": 256,
-        "max_grid_zones": 1024,
-        "max_subjects": 8192,
-        "max_attestations_per_batch": 168,
-        "max_matches_per_call": 1,
-        "max_report_period_days": 366,
-        "require_active_provider": true,
-        "hour_seconds": 3600
-      },
-      "data_providers": null,
-      "grid_zones": null,
-      "subjects": null,
-      "consumptions": null,
-      "matches": null,
-      "aggregates": null,
-      "annual_scores": null,
-      "reports": null,
-      "retirement_allocations": null
-    },
-    "rwa": {
-      "params": {
-        "max_issuers": 256,
-        "max_tokens": 4096,
-        "max_holders_per_snapshot": 50000,
-        "max_pending_redemptions_per_holder": 64,
-        "max_lockups_per_holder": 64,
-        "require_sanctions_clear": true
-      },
-      "issuers": null,
-      "tokens": null,
-      "balances": null,
-      "account_flags": null,
-      "frozen": null,
-      "lockups": null,
-      "snapshots": null,
-      "snapshot_balances": null,
-      "distributions": null,
-      "distribution_claims": null,
-      "redemptions": null,
-      "pending_redemption_units": null
-    },
-    "escrow": {
-      "params": {
-        "max_escrows": 50000,
-        "max_signers_per_escrow": 16,
-        "max_release_horizon_seconds": 1576800000,
-        "require_sanctions_clear": true
-      },
-      "next_escrow_id": 1,
-      "escrows": null,
-      "approvals": null
-    },
-    "scheduler": {
-      "params": {
-        "max_jobs": 50000,
-        "max_jobs_per_owner": 256,
-        "min_interval_seconds": 60,
-        "max_interval_seconds": 31536000,
-        "max_payload_bytes": 16384,
-        "max_jobs_per_block": 200,
-        "error_max_len": 512
-      },
-      "next_job_id": 1,
-      "jobs": null
-    },
-    "streampay": {
-      "params": {
-        "max_streams": 200000,
-        "max_streams_per_sender": 1000,
-        "min_rate_per_second": 1,
-        "max_rate_per_second": 1000000000,
-        "max_deposit": 1000000000000000000,
-        "max_horizon_seconds": 3153600000,
-        "memo_max_len": 256
-      },
-      "next_stream_id": 1,
-      "streams": null
-    },
-    "contract": {
-      "params": {
-        "max_contracts": 50000,
-        "max_contracts_per_party": 1000,
-        "min_settlement_period_seconds": 60,
-        "max_settlement_period_seconds": 31622400,
-        "default_grace_period_seconds": 86400,
-        "max_oracle_staleness_seconds_cap": 604800,
-        "max_catchup_periods_per_settle": 24,
-        "memo_max_len": 512
-      },
-      "next_contract_id": 1,
-      "contracts": null
-    },
-    "auction": {
-      "params": {
-        "max_auctions": 50000,
-        "max_auctions_per_seller": 1000,
-        "max_bids_per_auction": 10000,
-        "min_auction_duration_seconds": 60,
-        "max_auction_duration_seconds": 31536000,
-        "memo_max_len": 512
-      },
-      "next_auction_id": 1,
-      "next_bid_id": 1,
-      "auctions": null,
-      "bids": null
-    },
-    "market": {
-      "params": {
-        "max_pairs": 1000,
-        "max_open_orders_per_pair": 50000,
-        "max_open_orders_per_user_per_pair": 500,
-        "max_fills_per_match": 100,
-        "max_matches_per_clear": 1000,
-        "memo_max_len": 256
-      },
-      "next_pair_id": 1,
-      "next_order_id": 1,
-      "pairs": null,
-      "orders": null,
-      "positions": null
-    },
-    "clearing": {
-      "params": {
-        "max_open_cycles": 16,
-        "max_obligations_per_cycle": 10000,
-        "max_members": 10000,
-        "memo_max_len": 256,
-        "source_ref_max_len": 256
-      },
-      "next_member_id": 1,
-      "next_cycle_id": 1,
-      "next_obligation_id": 1,
-      "members": null,
-      "cycles": null,
-      "obligations": null,
-      "net_positions": null,
-      "default_events": null,
-      "margin": null,
-      "default_fund": null,
-      "reservations": null
-    },
-    "mrv": {
-      "params": {
-        "max_schemas": 1024,
-        "max_verifiers": 256,
-        "max_reports_per_subject": 65536,
-        "max_view_key_grants": 4096,
-        "memo_max_len": 256,
-        "uri_max_len": 512,
-        "max_jurisdictions_per_verifier": 64,
-        "max_standards_per_verifier": 64,
-        "reason_max_len": 256,
-        "max_grant_ttl_seconds": 31536000,
-        "max_grants_per_block_sweep": 256
-      },
-      "next_schema_id": 1,
-      "next_verifier_id": 1,
-      "next_report_id": 1,
-      "next_grant_id": 1,
-      "schemas": null,
-      "verifiers": null,
-      "reports": null,
-      "grants": null
-    },
-    "dispute": {
-      "params": {
-        "max_arbitrators": 256,
-        "max_open_disputes": 1024,
-        "max_evidence_per_dispute": 256,
-        "panel_size": 3,
-        "quorum_bps": 6700,
-        "respond_period_seconds": 604800,
-        "deliberation_period_seconds": 1209600,
-        "min_plaintiff_bond": 1,
-        "max_plaintiff_bond": 1000000000,
-        "default_slash_bps": 10000,
-        "memo_max_len": 256,
-        "reason_max_len": 512,
-        "uri_max_len": 512,
-        "max_jurisdictions_per_arbitrator": 64,
-        "max_standards_per_arbitrator": 64,
-        "max_finalizations_per_block": 64
-      },
-      "next_arbitrator_id": 1,
-      "next_dispute_id": 1,
-      "arbitrators": null,
-      "disputes": null,
-      "tribunal_members": null,
-      "votes": null,
-      "evidence": null,
-      "evidence_seqs": null
-    },
-    "dataslash": {
-      "params": {
-        "max_providers": 4096,
-        "max_infractions_per_provider": 1024,
-        "max_jurisdictions_per_provider": 64,
-        "min_bond_default": 1,
-        "bond_denom_default": "uecy",
-        "default_slash_bps_misreport": 1000,
-        "default_slash_bps_stale": 100,
-        "default_slash_bps_missing_sig": 200,
-        "default_slash_bps_equivocation": 10000,
-        "default_slash_bps_unreachable": 50,
-        "default_slash_bps_dispute_ruling": 5000,
-        "default_slash_bps_other": 500,
-        "auto_jail_threshold": 3,
-        "auto_jail_seconds": 604800,
-        "auto_ban_threshold": 10,
-        "unbond_cooldown_seconds": 1209600,
-        "memo_max_len": 256,
-        "reason_max_len": 512,
-        "uri_max_len": 512,
-        "max_processings_per_block": 128
-      },
-      "next_provider_id": 1,
-      "next_infraction_id": 1,
-      "next_jail_record_id": 1,
-      "next_ban_record_id": 1,
-      "providers": null,
-      "infractions": null,
-      "jail_records": null,
-      "ban_records": null
-    }
+  "evidence": {
+   "max_age_num_blocks": "100000",
+   "max_age_duration": "172800000000000",
+   "max_bytes": "1048576"
+  },
+  "validator": {
+   "pub_key_types": [
+    "ed25519"
+   ]
+  },
+  "version": {
+   "app": "0"
   }
+ },
+ "app_hash": "",
+ "app_state": {
+  "auth": {
+   "params": {
+    "max_memo_characters": "256",
+    "tx_sig_limit": "7",
+    "tx_size_cost_per_byte": "10",
+    "sig_verify_cost_ed25519": "590",
+    "sig_verify_cost_secp256k1": "1000"
+   },
+   "accounts": []
+  },
+  "bank": {
+   "params": {
+    "send_enabled": [],
+    "default_send_enabled": true
+   },
+   "balances": [
+    {
+     "address": "energy1teamxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "coins": [
+      {
+       "denom": "uecy",
+       "amount": "150000000000000000000000000000"
+      }
+     ]
+    },
+    {
+     "address": "energy1ecoxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "coins": [
+      {
+       "denom": "uecy",
+       "amount": "300000000000000000000000000000"
+      }
+     ]
+    },
+    {
+     "address": "energy1poolxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "coins": [
+      {
+       "denom": "uecy",
+       "amount": "200000000000000000000000000000"
+      }
+     ]
+    },
+    {
+     "address": "energy1valxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx0",
+     "coins": [
+      {
+       "denom": "uecy",
+       "amount": "100000000000000000000000000000"
+      }
+     ]
+    },
+    {
+     "address": "energy1circxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "coins": [
+      {
+       "denom": "uecy",
+       "amount": "250000000000000000000000000000"
+      }
+     ]
+    }
+   ],
+   "supply": [
+    {
+     "denom": "uecy",
+     "amount": "1000000000000000000000000000000"
+    }
+   ],
+   "denom_metadata": [
+    {
+     "description": "The native staking and governance token of Energy Chain",
+     "denom_units": [
+      {
+       "denom": "uecy",
+       "exponent": 0,
+       "aliases": [
+        "microecy"
+       ]
+      },
+      {
+       "denom": "mecy",
+       "exponent": 9,
+       "aliases": [
+        "milliecy"
+       ]
+      },
+      {
+       "denom": "ecy",
+       "exponent": 18,
+       "aliases": [
+        "ECY"
+       ]
+      }
+     ],
+     "base": "uecy",
+     "display": "ecy",
+     "name": "Energy Chain Token",
+     "symbol": "ECY"
+    }
+   ]
+  },
+  "staking": {
+   "params": {
+    "unbonding_time": "1209600s",
+    "max_validators": 100,
+    "max_entries": 7,
+    "historical_entries": 10000,
+    "bond_denom": "uecy",
+    "min_commission_rate": "0.050000000000000000"
+   },
+   "last_total_power": "0",
+   "last_validator_powers": [],
+   "validators": [],
+   "delegations": [],
+   "unbonding_delegations": [],
+   "redelegations": [],
+   "exported": false
+  },
+  "slashing": {
+   "params": {
+    "signed_blocks_window": "10000",
+    "min_signed_per_window": "0.050000000000000000",
+    "downtime_jail_duration": "600s",
+    "slash_fraction_double_sign": "0.050000000000000000",
+    "slash_fraction_downtime": "0.000100000000000000"
+   },
+   "signing_infos": [],
+   "missed_blocks": []
+  },
+  "mint": {
+   "minter": {
+    "inflation": "0.080000000000000000",
+    "annual_provisions": "0.000000000000000000"
+   },
+   "params": {
+    "mint_denom": "uecy",
+    "inflation_rate_change": "0.060000000000000000",
+    "inflation_max": "0.080000000000000000",
+    "inflation_min": "0.020000000000000000",
+    "goal_bonded": "0.670000000000000000",
+    "blocks_per_year": "15768000"
+   }
+  },
+  "distribution": {
+   "params": {
+    "community_tax": "0.100000000000000000",
+    "base_proposer_reward": "0.010000000000000000",
+    "bonus_proposer_reward": "0.040000000000000000",
+    "withdraw_addr_enabled": true
+   },
+   "fee_pool": {
+    "community_pool": []
+   },
+   "delegator_withdraw_infos": [],
+   "previous_proposer": "",
+   "outstanding_rewards": [],
+   "validator_accumulated_commissions": [],
+   "validator_historical_rewards": [],
+   "validator_current_rewards": [],
+   "delegator_starting_infos": [],
+   "validator_slash_events": []
+  },
+  "gov": {
+   "starting_proposal_id": "1",
+   "deposits": [],
+   "votes": [],
+   "proposals": [],
+   "deposit_params": {
+    "min_deposit": [
+     {
+      "denom": "uecy",
+      "amount": "10000000000000000000000"
+     }
+    ],
+    "max_deposit_period": "172800s"
+   },
+   "voting_params": {
+    "voting_period": "604800s"
+   },
+   "tally_params": {
+    "quorum": "0.334000000000000000",
+    "threshold": "0.500000000000000000",
+    "veto_threshold": "0.334000000000000000"
+   }
+  },
+  "evm": {
+   "accounts": [],
+   "params": {
+    "evm_denom": "uecy",
+    "enable_create": true,
+    "enable_call": true,
+    "extra_eips": [],
+    "chain_config": {
+     "homestead_block": "0",
+     "dao_fork_block": "0",
+     "dao_fork_support": true,
+     "eip150_block": "0",
+     "eip150_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+     "eip155_block": "0",
+     "eip155_chain_id": "9001",
+     "eip158_block": "0",
+     "byzantium_block": "0",
+     "constantinople_block": "0",
+     "petersburg_block": "0",
+     "istanbul_block": "0",
+     "muir_glacier_block": "0",
+     "berlin_block": "0",
+     "london_block": "0",
+     "arrow_glacier_block": "0",
+     "gray_glacier_block": "0",
+     "merge_netsplit_block": "0",
+     "shanghai_block": "0",
+     "cancun_block": "0"
+    },
+    "allow_unprotected_txs": false
+   }
+  },
+  "feemarket": {
+   "params": {
+    "no_base_fee": false,
+    "base_fee_change_denominator": 8,
+    "elasticity_multiplier": 2,
+    "enable_height": "0",
+    "base_fee": "1000000000",
+    "min_gas_price": "0.025000000000000000",
+    "min_gas_multiplier": "0.500000000000000000"
+   },
+   "block_gas": "0"
+  },
+  "identity": {
+   "params": {
+    "max_registrars": 256,
+    "max_policies": 4096,
+    "max_jurisdictions_per_policy": 64,
+    "require_sanctions_clear": true,
+    "audit_max_detail_len": 1024
+   },
+   "accounts": null,
+   "registrars": null,
+   "sanctions": null,
+   "policies": null,
+   "audit_entries": null
+  },
+  "assethub": {
+   "params": {
+    "bond_denom": "uecy",
+    "min_bond": 1000000,
+    "max_providers": 100000,
+    "max_devices": 20000000,
+    "max_topics": 4096,
+    "max_sources_per_topic": 64,
+    "reading_tolerance_bps": 200,
+    "slash_fraction_bps": 500,
+    "jail_after_infractions": 3,
+    "jail_duration_seconds": 604800
+   },
+   "providers": null,
+   "devices": null,
+   "readings": null,
+   "topics": null,
+   "submissions": null
+  },
+  "stableusd": {
+   "params": {
+    "max_denoms": 256,
+    "max_minters_per_denom": 32,
+    "max_pending_redemptions_per_holder": 64
+   },
+   "denoms": null,
+   "balances": null,
+   "supplies": null,
+   "allowances": null,
+   "flags": null,
+   "redemptions": null
+  },
+  "rwatoken": {
+   "params": {
+    "max_tokens": 1024,
+    "max_pending_redemptions_per_holder": 64,
+    "require_sanctions_clear": true,
+    "max_holders_per_snapshot": 10000
+   },
+   "tokens": null,
+   "balances": null,
+   "flags": null,
+   "snapshots": null,
+   "snapshot_balances": null,
+   "distributions": null,
+   "distribution_claims": null,
+   "redemptions": null,
+   "issuers": null
+  },
+  "mincast": {
+   "params": {
+    "max_markets": 1024,
+    "max_fee_bps": 1000,
+    "max_apy_bps": 50000,
+    "max_invest_term_seconds": 157680000,
+    "min_initial_price": 1,
+    "year_seconds": 31536000,
+    "require_sanctions_clear": true
+   },
+   "markets": null,
+   "balances": null,
+   "invests": null
+  },
+  "offering": {
+   "params": {
+    "max_offerings": 4096,
+    "max_tranches": 60
+   },
+   "offerings": null,
+   "subscriptions": null
+  },
+  "market": {
+   "params": {
+    "max_markets": 1024,
+    "max_open_orders_per_market": 10000,
+    "max_fills_per_batch": 1000,
+    "max_fee_bps": 1000,
+    "min_batch_interval": 1,
+    "listing_bond": "10000000000000000000000",
+    "listing_bond_denom": "uecy"
+   },
+   "markets": null,
+   "orders": null
+  },
+  "automation": {
+   "params": {
+    "max_schedules": 4096,
+    "max_streams": 65536,
+    "max_runs_per_block": 64,
+    "max_finalize_per_block": 64,
+    "max_close_per_run": 64,
+    "min_interval_seconds": 60
+   },
+   "schedules": null,
+   "streams": null
+  },
+  "bridge": {
+   "params": {
+    "max_chains": 256,
+    "max_assets": 256,
+    "max_attestors_per_chain": 64
+   },
+   "chains": null,
+   "assets": null,
+   "outbounds": null,
+   "inbounds": null
+  }
+ }
 }

@@ -34,19 +34,30 @@ export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
 EOF
 sudo chmod 644 /etc/profile.d/go.sh
 
-echo "=== [3/4] Docker CE + compose plugin ==="
+echo "=== [3/4] Docker + compose plugin ==="
 if docker --version >/dev/null 2>&1; then
   echo "  already installed: $(docker --version)"
 else
-  sudo install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-    | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker.gpg
-  sudo chmod a+r /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-    | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-  sudo apt-get update -qq
-  sudo apt-get install -y -qq \
-    docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >/dev/null
+  CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+  # Docker's own repo lags new Ubuntu releases by months. Probe for this
+  # release's dist directory and fall back to the Ubuntu archive (which also
+  # ships compose v2 as a plugin) when it is not published yet.
+  if curl -fsI --max-time 15 \
+       "https://download.docker.com/linux/ubuntu/dists/${CODENAME}/Release" >/dev/null 2>&1; then
+    echo "  using Docker CE repo (${CODENAME})"
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+      | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker.gpg
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${CODENAME} stable" \
+      | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq \
+      docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >/dev/null
+  else
+    echo "  Docker CE repo has no ${CODENAME} yet — using Ubuntu archive packages"
+    sudo apt-get install -y -qq docker.io docker-compose-v2 docker-buildx >/dev/null
+  fi
   echo "  installed: $(docker --version)"
 fi
 sudo usermod -aG docker "$USER" || true

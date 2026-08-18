@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"cosmossdk.io/collections"
 	"cosmossdk.io/core/store"
@@ -14,85 +15,79 @@ import (
 	"energychain/x/market/types"
 )
 
-// marketPool is the deterministic module address holding all
-// open-order escrows (both BUY-leg quote and SELL-leg base).
-// Fills move funds out of the pool to counterparties; cancels
-// refund remaining escrow to the order owner.
-var marketPool = authtypes.NewModuleAddress("market_pool").String()
-
-func PoolAddress() string { return marketPool }
-
 type Keeper struct {
 	cdc          codec.BinaryCodec
 	storeService store.KVStoreService
 	authority    string
 
-	sanctions  types.SanctionsKeeper
-	stablecoin types.StablecoinKeeper
-	audit      types.AuditKeeper
+	compliance types.ComplianceKeeper
+	settlement types.SettlementKeeper
+	asset      types.RWAAssetKeeper
+	bank       types.BankKeeper
 
 	Schema collections.Schema
 
-	Params       collections.Item[types.Params]
-	Pairs        collections.Map[uint64, types.Pair]
-	PairIDSeq    collections.Sequence
-	Orders       collections.Map[uint64, types.Order]
-	OrderIDSeq   collections.Sequence
-	OrderByOwner collections.KeySet[collections.Pair[string, uint64]]
-
-	// BuyBook key: (pair_id, MaxPrice - price, order_id).
-	// SellBook key: (pair_id, price, order_id).
-	BuyBook  collections.KeySet[collections.Triple[uint64, uint64, uint64]]
-	SellBook collections.KeySet[collections.Triple[uint64, uint64, uint64]]
-
-	Positions collections.Map[collections.Pair[uint64, string], types.Position]
+	Params    collections.Item[types.Params]
+	Markets   collections.Map[uint64, types.Market]
+	MarketSeq collections.Sequence
+	Orders    collections.Map[uint64, types.Order]
+	OrderSeq  collections.Sequence
+	PlaceSeq  collections.Sequence
+	OpenByMkt collections.KeySet[collections.Pair[uint64, uint64]]
 }
 
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeService store.KVStoreService,
 	authority string,
-	sanctions types.SanctionsKeeper,
-	stablecoin types.StablecoinKeeper,
-	audit types.AuditKeeper,
+	compliance types.ComplianceKeeper,
+	settlement types.SettlementKeeper,
+	asset types.RWAAssetKeeper,
+	bank types.BankKeeper,
 ) Keeper {
 	if _, err := sdk.AccAddressFromBech32(authority); err != nil {
 		panic(fmt.Errorf("market: invalid authority %q: %w", authority, err))
 	}
 	sb := collections.NewSchemaBuilder(storeService)
 	k := Keeper{
-		cdc: cdc, storeService: storeService, authority: authority,
-		sanctions: sanctions, stablecoin: stablecoin, audit: audit,
+		cdc:          cdc,
+		storeService: storeService,
+		authority:    authority,
+		compliance:   compliance,
+		settlement:   settlement,
+		asset:        asset,
+		bank:         bank,
 
-		Params:    collections.NewItem(sb, types.ParamsCollectionPrefix, "params", codec.CollValue[types.Params](cdc)),
-		Pairs:     collections.NewMap(sb, types.PairCollectionPrefix, "pairs", collections.Uint64Key, codec.CollValue[types.Pair](cdc)),
-		PairIDSeq: collections.NewSequence(sb, types.PairIDSeqPrefix, "pair_id_seq"),
-
-		Orders:     collections.NewMap(sb, types.OrderCollectionPrefix, "orders", collections.Uint64Key, codec.CollValue[types.Order](cdc)),
-		OrderIDSeq: collections.NewSequence(sb, types.OrderIDSeqPrefix, "order_id_seq"),
-		OrderByOwner: collections.NewKeySet(sb, types.OrderByOwnerPrefix, "order_by_owner",
-			collections.PairKeyCodec(collections.StringKey, collections.Uint64Key)),
-
-		BuyBook: collections.NewKeySet(sb, types.BuyBookPrefix, "buy_book",
-			collections.TripleKeyCodec(collections.Uint64Key, collections.Uint64Key, collections.Uint64Key)),
-		SellBook: collections.NewKeySet(sb, types.SellBookPrefix, "sell_book",
-			collections.TripleKeyCodec(collections.Uint64Key, collections.Uint64Key, collections.Uint64Key)),
-
-		Positions: collections.NewMap(sb, types.PositionCollectionPrefix, "positions",
-			collections.PairKeyCodec(collections.Uint64Key, collections.StringKey),
-			codec.CollValue[types.Position](cdc)),
+		Params:    collections.NewItem(sb, types.ParamsPrefix, "params", codec.CollValue[types.Params](cdc)),
+		Markets:   collections.NewMap(sb, types.MarketPrefix, "markets", collections.Uint64Key, codec.CollValue[types.Market](cdc)),
+		MarketSeq: collections.NewSequence(sb, types.MarketSeqPrefix, "market_seq"),
+		Orders:    collections.NewMap(sb, types.OrderPrefix, "orders", collections.Uint64Key, codec.CollValue[types.Order](cdc)),
+		OrderSeq:  collections.NewSequence(sb, types.OrderSeqPrefix, "order_seq"),
+		PlaceSeq:  collections.NewSequence(sb, types.PlaceSeqPrefix, "place_seq"),
+		OpenByMkt: collections.NewKeySet(sb, types.OpenByMarketPref, "open_by_market",
+			collections.PairKeyCodec(collections.Uint64Key, collections.Uint64Key)),
 	}
-	s, err := sb.Build()
+	schema, err := sb.Build()
 	if err != nil {
 		panic(err)
 	}
-	k.Schema = s
+	k.Schema = schema
 	return k
 }
 
 func (k Keeper) GetAuthority() string { return k.authority }
 
-// ---- params ----------------------------------------------------------
+// EscrowAccount custodies every order's escrowed base/quote settlement.
+func EscrowAccount() string { return authtypes.NewModuleAddress(types.EscrowName).String() }
+
+// FeeAccount accrues protocol fees from cleared batches.
+func FeeAccount() string { return authtypes.NewModuleAddress(types.FeeName).String() }
+
+// BondPoolAccount custodies every market's listing bond (native denom via
+// x/bank, registered in maccPerms as the module's own account).
+func BondPoolAccount() sdk.AccAddress { return authtypes.NewModuleAddress(types.BondPoolName) }
+
+// ---- params ---------------------------------------------------------------
 
 func (k Keeper) SetParams(ctx context.Context, p types.Params) error {
 	if err := p.Validate(); err != nil {
@@ -100,6 +95,7 @@ func (k Keeper) SetParams(ctx context.Context, p types.Params) error {
 	}
 	return k.Params.Set(ctx, p)
 }
+
 func (k Keeper) GetParams(ctx context.Context) (types.Params, error) {
 	p, err := k.Params.Get(ctx)
 	if err != nil {
@@ -111,50 +107,31 @@ func (k Keeper) GetParams(ctx context.Context) (types.Params, error) {
 	return p, nil
 }
 
-// ---- pair --------------------------------------------------------------
+// ---- markets ---------------------------------------------------------------
 
-func (k Keeper) GetPair(ctx context.Context, id uint64) (types.Pair, bool, error) {
-	p, err := k.Pairs.Get(ctx, id)
+func (k Keeper) GetMarket(ctx context.Context, id uint64) (types.Market, bool, error) {
+	m, err := k.Markets.Get(ctx, id)
 	if err != nil {
 		if errors.Is(err, collections.ErrNotFound) {
-			return types.Pair{}, false, nil
+			return types.Market{}, false, nil
 		}
-		return types.Pair{}, false, err
+		return types.Market{}, false, err
 	}
-	return p, true, nil
-}
-func (k Keeper) MustGetPair(ctx context.Context, id uint64) (types.Pair, error) {
-	p, ok, err := k.GetPair(ctx, id)
-	if err != nil {
-		return types.Pair{}, err
-	}
-	if !ok {
-		return types.Pair{}, fmt.Errorf("pair %d not found", id)
-	}
-	return p, nil
-}
-func (k Keeper) SetPair(ctx context.Context, p types.Pair) error {
-	return k.Pairs.Set(ctx, p.Id, p)
-}
-func (k Keeper) NextPairID(ctx context.Context) (uint64, error) {
-	n, err := k.PairIDSeq.Next(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return n + 1, nil
-}
-func (k Keeper) CountPairs(ctx context.Context) (uint32, error) {
-	v, err := k.PairIDSeq.Peek(ctx)
-	if err != nil {
-		return 0, err
-	}
-	if v > uint64(^uint32(0)) {
-		return ^uint32(0), nil
-	}
-	return uint32(v), nil
+	return m, true, nil
 }
 
-// ---- order -------------------------------------------------------------
+func (k Keeper) CountMarkets(ctx context.Context) (uint32, error) {
+	var n uint32
+	if err := k.Markets.Walk(ctx, nil, func(uint64, types.Market) (bool, error) {
+		n++
+		return false, nil
+	}); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// ---- orders ----------------------------------------------------------------
 
 func (k Keeper) GetOrder(ctx context.Context, id uint64) (types.Order, bool, error) {
 	o, err := k.Orders.Get(ctx, id)
@@ -166,80 +143,27 @@ func (k Keeper) GetOrder(ctx context.Context, id uint64) (types.Order, bool, err
 	}
 	return o, true, nil
 }
-func (k Keeper) MustGetOrder(ctx context.Context, id uint64) (types.Order, error) {
-	o, ok, err := k.GetOrder(ctx, id)
-	if err != nil {
-		return types.Order{}, err
+
+// setOrderOpen persists an order and (re)asserts its OPEN-book index entry.
+func (k Keeper) setOrderOpen(ctx context.Context, o types.Order) error {
+	if err := k.Orders.Set(ctx, o.Id, o); err != nil {
+		return err
 	}
-	if !ok {
-		return types.Order{}, fmt.Errorf("order %d not found", id)
-	}
-	return o, nil
-}
-func (k Keeper) SetOrder(ctx context.Context, o types.Order) error {
-	return k.Orders.Set(ctx, o.Id, o)
-}
-func (k Keeper) NextOrderID(ctx context.Context) (uint64, error) {
-	n, err := k.OrderIDSeq.Next(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return n + 1, nil
+	return k.OpenByMkt.Set(ctx, collections.Join(o.MarketId, o.Id))
 }
 
-// addToBook / removeFromBook keep the price-time-priority
-// indices coherent. Callers MUST invoke removeFromBook before
-// terminal status (FILLED / CANCELLED) is committed; otherwise
-// stale book entries would point at terminal orders.
-func (k Keeper) addToBook(ctx context.Context, o types.Order) error {
-	switch o.Side {
-	case types.Side_SIDE_BUY:
-		// invert price so ascending iter == descending price
-		return k.BuyBook.Set(ctx, collections.Join3(o.PairId, types.MaxPrice-o.Price, o.Id))
-	case types.Side_SIDE_SELL:
-		return k.SellBook.Set(ctx, collections.Join3(o.PairId, o.Price, o.Id))
+// closeOrder persists a terminal order and removes its OPEN-book index entry.
+func (k Keeper) closeOrder(ctx context.Context, o types.Order) error {
+	if err := k.Orders.Set(ctx, o.Id, o); err != nil {
+		return err
 	}
-	return fmt.Errorf("invalid side")
+	return k.OpenByMkt.Remove(ctx, collections.Join(o.MarketId, o.Id))
 }
 
-func (k Keeper) removeFromBook(ctx context.Context, o types.Order) error {
-	switch o.Side {
-	case types.Side_SIDE_BUY:
-		return k.BuyBook.Remove(ctx, collections.Join3(o.PairId, types.MaxPrice-o.Price, o.Id))
-	case types.Side_SIDE_SELL:
-		return k.SellBook.Remove(ctx, collections.Join3(o.PairId, o.Price, o.Id))
-	}
-	return fmt.Errorf("invalid side")
-}
-
-func (k Keeper) countOpenOrders(ctx context.Context, pairID uint64) (uint32, error) {
+func (k Keeper) countOpenOrders(ctx context.Context, marketID uint64) (uint32, error) {
 	var n uint32
-	cb := func(_ collections.Triple[uint64, uint64, uint64]) (bool, error) {
-		n++
-		return false, nil
-	}
-	rngBuy := collections.NewPrefixedTripleRange[uint64, uint64, uint64](pairID)
-	if err := k.BuyBook.Walk(ctx, rngBuy, cb); err != nil {
-		return 0, err
-	}
-	rngSell := collections.NewPrefixedTripleRange[uint64, uint64, uint64](pairID)
-	if err := k.SellBook.Walk(ctx, rngSell, cb); err != nil {
-		return 0, err
-	}
-	return n, nil
-}
-
-func (k Keeper) countOpenOrdersForUser(ctx context.Context, pairID uint64, owner string) (uint32, error) {
-	var n uint32
-	rng := collections.NewPrefixedPairRange[string, uint64](owner)
-	if err := k.OrderByOwner.Walk(ctx, rng, func(p collections.Pair[string, uint64]) (bool, error) {
-		o, ok, err := k.GetOrder(ctx, p.K2())
-		if err != nil {
-			return true, err
-		}
-		if !ok || o.PairId != pairID || o.Status.IsTerminal() {
-			return false, nil
-		}
+	rng := collections.NewPrefixedPairRange[uint64, uint64](marketID)
+	if err := k.OpenByMkt.Walk(ctx, rng, func(collections.Pair[uint64, uint64]) (bool, error) {
 		n++
 		return false, nil
 	}); err != nil {
@@ -248,121 +172,98 @@ func (k Keeper) countOpenOrdersForUser(ctx context.Context, pairID uint64, owner
 	return n, nil
 }
 
-// ---- position ----------------------------------------------------------
-
-func (k Keeper) GetPosition(ctx context.Context, pairID uint64, owner string) (types.Position, error) {
-	p, err := k.Positions.Get(ctx, collections.Join(pairID, owner))
-	if err != nil {
-		if errors.Is(err, collections.ErrNotFound) {
-			return types.Position{PairId: pairID, Owner: owner}, nil
-		}
-		return types.Position{}, err
-	}
-	return p, nil
-}
-func (k Keeper) setPosition(ctx context.Context, p types.Position) error {
-	return k.Positions.Set(ctx, collections.Join(p.PairId, p.Owner), p)
-}
-
-// applyFillToPosition mutates the user's signed position. side
-// is the FILL side from the owner's perspective; qty is the
-// base-denom amount.
-func (k Keeper) applyFillToPosition(ctx context.Context, pairID uint64, owner string, fillSide types.Side, qty uint64) (types.Position, error) {
-	p, err := k.GetPosition(ctx, pairID, owner)
-	if err != nil {
-		return types.Position{}, err
-	}
-	switch fillSide {
-	case types.Side_SIDE_BUY:
-		nb, err := types.SafeAdd(p.CumulativeBought, qty)
+// openOrders returns every OPEN order resting on a market.
+func (k Keeper) openOrders(ctx context.Context, marketID uint64) ([]types.Order, error) {
+	var out []types.Order
+	rng := collections.NewPrefixedPairRange[uint64, uint64](marketID)
+	if err := k.OpenByMkt.Walk(ctx, rng, func(key collections.Pair[uint64, uint64]) (bool, error) {
+		o, ok, err := k.GetOrder(ctx, key.K2())
 		if err != nil {
-			return types.Position{}, err
+			return true, err
 		}
-		p.CumulativeBought = nb
-		if p.IsShort {
-			if qty >= p.Magnitude {
-				p.Magnitude = qty - p.Magnitude
-				p.IsShort = false
-			} else {
-				p.Magnitude -= qty
-			}
-		} else {
-			p.Magnitude += qty
+		if ok && o.Status == types.OrderStatus_ORDER_STATUS_OPEN {
+			out = append(out, o)
 		}
-	case types.Side_SIDE_SELL:
-		ns, err := types.SafeAdd(p.CumulativeSold, qty)
-		if err != nil {
-			return types.Position{}, err
-		}
-		p.CumulativeSold = ns
-		if !p.IsShort {
-			if qty >= p.Magnitude {
-				p.Magnitude = qty - p.Magnitude
-				p.IsShort = p.Magnitude > 0
-			} else {
-				p.Magnitude -= qty
-			}
-		} else {
-			p.Magnitude += qty
-		}
+		return false, nil
+	}); err != nil {
+		return nil, err
 	}
-	if err := k.setPosition(ctx, p); err != nil {
-		return types.Position{}, err
-	}
-	return p, nil
+	return out, nil
 }
 
-// ---- pool plumbing -----------------------------------------------------
+// ---- settlement plumbing ---------------------------------------------------
 
-func (k Keeper) fundPool(ctx context.Context, denom, from string, amount uint64) error {
-	if amount == 0 {
-		return nil
-	}
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	if k.stablecoin == nil {
-		return fmt.Errorf("stablecoin keeper not wired")
-	}
-	if !k.stablecoin.HasDenom(sdkCtx, denom) {
-		return fmt.Errorf("denom %q not registered", denom)
-	}
-	if k.stablecoin.IsDenomPaused(sdkCtx, denom) {
-		return fmt.Errorf("denom %q paused", denom)
-	}
-	if k.stablecoin.IsAccountBlocked(sdkCtx, denom, from) {
-		return fmt.Errorf("payer %s frozen / blacklisted on denom %s", from, denom)
-	}
-	return k.stablecoin.Move(sdkCtx, denom, from, PoolAddress(), amount)
-}
-
-func (k Keeper) drainPool(ctx context.Context, denom, to string, amount uint64) error {
-	if amount == 0 {
-		return nil
-	}
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	if k.stablecoin == nil {
-		return fmt.Errorf("stablecoin keeper not wired")
-	}
-	if k.stablecoin.IsAccountBlocked(sdkCtx, denom, to) {
-		return fmt.Errorf("payee %s frozen / blacklisted on denom %s", to, denom)
-	}
-	return k.stablecoin.Move(sdkCtx, denom, PoolAddress(), to, amount)
-}
-
-func (k Keeper) requireUnsanctioned(ctx context.Context, who, role string) error {
-	if k.sanctions == nil {
-		return nil
-	}
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	if k.sanctions.IsSanctioned(sdkCtx, who) {
-		return fmt.Errorf("%s %s is sanctioned", role, who)
+func (k Keeper) requireSettlement() error {
+	if k.settlement == nil {
+		return types.ErrSettlement.Wrap("settlement keeper not wired")
 	}
 	return nil
 }
 
-func (k Keeper) recordAudit(ctx context.Context, pairID, orderID uint64, action, actor, subject, detail string) {
-	if k.audit == nil {
-		return
+func (k Keeper) moveSettlement(ctx context.Context, denom, from, to string, amount uint64) error {
+	if err := k.requireSettlement(); err != nil {
+		return err
+	}
+	if amount == 0 {
+		return nil
+	}
+	if !k.settlement.HasDenom(ctx, denom) {
+		return types.ErrSettlement.Wrapf("unknown settlement denom %q", denom)
+	}
+	if !k.settlement.DenomActive(ctx, denom) {
+		return types.ErrSettlement.Wrapf("settlement denom %q not active", denom)
+	}
+	if k.settlement.GetBalance(ctx, denom, from) < amount {
+		return types.ErrSettlement.Wrapf("insufficient %s: have %d need %d", denom,
+			k.settlement.GetBalance(ctx, denom, from), amount)
+	}
+	return k.settlement.MoveBalance(ctx, denom, from, to, amount)
+}
+
+func (k Keeper) isSanctioned(ctx context.Context, addr string) bool {
+	if k.compliance == nil {
+		return false
+	}
+	return k.compliance.IsSanctioned(sdk.UnwrapSDKContext(ctx), addr)
+}
+
+// orderCompliance gates an order owner at placement time: never sanctioned,
+// KYC-cleared when the market requires it, and clear of the bound transfer
+// policy. The owner is the single party of an escrow leg, so it is passed as
+// both the policy `from` (divesting funds into escrow) and screened directly.
+func (k Keeper) orderCompliance(ctx context.Context, mk types.Market, owner string, qty uint64) error {
+	if k.compliance == nil {
+		return nil
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	k.audit.RecordMarketAction(sdkCtx, pairID, orderID, action, actor, subject, detail)
+	if k.compliance.IsSanctioned(sdkCtx, owner) {
+		return types.ErrCompliance.Wrapf("%s sanctioned", owner)
+	}
+	if mk.RequireKyc {
+		if err := k.compliance.RequireKYC(sdkCtx, owner); err != nil {
+			return types.ErrCompliance.Wrapf("owner KYC: %v", err)
+		}
+	}
+	if mk.PolicyId != "" {
+		assetRef := strconv.FormatUint(mk.Id, 10)
+		if err := k.compliance.EvaluateTransfer(sdkCtx, types.ModuleName, assetRef, mk.PolicyId, owner, "", qty); err != nil {
+			return types.ErrCompliance.Wrapf("policy: %v", err)
+		}
+	}
+	return nil
+}
+
+func (k Keeper) EscrowBalance(ctx context.Context, denom string) uint64 {
+	if k.settlement == nil {
+		return 0
+	}
+	return k.settlement.GetBalance(ctx, denom, EscrowAccount())
+}
+
+func nextSeq(ctx context.Context, seq collections.Sequence) (uint64, error) {
+	n, err := seq.Next(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return n + 1, nil
 }

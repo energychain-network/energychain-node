@@ -1,0 +1,67 @@
+syntax = "proto3";
+package energychain.bridge.v1;
+
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+import "energychain/bridge/v1/types.proto";
+
+option go_package = "energychain/x/bridge/types";
+
+service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Chain(QueryChainRequest) returns (QueryChainResponse);
+  rpc Chains(QueryChainsRequest) returns (QueryChainsResponse);
+  rpc Asset(QueryAssetRequest) returns (QueryAssetResponse);
+  rpc Assets(QueryAssetsRequest) returns (QueryAssetsResponse);
+  rpc Outbound(QueryOutboundRequest) returns (QueryOutboundResponse);
+  rpc Outbounds(QueryOutboundsRequest) returns (QueryOutboundsResponse);
+  rpc Inbound(QueryInboundRequest) returns (QueryInboundResponse);
+  rpc Inbounds(QueryInboundsRequest) returns (QueryInboundsResponse);
+  rpc EscrowBalance(QueryEscrowBalanceRequest) returns (QueryEscrowBalanceResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+
+message QueryChainRequest { uint64 id = 1; }
+message QueryChainResponse { ExternalChain chain = 1 [(gogoproto.nullable) = false]; }
+
+message QueryChainsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryChainsResponse {
+  repeated ExternalChain chains = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryAssetRequest { uint64 id = 1; }
+message QueryAssetResponse { Asset asset = 1 [(gogoproto.nullable) = false]; }
+
+message QueryAssetsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryAssetsResponse {
+  repeated Asset assets = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryOutboundRequest { uint64 nonce = 1; }
+message QueryOutboundResponse { Outbound outbound = 1 [(gogoproto.nullable) = false]; }
+
+message QueryOutboundsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryOutboundsResponse {
+  repeated Outbound outbounds = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryInboundRequest { uint64 id = 1; }
+message QueryInboundResponse { Inbound inbound = 1 [(gogoproto.nullable) = false]; }
+
+message QueryInboundsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryInboundsResponse {
+  repeated Inbound inbounds = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+// EscrowBalance reports the net bridged outstanding for a denom: total minted
+// via inbound releases minus total burned via outbound locks (floored at 0).
+// In the mint/burn model there is no escrow pool; this is the bridge-issued
+// circulating amount of the denom.
+message QueryEscrowBalanceRequest { string denom = 1; }
+message QueryEscrowBalanceResponse { uint64 balance = 1; }

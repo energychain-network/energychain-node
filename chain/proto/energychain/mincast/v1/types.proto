@@ -1,0 +1,80 @@
+syntax = "proto3";
+package energychain.mincast.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/mincast/types";
+
+enum MarketStatus {
+  MARKET_STATUS_UNSPECIFIED = 0;
+  MARKET_STATUS_ACTIVE      = 1; // mint + melt + transfer + invest
+  MARKET_STATUS_PAUSED      = 2; // melt + transfer allowed (exit), mint + new invest blocked
+  MARKET_STATUS_CLOSED      = 3; // melt only (wind-down)
+}
+
+enum InvestStatus {
+  INVEST_STATUS_UNSPECIFIED = 0;
+  INVEST_STATUS_ACTIVE      = 1;
+  INVEST_STATUS_REDEEMED    = 2;
+  INVEST_STATUS_CANCELLED   = 3;
+}
+
+// Market is a single Origin-Mincast bonding-curve token: a settlement-
+// backed asset whose redemption floor (treasury/supply) can only rise.
+// Mint deposits settlement and issues units at the current floor; melt
+// burns units and pays the floor minus an exit fee; both fees plus any
+// direct treasury injection (operating revenue / APY) accrue to the
+// treasury and lift the floor for every remaining holder.
+message Market {
+  uint64 id = 1;
+  string denom = 2;            // unique mincast token denom
+  string name = 3;
+  string admin = 4;
+  string settlement_denom = 5; // reserve stablecoin (x/stableusd denom)
+  uint64 treasury = 6;         // settlement backing the supply
+  uint64 supply = 7;           // mincast units outstanding (incl. invest-escrowed)
+  uint64 initial_price = 8;    // settlement per unit for the bootstrap mint (supply==0)
+  uint32 mint_fee_bps = 9;
+  uint32 melt_fee_bps = 10;
+  uint64 floor_price = 11;     // last computed floor = treasury/supply; monotonic non-decreasing
+  MarketStatus status = 12;
+  string policy_id = 13;       // optional x/identity transfer policy
+  bool require_kyc = 14;
+  int64 created_at = 15;
+  int64 updated_at = 16;
+}
+
+// Balance is one holder's mincast units in a market.
+message Balance {
+  uint64 market_id = 1;
+  string holder = 2;
+  uint64 amount = 3;
+}
+
+// Invest is a fixed-term lock of mincast units that pays a settlement
+// yield at maturity. The yield is computed and frozen at open time from
+// the floor-valued principal so a later floor move cannot inflate it, and
+// is paid from the market's reward pool (operator-funded), never from the
+// backing treasury — so Invest payouts never lower the floor.
+message Invest {
+  uint64 id = 1;
+  uint64 market_id = 2;
+  string investor = 3;
+  uint64 principal_units = 4; // locked mincast units (escrowed)
+  uint64 yield = 5;           // settlement yield owed at maturity
+  uint32 apy_bps = 6;         // annualized rate snapshot
+  int64 opened_at = 7;
+  int64 maturity = 8;
+  InvestStatus status = 9;
+  int64 resolved_at = 10;
+}
+
+message Params {
+  uint32 max_markets = 1;
+  uint32 max_fee_bps = 2;            // cap on mint/melt fee
+  uint32 max_apy_bps = 3;            // cap on invest APY
+  int64 max_invest_term_seconds = 4; // cap on invest term
+  uint64 min_initial_price = 5;      // floor on bootstrap price
+  int64 year_seconds = 6;            // seconds-per-year for APY proration
+  bool require_sanctions_clear = 7;
+}

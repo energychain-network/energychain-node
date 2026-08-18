@@ -30,10 +30,6 @@ import (
 	evmmempool "github.com/cosmos/evm/mempool"
 	precompiletypes "github.com/cosmos/evm/precompiles/types"
 
-	carbonprecompile "energychain/precompiles/carbon"
-	eacprecompile "energychain/precompiles/eac"
-	marketprecompile "energychain/precompiles/market"
-	stablecoinprecompile "energychain/precompiles/stablecoin"
 	cosmosevmserver "github.com/cosmos/evm/server"
 	srvflags "github.com/cosmos/evm/server/flags"
 	"github.com/cosmos/evm/utils"
@@ -133,88 +129,43 @@ import (
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 
-	// Custom energy-chain modules
-	//
-	// Module set follows the M1 → M4 plan in docs/native-modules.md §7.
-	// New modules are appended below as each milestone lands. The legacy
-	// x/energy + x/identity modules were removed in the M1 rewrite (split
-	// into x/meter + x/eac + x/cfe247 and x/did + x/device respectively;
-	// see docs/native-modules.md §8).
-	auditmodule "energychain/x/audit"
-	auditkeeper "energychain/x/audit/keeper"
-	audittypes "energychain/x/audit/types"
+	// Custom energy-chain modules (consolidated RWA-core set).
+	// See docs/native-modules.md for the module map.
+	identitymodule "energychain/x/identity"
+	identitykeeper "energychain/x/identity/keeper"
+	identitytypes "energychain/x/identity/types"
 
-	didmodule "energychain/x/did"
-	didkeeper "energychain/x/did/keeper"
-	didtypes "energychain/x/did/types"
-	devicemodule "energychain/x/device"
-	devicekeeper "energychain/x/device/keeper"
-	devicetypes "energychain/x/device/types"
+	assethubmodule "energychain/x/assethub"
+	assethubkeeper "energychain/x/assethub/keeper"
+	assethubtypes "energychain/x/assethub/types"
 
-	carbonmodule "energychain/x/carbon"
-	carbonkeeper "energychain/x/carbon/keeper"
-	carbontypes "energychain/x/carbon/types"
-	cfe247module "energychain/x/cfe247"
-	cfe247keeper "energychain/x/cfe247/keeper"
-	cfe247types "energychain/x/cfe247/types"
-	eacmodule "energychain/x/eac"
-	eackeeper "energychain/x/eac/keeper"
-	eactypes "energychain/x/eac/types"
-	metermodule "energychain/x/meter"
-	meterkeeper "energychain/x/meter/keeper"
-	metertypes "energychain/x/meter/types"
-	oraclemodule "energychain/x/oracle"
-	oraclekeeper "energychain/x/oracle/keeper"
-	oracletypes "energychain/x/oracle/types"
-	policymodule "energychain/x/policy"
-	policykeeper "energychain/x/policy/keeper"
-	policytypes "energychain/x/policy/types"
-	escrowmodule "energychain/x/escrow"
-	escrowkeeper "energychain/x/escrow/keeper"
-	escrowtypes "energychain/x/escrow/types"
-	rwamodule "energychain/x/rwa"
-	rwakeeper "energychain/x/rwa/keeper"
-	rwatypes "energychain/x/rwa/types"
-	schedulermodule "energychain/x/scheduler"
-	schedulerkeeper "energychain/x/scheduler/keeper"
-	schedulertypes "energychain/x/scheduler/types"
-	streampaymodule "energychain/x/streampay"
-	streampaykeeper "energychain/x/streampay/keeper"
-	streampaytypes "energychain/x/streampay/types"
+	stableusdmodule "energychain/x/stableusd"
+	stableusdkeeper "energychain/x/stableusd/keeper"
+	stableusdtypes "energychain/x/stableusd/types"
 
-	contractmodule "energychain/x/contract"
-	contractkeeper "energychain/x/contract/keeper"
-	contracttypes "energychain/x/contract/types"
+	rwatokenmodule "energychain/x/rwatoken"
+	rwatokenkeeper "energychain/x/rwatoken/keeper"
+	rwatokentypes "energychain/x/rwatoken/types"
 
-	auctionmodule "energychain/x/auction"
-	auctionkeeper "energychain/x/auction/keeper"
-	auctiontypes "energychain/x/auction/types"
+	offeringmodule "energychain/x/offering"
+	offeringkeeper "energychain/x/offering/keeper"
+	offeringtypes "energychain/x/offering/types"
+
+	mincastmodule "energychain/x/mincast"
+	mincastkeeper "energychain/x/mincast/keeper"
+	mincasttypes "energychain/x/mincast/types"
+
+	automationmodule "energychain/x/automation"
+	automationkeeper "energychain/x/automation/keeper"
+	automationtypes "energychain/x/automation/types"
+
+	bridgemodule "energychain/x/bridge"
+	bridgekeeper "energychain/x/bridge/keeper"
+	bridgetypes "energychain/x/bridge/types"
 
 	marketmodule "energychain/x/market"
 	marketkeeper "energychain/x/market/keeper"
 	markettypes "energychain/x/market/types"
-
-	clearingmodule "energychain/x/clearing"
-	clearingkeeper "energychain/x/clearing/keeper"
-	clearingtypes "energychain/x/clearing/types"
-
-	disputemodule "energychain/x/dispute"
-	disputekeeper "energychain/x/dispute/keeper"
-	disputetypes "energychain/x/dispute/types"
-
-	dataslashmodule "energychain/x/dataslash"
-	dataslashkeeper "energychain/x/dataslash/keeper"
-	dataslashtypes "energychain/x/dataslash/types"
-
-	mrvmodule "energychain/x/mrv"
-	mrvkeeper "energychain/x/mrv/keeper"
-	mrvtypes "energychain/x/mrv/types"
-	sanctionsmodule "energychain/x/sanctions"
-	sanctionskeeper "energychain/x/sanctions/keeper"
-	sanctionstypes "energychain/x/sanctions/types"
-	stablecoinmodule "energychain/x/stablecoin"
-	stablecoinkeeper "energychain/x/stablecoin/keeper"
-	stablecointypes "energychain/x/stablecoin/types"
 )
 
 func init() {
@@ -278,29 +229,16 @@ type EVMD struct {
 
 	promotedTxBroadcaster *promotedTxBroadcaster
 
-	// Custom energy-chain keepers
-	OracleKeeper oraclekeeper.Keeper
-	AuditKeeper  auditkeeper.Keeper
-	MeterKeeper      meterkeeper.Keeper
-	PolicyKeeper     policykeeper.Keeper
-	SanctionsKeeper  sanctionskeeper.Keeper
-	StablecoinKeeper stablecoinkeeper.Keeper
-	EACKeeper        eackeeper.Keeper
-	CarbonKeeper     carbonkeeper.Keeper
-	CFE247Keeper     cfe247keeper.Keeper
-	RWAKeeper        rwakeeper.Keeper
-	EscrowKeeper     escrowkeeper.Keeper
-	SchedulerKeeper  schedulerkeeper.Keeper
-	StreamPayKeeper  streampaykeeper.Keeper
-	ContractKeeper   contractkeeper.Keeper
-	AuctionKeeper    auctionkeeper.Keeper
+	// Custom energy-chain keepers (consolidated RWA-core set)
+	IdentityKeeper   identitykeeper.Keeper
+	AssetHubKeeper   assethubkeeper.Keeper
+	StableUSDKeeper  stableusdkeeper.Keeper
+	RWATokenKeeper   rwatokenkeeper.Keeper
+	OfferingKeeper   offeringkeeper.Keeper
+	MincastKeeper    mincastkeeper.Keeper
+	AutomationKeeper automationkeeper.Keeper
+	BridgeKeeper     bridgekeeper.Keeper
 	MarketKeeper     marketkeeper.Keeper
-	ClearingKeeper   clearingkeeper.Keeper
-	MRVKeeper        mrvkeeper.Keeper
-	DisputeKeeper    disputekeeper.Keeper
-	DataslashKeeper  dataslashkeeper.Keeper
-	DIDKeeper        didkeeper.Keeper
-	DeviceKeeper     devicekeeper.Keeper
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -377,30 +315,23 @@ func NewEnergyChainApp(
 		ibcexported.StoreKey, ibctransfertypes.StoreKey,
 		// Cosmos EVM store keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey, erc20types.StoreKey,
-		// Custom energy-chain store keys
-		oracletypes.StoreKey, audittypes.StoreKey, metertypes.StoreKey, policytypes.StoreKey,
-		sanctionstypes.StoreKey, stablecointypes.StoreKey, eactypes.StoreKey,
-		carbontypes.StoreKey, cfe247types.StoreKey, rwatypes.StoreKey,
-		escrowtypes.StoreKey, schedulertypes.StoreKey,
-		streampaytypes.StoreKey,
-		contracttypes.StoreKey,
-		auctiontypes.StoreKey,
+		// Custom energy-chain store keys (consolidated RWA-core set)
+		identitytypes.StoreKey,
+		assethubtypes.StoreKey,
+		stableusdtypes.StoreKey,
+		rwatokentypes.StoreKey,
+		offeringtypes.StoreKey,
+		mincasttypes.StoreKey,
+		automationtypes.StoreKey,
+		bridgetypes.StoreKey,
 		markettypes.StoreKey,
-		clearingtypes.StoreKey,
-		mrvtypes.StoreKey,
-		disputetypes.StoreKey,
-		dataslashtypes.StoreKey,
-		didtypes.StoreKey,
-		devicetypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
-	// Transient stores hold per-block ephemeral state (e.g. submission
-	// rate-limit counters). They are wiped at block boundaries by CometBFT
-	// and MUST be excluded from BlockSTM's conflict-detection set.
-	tKeys := storetypes.NewTransientStoreKeys(
-		audittypes.TStoreKey,
-	)
+	// Transient stores hold per-block ephemeral state. They are wiped at
+	// block boundaries by CometBFT and MUST be excluded from BlockSTM's
+	// conflict-detection set. The consolidated module set uses none.
+	tKeys := storetypes.NewTransientStoreKeys()
 
 	nonTransientKeys := collectNonTransientKeys(keys, oKeys)
 
@@ -670,321 +601,128 @@ func NewEnergyChainApp(
 		app.TransferKeeper,
 	)
 
-	// Custom energy-chain keepers
-	app.OracleKeeper = oraclekeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[oracletypes.StoreKey]), authAddr, app.BankKeeper)
-
-	// DIDKeeper is the M1 identity root — every downstream
-	// owner / subject gate (device, meter, mrv, dispute,
-	// stablecoin, policy) ultimately consults
-	// DIDKeeper.IsActive / IsController. Wired with no
-	// upstream dependencies so it can be constructed first.
-	app.DIDKeeper = didkeeper.NewKeeper(
+	// IdentityKeeper is the consolidated compliance base (KYC / accredited
+	// / jurisdiction flags, sanctions list, composable transfer policies,
+	// and the append-only audit log) for the RWA-core rewrite. It has no
+	// external module dependencies.
+	app.IdentityKeeper = identitykeeper.NewKeeper(
 		appCodec,
-		runtime.NewKVStoreService(keys[didtypes.StoreKey]),
+		runtime.NewKVStoreService(keys[identitytypes.StoreKey]),
 		authAddr,
 	)
-	// DeviceKeeper depends on x/did's IsActive gate so a
-	// device cannot be registered under a non-existent /
-	// suspended DID.
-	app.DeviceKeeper = devicekeeper.NewKeeper(
+	// AssetHubKeeper is the AntChain-Inside style data-trust layer:
+	// bonded/slashable data providers, trusted device IDs with
+	// attestation, IoT<->operational cross-verified meter readings, and
+	// median-aggregated oracle topics. It custodies provider bonds in its
+	// module account (bank) and writes compliance audit entries through
+	// the identity keeper.
+	app.AssetHubKeeper = assethubkeeper.NewKeeper(
 		appCodec,
-		runtime.NewKVStoreService(keys[devicetypes.StoreKey]),
+		runtime.NewKVStoreService(keys[assethubtypes.StoreKey]),
 		authAddr,
-		app.DIDKeeper,
+		app.BankKeeper,
+		app.IdentityKeeper,
 	)
-
-	// AuditKeeper consumes the live DIDKeeper so view-key
-	// grants reject non-existent / inactive controllers.
-	app.AuditKeeper = auditkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[audittypes.StoreKey]), tKeys[audittypes.TStoreKey], authAddr, app.DIDKeeper)
-	// MeterKeeper now consumes the live DID + Device
-	// keepers; gates fail-closed under the wired keepers
-	// (unknown owner → reject; un-attested device → reject).
-	app.MeterKeeper = meterkeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[metertypes.StoreKey]), authAddr, app.DIDKeeper, app.DeviceKeeper)
-	// PolicyKeeper depends on x/did (subject jurisdiction + credentials),
-	// x/sanctions (sanction list), and x/audit (denial event hook). All
-	// three are wired as nil here pending the M2 wiring milestone (appgo
-	// TODO); the keeper is nil-safe and falls through to permissive
-	// defaults documented in expected_keepers.go.
-	// SanctionsKeeper must be constructed before PolicyKeeper because
-	// PolicyKeeper consumes it via the SanctionsKeeper expected_keeper.
-	// Audit hook is still nil pending the M2 wiring milestone.
-	app.SanctionsKeeper = sanctionskeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[sanctionstypes.StoreKey]), authAddr, app.AuditKeeper)
-	// PolicyKeeper now consumes the live x/did surface (via
-	// adapter that fills in the un-modelled Jurisdiction
-	// field with empty string) plus x/sanctions; x/audit
-	// hook remains nil pending the policy-denial recorder.
-	app.PolicyKeeper = policykeeper.NewKeeper(appCodec, runtime.NewKVStoreService(keys[policytypes.StoreKey]), authAddr, didPolicyAdapter{k: app.DIDKeeper}, app.SanctionsKeeper, app.AuditKeeper)
-	// StablecoinKeeper depends on x/policy (transfer DSL), x/sanctions
-	// (defense-in-depth address gate), and x/oracle (reserve attestation
-	// gate on mint, via a thin adapter that flattens the AggregatedValue
-	// shape into the keeper's narrow expected interface). x/did +
-	// x/audit hooks remain nil pending later wiring; the keeper is
-	// nil-safe and falls through.
-	app.StablecoinKeeper = stablecoinkeeper.NewKeeper(
+	// StableUSDKeeper is the WeUSD-style settlement stablecoin: an
+	// isolated per-denom ledger with 1:1 mint/redeem, reserve-gated
+	// issuance (assethub oracle attestation), ERC20-shaped transfers, and
+	// freeze/blacklist/force-transfer compliance controls. Transfer
+	// compliance flows through x/identity; mint reserve coverage reads the
+	// x/assethub oracle.
+	app.StableUSDKeeper = stableusdkeeper.NewKeeper(
 		appCodec,
-		runtime.NewKVStoreService(keys[stablecointypes.StoreKey]),
+		runtime.NewKVStoreService(keys[stableusdtypes.StoreKey]),
 		authAddr,
-		app.PolicyKeeper,
-		app.SanctionsKeeper,
-		didStablecoinAdapter{k: app.DIDKeeper},
-		stablecoinOracleAdapter{k: app.OracleKeeper},
-		app.AuditKeeper,
+		app.IdentityKeeper,
+		app.AssetHubKeeper,
 	)
-	// EACKeeper depends on x/policy (per-certificate DSL),
-	// x/sanctions (defense-in-depth) and x/oracle (bridge attestation
-	// gate on cross-registry mint). Audit hook stays nil until the
-	// M2 audit wiring lands; the keeper is nil-safe.
-	app.EACKeeper = eackeeper.NewKeeper(
+	// RWATokenKeeper is the compliant tokenized-asset (RWA security token)
+	// module: ERC-3643/1400-style permissioned issuance, policy-gated
+	// transfers, holder snapshots, pro-rata dividends, and T+N
+	// buy-back/redemption. Transfer compliance flows through x/identity;
+	// dividends and redemptions settle in an x/stableusd denom held in
+	// per-token, per-purpose module pools.
+	app.RWATokenKeeper = rwatokenkeeper.NewKeeper(
 		appCodec,
-		runtime.NewKVStoreService(keys[eactypes.StoreKey]),
+		runtime.NewKVStoreService(keys[rwatokentypes.StoreKey]),
 		authAddr,
-		app.PolicyKeeper,
-		app.SanctionsKeeper,
-		eacOracleAdapter{k: app.OracleKeeper},
-		app.AuditKeeper,
+		app.IdentityKeeper,
+		app.StableUSDKeeper,
+		app.AssetHubKeeper,
 	)
-	// CarbonKeeper depends on x/policy (per-asset DSL),
-	// x/sanctions (defense-in-depth), x/oracle (cross-registry
-	// bridge attestation gate, via the same OracleKeeper shape used
-	// by stablecoin / EAC), and x/eac (mutual-exclusion for OFFSET
-	// assets that pin a specific EAC certificate). Audit hook is
-	// nil pending the M2 wiring.
-	app.CarbonKeeper = carbonkeeper.NewKeeper(
+	// OfferingKeeper runs Initial RWA Offerings: it escrows investor
+	// subscriptions in x/stableusd per-offering treasuries, allocates
+	// x/rwatoken units on success, releases raised capital to the issuer in
+	// tranches gated by recurring yield injections, and lets investors
+	// reclaim the remaining treasury pro-rata if the issuer defaults.
+	app.OfferingKeeper = offeringkeeper.NewKeeper(
 		appCodec,
-		runtime.NewKVStoreService(keys[carbontypes.StoreKey]),
+		runtime.NewKVStoreService(keys[offeringtypes.StoreKey]),
 		authAddr,
-		app.PolicyKeeper,
-		app.SanctionsKeeper,
-		carbonOracleAdapter{k: app.OracleKeeper},
-		app.EACKeeper,
-		app.AuditKeeper,
+		app.StableUSDKeeper,
+		app.RWATokenKeeper,
+		app.IdentityKeeper,
 	)
-	// CFE247Keeper depends on x/eac (read-only retirement+certificate
-	// join via cfe247EACAdapter) and x/sanctions (subject-side gate).
-	// Audit hook is left nil pending the M2 audit wiring.
-	app.CFE247Keeper = cfe247keeper.NewKeeper(
+	// MincastKeeper runs Origin-Mincast bonding-curve markets: settlement-
+	// backed tokens whose redemption floor (treasury/supply) can only rise,
+	// fed by mint/melt fees and direct treasury injections, plus a fixed-
+	// term Invest product paid from an operator-funded reward pool. It
+	// settles through x/stableusd and gates parties via x/identity.
+	app.MincastKeeper = mincastkeeper.NewKeeper(
 		appCodec,
-		runtime.NewKVStoreService(keys[cfe247types.StoreKey]),
+		runtime.NewKVStoreService(keys[mincasttypes.StoreKey]),
 		authAddr,
-		cfe247EACAdapter{k: app.EACKeeper},
-		app.SanctionsKeeper,
-		app.AuditKeeper,
+		app.IdentityKeeper,
+		app.StableUSDKeeper,
 	)
-	// RWAKeeper plumbs:
-	//   - x/policy   for transfer DSL gating (compliance pipeline)
-	//   - x/sanctions for the address-only blacklist
-	//   - x/stablecoin (via rwaStablecoinAdapter) for dividend payouts
-	//     and redemption settlement legs
-	// Audit hook left nil pending wider M2 audit wiring.
-	app.RWAKeeper = rwakeeper.NewKeeper(
+	// AutomationKeeper merges scheduler + streampay: a typed-action cron
+	// EndBlocker (periodic mincast APY/fee injection, rwatoken snapshot +
+	// dividend, mincast maturity close) plus per-second streaming settlement.
+	// It drives x/mincast and x/rwatoken via their cross-module keeper
+	// methods, escrows through x/stableusd, and gates stream legs via
+	// x/identity sanctions.
+	app.AutomationKeeper = automationkeeper.NewKeeper(
 		appCodec,
-		runtime.NewKVStoreService(keys[rwatypes.StoreKey]),
+		runtime.NewKVStoreService(keys[automationtypes.StoreKey]),
 		authAddr,
-		app.PolicyKeeper,
-		app.SanctionsKeeper,
-		rwaStablecoinAdapter{k: app.StablecoinKeeper},
-		app.AuditKeeper,
+		app.IdentityKeeper,
+		app.StableUSDKeeper,
+		app.MincastKeeper,
+		app.RWATokenKeeper,
 	)
-	// EscrowKeeper plumbs:
-	//   - x/sanctions    address-only blacklist (re-checked at every payout)
-	//   - x/stablecoin   per-account move for stablecoin-backed escrows
-	//   - x/rwa          EscrowLock/EscrowRelease for RWA-token-backed
-	//                    escrows (the rwa keeper enforces holder-side
-	//                    compliance on the release leg)
-	//   - x/oracle       optional release-trigger gate (per-escrow opt-in)
-	// Audit hook left nil pending wider M3 audit wiring.
-	app.EscrowKeeper = escrowkeeper.NewKeeper(
+	// BridgeKeeper: mint/burn cross-chain stablecoin bridge with a multi-sig/
+	// oracle attestor quorum per external chain. Inbound releases MINT the
+	// native stablecoin 1:1 (USDC/USDT custodied off-chain) on attestor quorum;
+	// outbound locks BURN it. Issuance is bounded in TOTAL by x/stableusd's
+	// reserve gate (attested collateral ceiling) and in TIME by per-tx and
+	// rolling per-chain mint rate limits; compliance flows through x/stableusd.
+	app.BridgeKeeper = bridgekeeper.NewKeeper(
 		appCodec,
-		runtime.NewKVStoreService(keys[escrowtypes.StoreKey]),
+		runtime.NewKVStoreService(keys[bridgetypes.StoreKey]),
 		authAddr,
-		app.SanctionsKeeper,
-		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		escrowRWAAdapter{k: app.RWAKeeper},
-		escrowOracleAdapter{k: app.OracleKeeper},
-		app.AuditKeeper,
+		app.IdentityKeeper,
+		app.StableUSDKeeper,
 	)
-	// SchedulerKeeper plumbs:
-	//   - x/stablecoin   for fee-pool funding / withdraw / per-tick fee
-	//   - MsgServiceRouter (via schedulerMsgRouterAdapter) for routing
-	//     payload Msgs at tick time inside CacheContext
-	// Audit hook left nil pending wider M3 audit wiring.
-	app.SchedulerKeeper = schedulerkeeper.NewKeeper(
-		appCodec,
-		interfaceRegistry,
-		runtime.NewKVStoreService(keys[schedulertypes.StoreKey]),
-		authAddr,
-		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		schedulerMsgRouterAdapter{msr: app.MsgServiceRouter()},
-		app.AuditKeeper,
-	)
-	// StreamPayKeeper reuses the same stablecoin adapter as
-	// x/escrow / x/scheduler (the freeze + paused-denom gates
-	// are the cross-module bridge against the MoveBalance
-	// compliance bypass). Sanctions hooks the chain-level
-	// OFAC / national-list read.
-	app.StreamPayKeeper = streampaykeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[streampaytypes.StoreKey]),
-		authAddr,
-		app.SanctionsKeeper,
-		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		app.AuditKeeper,
-	)
-	// ContractKeeper underpins bilateral PPA / VPPA / CFD
-	// settlement. It re-uses the same stablecoin adapter for
-	// freeze / paused-denom defence-in-depth, the sanctions
-	// keeper for chain-level OFAC checks, and an oracle adapter
-	// that exposes (value, timestamp, ok) from the same x/oracle
-	// aggregated topic surface used by stablecoin / eac / carbon
-	// / escrow — settlement reuses the same off-chain price /
-	// quantity producers without coupling x/oracle into x/contract.
-	app.ContractKeeper = contractkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[contracttypes.StoreKey]),
-		authAddr,
-		app.SanctionsKeeper,
-		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		contractOracleAdapter{k: app.OracleKeeper},
-		app.AuditKeeper,
-	)
-	// AuctionKeeper underpins the generic auction primitive used
-	// by capacity-market lots, EAC bundles, RWA tranches, etc.
-	// Asset delivery is opaque (asset_ref label) and out-of-
-	// module; only the cash leg + bidder-deposit pool live here.
-	// Re-uses the same stablecoin adapter / chain-level sanctions
-	// surface as scheduler / streampay / contract.
-	app.AuctionKeeper = auctionkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[auctiontypes.StoreKey]),
-		authAddr,
-		app.SanctionsKeeper,
-		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		app.AuditKeeper,
-	)
-	// MarketKeeper runs the chain-native limit-order book + FBA
-	// matcher. Both legs of every fill route through x/stablecoin
-	// via the same adapter as escrow / contract / auction; the
-	// adapter's IsAccountBlocked + IsDenomPaused gates close the
-	// defense-in-depth loop against per-denom freezes that
-	// MoveBalance otherwise bypasses.
+	// MarketKeeper runs the chain-native frequent-batch-auction order book. The
+	// quote leg is always an x/stableusd settlement denom; the base leg is
+	// either a settlement denom (stable/stable) or an x/rwatoken security token
+	// (base_denom "rwa/<tokenID>") for compliant secondary trading. Orders
+	// escrow base/quote (rwatoken units route through x/rwatoken with full
+	// receiver compliance + per-holder cap on delivery); each batch clears at a
+	// single uniform price with exact pooled netting. Sanctions-gated via
+	// x/identity.
 	app.MarketKeeper = marketkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[markettypes.StoreKey]),
 		authAddr,
-		app.SanctionsKeeper,
-		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		app.AuditKeeper,
+		app.IdentityKeeper,
+		app.StableUSDKeeper,
+		app.RWATokenKeeper,
+		app.BankKeeper,
 	)
-	// ClearingKeeper is the multilateral netting + DvP/DvD
-	// settlement engine. It funnels every margin / default-
-	// fund / settlement payout through the same x/stablecoin
-	// adapter used by escrow / market / contract / auction so
-	// the IsAccountBlocked + IsDenomPaused defense-in-depth
-	// gates apply uniformly. Sanctions tolerance in the
-	// settle path (uncovered accruals rather than full revert)
-	// is documented in keeper/settlement.go.
-	app.ClearingKeeper = clearingkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[clearingtypes.StoreKey]),
-		authAddr,
-		app.SanctionsKeeper,
-		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		app.AuditKeeper,
-	)
-
-	// MRVKeeper hosts the M4 monitoring / reporting /
-	// verification surface: report schemas, attestor (verifier)
-	// registry, report manifests, and bounded view-key grants
-	// for regulators. The DIDKeeper hook is nil here because
-	// the x/did module does not yet expose a stable
-	// IsControllerOf(); attestor identity is enforced via the
-	// chain-side address signing the AttestReport message,
-	// which is recorded on-chain as the canonical attestor.
-	app.MRVKeeper = mrvkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[mrvtypes.StoreKey]),
-		authAddr,
-		app.SanctionsKeeper,
-		didControllerAdapter{k: app.DIDKeeper},
-		app.AuditKeeper,
-	)
-
-	// DisputeKeeper hosts the arbitration tribunal + bond
-	// escrow surface (x/dispute). Bonds are denominated in
-	// x/stablecoin denoms; the same escrowStablecoinAdapter
-	// used by x/escrow is reused so the per-account
-	// freeze/blacklist gate is re-checked on every bond leg.
-	// SanctionsKeeper hooks block sanctioned plaintiffs /
-	// respondents at open/respond time. The DIDKeeper and
-	// AuditKeeper hooks are reserved for the same future
-	// wiring that x/mrv awaits.
-	app.DisputeKeeper = disputekeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[disputetypes.StoreKey]),
-		authAddr,
-		app.SanctionsKeeper,
-		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		didControllerAdapter{k: app.DIDKeeper},
-		app.AuditKeeper,
-	)
-
-	// DataslashKeeper backs the data-provider misbehavior
-	// surface: bonded oracles / meters / bridges register
-	// here, get auto-jailed or auto-banned when authority
-	// reports infractions, and the bond pool absorbs the
-	// slashed remainder pending governance distribution.
-	// The keeper reuses escrowStablecoinAdapter so each
-	// bond leg re-checks per-account block lists. Sanctions
-	// + audit keepers stay optional — passing nil disables
-	// those layers; passing the real keeper enables them.
-	app.DataslashKeeper = dataslashkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[dataslashtypes.StoreKey]),
-		authAddr,
-		app.SanctionsKeeper,
-		escrowStablecoinAdapter{k: app.StablecoinKeeper},
-		app.AuditKeeper,
-	)
-
-	// Register custom EVM precompiles. Precompiles MUST be registered
-	// AFTER the keepers they reference exist and BEFORE InitGenesis,
-	// because the EVM module's params list the active precompile addresses
-	// and the EVM keeper validates that every listed address resolves to a
-	// registered implementation. NativePrecompileAddresses() in
-	// chain/genesis.go MUST stay in lockstep with the
-	// RegisterStaticPrecompile calls below.
-	//
-	// Each precompile reuses its module's MsgServer for state-mutating
-	// methods so the EVM surface never bypasses the keeper's
-	// ComplianceCheck pipeline.
-	//
-	// Auto-register the ERC20 hooks on stablecoin / EAC / carbon
-	// BEFORE constructing each module's precompile. The precompile
-	// captures its keeper by value into the MsgServer adapter, so
-	// any hook added later would be invisible to EVM-side
-	// operations. The shared adapter routes every new denom /
-	// issuer registration through x/erc20.CreateNewTokenPair so
-	// new assets are discoverable by EVM wallets immediately.
-	erc20Hook := erc20RegistrationAdapter{k: app.Erc20Keeper}
-	app.StablecoinKeeper = app.StablecoinKeeper.WithERC20Keeper(erc20Hook)
-	app.EACKeeper = app.EACKeeper.WithERC20Keeper(erc20Hook)
-	app.CarbonKeeper = app.CarbonKeeper.WithERC20Keeper(erc20Hook)
-	app.EVMKeeper.RegisterStaticPrecompile(
-		stablecoinprecompile.PrecompileAddress,
-		stablecoinprecompile.NewPrecompile(app.StablecoinKeeper),
-	)
-	app.EVMKeeper.RegisterStaticPrecompile(
-		eacprecompile.PrecompileAddress,
-		eacprecompile.NewPrecompile(app.EACKeeper),
-	)
-	app.EVMKeeper.RegisterStaticPrecompile(
-		carbonprecompile.PrecompileAddress,
-		carbonprecompile.NewPrecompile(app.CarbonKeeper),
-	)
-	app.EVMKeeper.RegisterStaticPrecompile(
-		marketprecompile.PrecompileAddress,
-		marketprecompile.NewPrecompile(app.MarketKeeper),
-	)
+	// Custom EVM precompiles for the consolidated module set are deferred to
+	// a future consolidated EVM pass; the legacy stablecoin/eac/carbon
+	// precompiles were removed with their modules.
 
 	/*
 		Create Transfer Stack
@@ -1068,29 +806,16 @@ func NewEnergyChainApp(
 		vm.NewAppModule(app.EVMKeeper, app.AccountKeeper, app.BankKeeper, app.AccountKeeper.AddressCodec()),
 		feemarket.NewAppModule(app.FeeMarketKeeper),
 		erc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
-		// Custom energy-chain modules
-		oraclemodule.NewAppModule(appCodec, app.OracleKeeper),
-		auditmodule.NewAppModule(appCodec, app.AuditKeeper),
-		metermodule.NewAppModule(appCodec, app.MeterKeeper),
-		policymodule.NewAppModule(appCodec, app.PolicyKeeper),
-		sanctionsmodule.NewAppModule(appCodec, app.SanctionsKeeper),
-		stablecoinmodule.NewAppModule(appCodec, app.StablecoinKeeper),
-		eacmodule.NewAppModule(appCodec, app.EACKeeper),
-		carbonmodule.NewAppModule(appCodec, app.CarbonKeeper),
-		cfe247module.NewAppModule(appCodec, app.CFE247Keeper),
-		rwamodule.NewAppModule(appCodec, app.RWAKeeper),
-		escrowmodule.NewAppModule(appCodec, app.EscrowKeeper),
-		schedulermodule.NewAppModule(appCodec, app.SchedulerKeeper),
-		streampaymodule.NewAppModule(appCodec, app.StreamPayKeeper),
-		contractmodule.NewAppModule(appCodec, app.ContractKeeper),
-		auctionmodule.NewAppModule(appCodec, app.AuctionKeeper),
+		// Custom energy-chain modules (consolidated RWA-core set)
+		identitymodule.NewAppModule(appCodec, app.IdentityKeeper),
+		assethubmodule.NewAppModule(appCodec, app.AssetHubKeeper),
+		stableusdmodule.NewAppModule(appCodec, app.StableUSDKeeper),
+		rwatokenmodule.NewAppModule(appCodec, app.RWATokenKeeper),
+		offeringmodule.NewAppModule(appCodec, app.OfferingKeeper),
+		mincastmodule.NewAppModule(appCodec, app.MincastKeeper),
+		automationmodule.NewAppModule(appCodec, app.AutomationKeeper),
+		bridgemodule.NewAppModule(appCodec, app.BridgeKeeper),
 		marketmodule.NewAppModule(appCodec, app.MarketKeeper),
-		clearingmodule.NewAppModule(appCodec, app.ClearingKeeper),
-		mrvmodule.NewAppModule(appCodec, app.MRVKeeper),
-		disputemodule.NewAppModule(appCodec, app.DisputeKeeper),
-		dataslashmodule.NewAppModule(appCodec, app.DataslashKeeper),
-		didmodule.NewAppModule(appCodec, app.DIDKeeper),
-		devicemodule.NewAppModule(appCodec, app.DeviceKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -1139,16 +864,14 @@ func NewEnergyChainApp(
 		authz.ModuleName, feegrant.ModuleName,
 		consensusparamtypes.ModuleName,
 		vestingtypes.ModuleName,
-		// Custom energy-chain modules (no-op begin blockers)
-		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
-		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
-		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
-		escrowtypes.ModuleName, schedulertypes.ModuleName,
-		streampaytypes.ModuleName, contracttypes.ModuleName,
-		auctiontypes.ModuleName, markettypes.ModuleName,
-		clearingtypes.ModuleName, mrvtypes.ModuleName,
-		disputetypes.ModuleName, dataslashtypes.ModuleName,
-		didtypes.ModuleName, devicetypes.ModuleName,
+		// Custom energy-chain modules (consolidated RWA-core set)
+		identitytypes.ModuleName, assethubtypes.ModuleName, stableusdtypes.ModuleName,
+		rwatokentypes.ModuleName,
+		offeringtypes.ModuleName,
+		mincasttypes.ModuleName,
+		automationtypes.ModuleName,
+		bridgetypes.ModuleName,
+		markettypes.ModuleName,
 	)
 
 	// NOTE: the feemarket module should go last in order of end blockers that are actually doing something,
@@ -1169,16 +892,15 @@ func NewEnergyChainApp(
 		genutiltypes.ModuleName, evidencetypes.ModuleName, authz.ModuleName,
 		feegrant.ModuleName, upgradetypes.ModuleName, consensusparamtypes.ModuleName,
 		vestingtypes.ModuleName,
-		// Custom energy-chain modules (no-op end blockers)
-		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
-		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
-		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
-		escrowtypes.ModuleName, schedulertypes.ModuleName,
-		streampaytypes.ModuleName, contracttypes.ModuleName,
-		auctiontypes.ModuleName, markettypes.ModuleName,
-		clearingtypes.ModuleName, mrvtypes.ModuleName,
-		disputetypes.ModuleName, dataslashtypes.ModuleName,
-		didtypes.ModuleName, devicetypes.ModuleName,
+		// Custom energy-chain modules (consolidated RWA-core set).
+		// offering, automation, bridge and market run real EndBlockers; the rest are no-ops.
+		identitytypes.ModuleName, assethubtypes.ModuleName, stableusdtypes.ModuleName,
+		rwatokentypes.ModuleName,
+		offeringtypes.ModuleName,
+		mincasttypes.ModuleName,
+		automationtypes.ModuleName,
+		bridgetypes.ModuleName,
+		markettypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -1201,16 +923,17 @@ func NewEnergyChainApp(
 		ibctransfertypes.ModuleName,
 		genutiltypes.ModuleName, evidencetypes.ModuleName, authz.ModuleName,
 		feegrant.ModuleName, upgradetypes.ModuleName, vestingtypes.ModuleName,
-		// Custom energy-chain modules
-		oracletypes.ModuleName, audittypes.ModuleName, metertypes.ModuleName, policytypes.ModuleName,
-		sanctionstypes.ModuleName, stablecointypes.ModuleName, eactypes.ModuleName,
-		carbontypes.ModuleName, cfe247types.ModuleName, rwatypes.ModuleName,
-		escrowtypes.ModuleName, schedulertypes.ModuleName,
-		streampaytypes.ModuleName, contracttypes.ModuleName,
-		didtypes.ModuleName, devicetypes.ModuleName,
-		auctiontypes.ModuleName, markettypes.ModuleName,
-		clearingtypes.ModuleName, mrvtypes.ModuleName,
-		disputetypes.ModuleName, dataslashtypes.ModuleName,
+		// Custom energy-chain modules (consolidated RWA-core set).
+		// identity -> assethub -> stableusd ordering matters: stableusd
+		// reconciles escrow against assethub-bonded reserves, and the
+		// downstream modules settle through stableusd.
+		identitytypes.ModuleName, assethubtypes.ModuleName, stableusdtypes.ModuleName,
+		rwatokentypes.ModuleName,
+		offeringtypes.ModuleName,
+		mincasttypes.ModuleName,
+		automationtypes.ModuleName,
+		bridgetypes.ModuleName,
+		markettypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)

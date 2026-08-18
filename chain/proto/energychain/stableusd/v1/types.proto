@@ -1,0 +1,91 @@
+syntax = "proto3";
+package energychain.stableusd.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/stableusd/types";
+
+enum DenomStatus {
+  DENOM_STATUS_UNSPECIFIED = 0;
+  DENOM_STATUS_ACTIVE      = 1;
+  DENOM_STATUS_PAUSED      = 2; // transfers/mints blocked; burns/force ops allowed
+  DENOM_STATUS_RETIRED     = 3; // terminal; nothing but reads
+}
+
+enum RedemptionStatus {
+  REDEMPTION_STATUS_UNSPECIFIED = 0;
+  REDEMPTION_STATUS_PENDING     = 1;
+  REDEMPTION_STATUS_SETTLED     = 2; // off-chain fiat paid out
+  REDEMPTION_STATUS_CANCELLED   = 3; // tokens refunded to holder
+}
+
+// StableDenom is one fiat-pegged settlement currency (WeUSD-style). Each
+// denom is an isolated ledger space with its own supply, minters, flags,
+// and optional reserve attestation gate.
+message StableDenom {
+  string id = 1;                  // primary key, e.g. "weusd"
+  string symbol = 2;              // display symbol
+  uint32 decimals = 3;
+  string peg_currency = 4;        // informational, e.g. "USD"
+  string admin = 5;               // bech32; manages minters/flags/status
+  repeated string minters = 6;    // authorized mint addresses
+  DenomStatus status = 7;
+
+  // Reserve attestation gate (optional). When reserve_topic is set and
+  // params.mint_requires_reserve is true, mints require the assethub
+  // oracle topic to cover post-mint outstanding at required_ratio_bps.
+  string reserve_topic = 8;
+  uint32 required_ratio_bps = 9;  // e.g. 10000 = 100% backing
+  int64 max_staleness_seconds = 10;
+
+  string policy_id = 11;          // optional x/identity transfer policy
+  int64 created_at = 12;
+  int64 updated_at = 13;
+}
+
+message AccountFlags {
+  string denom_id = 1;
+  string account = 2;
+  bool frozen = 3;
+  bool blacklisted = 4;
+}
+
+message Balance {
+  string denom_id = 1;
+  string account = 2;
+  uint64 amount = 3;
+}
+
+message Allowance {
+  string denom_id = 1;
+  string owner = 2;
+  string spender = 3;
+  uint64 amount = 4;
+}
+
+message Supply {
+  string denom_id = 1;
+  uint64 amount = 2;
+}
+
+// Redemption is a 1:1 fiat off-ramp request. Tokens are burned at
+// request time (so supply reflects the outflow immediately and cannot be
+// double-spent); cancellation re-credits the holder.
+message Redemption {
+  uint64 id = 1;
+  string denom_id = 2;
+  string holder = 3;
+  uint64 amount = 4;
+  RedemptionStatus status = 5;
+  string memo = 6;          // off-chain settlement reference
+  int64 created_at = 7;
+  int64 resolved_at = 8;
+}
+
+message Params {
+  uint32 max_denoms = 1;
+  uint32 max_minters_per_denom = 2;
+  bool mint_requires_reserve = 3;
+  bool require_kyc = 4;
+  uint32 max_pending_redemptions_per_holder = 5;
+}

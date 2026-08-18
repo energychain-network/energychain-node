@@ -1,0 +1,59 @@
+syntax = "proto3";
+package energychain.offering.v1;
+
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/offering/v1/types.proto";
+
+option go_package = "energychain/x/offering/types";
+
+service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Offering(QueryOfferingRequest) returns (QueryOfferingResponse);
+  rpc Offerings(QueryOfferingsRequest) returns (QueryOfferingsResponse);
+  rpc Subscription(QuerySubscriptionRequest) returns (QuerySubscriptionResponse);
+  rpc SubscriptionsByOffering(QuerySubscriptionsByOfferingRequest) returns (QuerySubscriptionsByOfferingResponse);
+  rpc ClaimableReturns(QueryClaimableReturnsRequest) returns (QueryClaimableReturnsResponse);
+  rpc TreasuryBalance(QueryTreasuryBalanceRequest) returns (QueryTreasuryBalanceResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+
+message QueryOfferingRequest { uint64 id = 1; }
+message QueryOfferingResponse { Offering offering = 1 [(gogoproto.nullable) = false]; }
+
+message QueryOfferingsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryOfferingsResponse {
+  repeated Offering offerings = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QuerySubscriptionRequest {
+  uint64 offering_id = 1;
+  string investor = 2;
+}
+message QuerySubscriptionResponse { Subscription subscription = 1 [(gogoproto.nullable) = false]; }
+
+message QuerySubscriptionsByOfferingRequest {
+  uint64 offering_id = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QuerySubscriptionsByOfferingResponse {
+  repeated Subscription subscriptions = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryClaimableReturnsRequest {
+  uint64 offering_id = 1;
+  string investor = 2;
+}
+message QueryClaimableReturnsResponse { uint64 amount = 1; }
+
+message QueryTreasuryBalanceRequest { uint64 offering_id = 1; }
+message QueryTreasuryBalanceResponse {
+  string denom = 1;
+  uint64 treasury = 2;
+  uint64 returns_pool = 3;
+}

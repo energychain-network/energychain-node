@@ -1,0 +1,122 @@
+syntax = "proto3";
+package energychain.assethub.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/assethub/types";
+
+// ProviderRole is the kind of bonded data provider. The bond and
+// slashing rules are shared; the role is an informational tag plus a
+// gate (only ORACLE providers may submit oracle values, only METER /
+// DEVICE providers may submit readings).
+enum ProviderRole {
+  PROVIDER_ROLE_UNSPECIFIED = 0;
+  PROVIDER_ROLE_ORACLE      = 1;
+  PROVIDER_ROLE_METER       = 2;
+  PROVIDER_ROLE_DEVICE      = 3; // device operator
+  PROVIDER_ROLE_BRIDGE      = 4;
+}
+
+enum ProviderStatus {
+  PROVIDER_STATUS_UNSPECIFIED = 0;
+  PROVIDER_STATUS_ACTIVE      = 1;
+  PROVIDER_STATUS_JAILED      = 2; // temporarily barred after infractions
+  PROVIDER_STATUS_BANNED      = 3; // permanently barred
+}
+
+enum DeviceStatus {
+  DEVICE_STATUS_UNSPECIFIED = 0;
+  DEVICE_STATUS_ACTIVE      = 1;
+  DEVICE_STATUS_REVOKED     = 2;
+}
+
+// Provider is a bonded data source. The bond (in Params.bond_denom) is
+// held by the module account and is slashable for misreporting.
+message Provider {
+  string address = 1;          // bech32, primary key
+  ProviderRole role = 2;
+  string display_name = 3;
+  uint64 bond = 4;             // bond_denom units held by the module
+  ProviderStatus status = 5;
+  uint32 infractions = 6;
+  int64 jailed_until = 7;      // unix seconds; 0 when not jailed
+  int64 created_at = 8;
+  int64 updated_at = 9;
+}
+
+// Device is a uniquely identified, attested physical asset (charging
+// pile, PV inverter, battery, hydro turbine controller, ...). The id is
+// the trusted device id assigned off-chain by the AntChain-Inside style
+// onboarding (built into the device's trusted SDK).
+message Device {
+  string id = 1;               // trusted device id, primary key
+  string operator = 2;         // bech32 of the operating Provider
+  string device_type = 3;      // e.g. charging_pile / pv_inverter / hydro
+  string pubkey = 4;           // device signing key (hex/base64), informational
+  string jurisdiction = 5;
+  string attestation_hash = 6; // hash of the latest attestation document
+  string firmware = 7;         // firmware version string
+  DeviceStatus status = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+}
+
+// MeteringReading is one settled production/consumption reading. The
+// AntChain-Inside spec requires the IoT-sourced value and the
+// operational (business) value to cross-verify within tolerance before
+// the reading is trusted; `verified` records the outcome.
+message MeteringReading {
+  uint64 id = 1;
+  string device_id = 2;
+  int64 period_start = 3;
+  int64 period_end = 4;
+  string unit = 5;             // e.g. kWh
+  uint64 iot_value = 6;        // value reported by device IoT channel
+  uint64 operational_value = 7;// value reported by the operations system
+  bool verified = 8;           // |iot-op| within tolerance
+  string submitted_by = 9;     // provider address
+  int64 submitted_at = 10;
+}
+
+// OracleTopic is an aggregated data feed (e.g. USD/local FX, reserve
+// attestation, index price). Active ORACLE providers submit values; the
+// keeper recomputes the median once min_sources distinct submissions
+// exist.
+message OracleTopic {
+  string id = 1;
+  string description = 2;
+  uint32 min_sources = 3;
+  uint64 value = 4;            // last aggregated value (median)
+  uint32 source_count = 5;     // distinct submitters in the current window
+  bool has_value = 6;          // false until min_sources reached
+  int64 updated_at = 7;
+}
+
+// OracleSubmission is the latest value a provider posted for a topic.
+message OracleSubmission {
+  string topic_id = 1;
+  string provider = 2;
+  uint64 value = 3;
+  int64 submitted_at = 4;
+}
+
+message Params {
+  string bond_denom = 1;            // staking/bond coin denom
+  uint64 min_bond = 2;              // minimum provider bond
+  uint32 max_providers = 3;
+  uint32 max_devices = 4;
+  uint32 max_topics = 5;
+  uint32 max_sources_per_topic = 6;
+  uint32 reading_tolerance_bps = 7; // |iot-op| <= max(iot,op)*bps/10000
+  uint32 slash_fraction_bps = 8;    // bond fraction burned per slash
+  uint32 jail_after_infractions = 9;// infraction count that triggers jail
+  int64 jail_duration_seconds = 10;
+  // When true, a reading whose IoT and operational values fail to
+  // cross-verify within tolerance is rejected instead of being stored
+  // with verified=false. Default false preserves the permissive "record
+  // but flag" behaviour.
+  bool reject_unverified_readings = 11;
+  // When true, readings are only accepted from devices that carry an
+  // attestation (non-empty attestation_hash). Default false.
+  bool require_device_attestation = 12;
+}

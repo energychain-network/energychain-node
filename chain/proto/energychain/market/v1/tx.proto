@@ -3,7 +3,6 @@ package energychain.market.v1;
 
 import "cosmos/msg/v1/msg.proto";
 import "gogoproto/gogo.proto";
-
 import "energychain/market/v1/types.proto";
 
 option go_package = "energychain/x/market/types";
@@ -11,91 +10,62 @@ option go_package = "energychain/x/market/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  rpc CreatePair(MsgCreatePair) returns (MsgCreatePairResponse);
-  rpc PauseUnpausePair(MsgPauseUnpausePair) returns (MsgPauseUnpausePairResponse);
-  rpc UpdatePairRisk(MsgUpdatePairRisk) returns (MsgUpdatePairRiskResponse);
-
-  rpc PlaceLimitOrder(MsgPlaceLimitOrder) returns (MsgPlaceLimitOrderResponse);
+  rpc CreateMarket(MsgCreateMarket) returns (MsgCreateMarketResponse);
+  rpc SetMarketStatus(MsgSetMarketStatus) returns (MsgSetMarketStatusResponse);
+  rpc PlaceOrder(MsgPlaceOrder) returns (MsgPlaceOrderResponse);
   rpc CancelOrder(MsgCancelOrder) returns (MsgCancelOrderResponse);
-
-  // FBA only: anyone can call after batch_close_time to run a
-  // single uniform-price clearing round. Idempotent for the
-  // remainder of the same batch.
-  rpc ClearBatch(MsgClearBatch) returns (MsgClearBatchResponse);
-
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+
+  rpc PostBond(MsgPostBond) returns (MsgPostBondResponse);
+  rpc DelistMarket(MsgDelistMarket) returns (MsgDelistMarketResponse);
 }
 
-message MsgCreatePair {
+// CreateMarket / SetMarketStatus are authority-gated (governance).
+message MsgCreateMarket {
   option (cosmos.msg.v1.signer) = "authority";
   string authority = 1;
   string base_denom = 2;
   string quote_denom = 3;
-  MatchMode mode = 4;
-  int64 batch_interval_seconds = 5; // FBA only
-  uint64 price_band_lo = 6;
-  uint64 price_band_hi = 7;
-  uint64 max_position_per_user = 8;
-  string memo = 9;
-}
-message MsgCreatePairResponse { uint64 pair_id = 1; }
+  uint32 fee_bps = 4;
+  uint64 min_base_qty = 5;
+  int64 batch_interval = 6;
+  bool require_kyc = 7;   // order owners must be KYC-cleared (optional)
+  string policy_id = 8;   // bound x/identity transfer policy (optional)
 
-message MsgPauseUnpausePair {
+  // operator posts the listing bond and receives its refund on delisting.
+  // For rwa/<id> markets it must be the token's admin (the issuer).
+  // Required when params.listing_bond > 0.
+  string operator = 9;
+}
+message MsgCreateMarketResponse { uint64 market_id = 1; }
+
+message MsgSetMarketStatus {
   option (cosmos.msg.v1.signer) = "authority";
   string authority = 1;
-  uint64 pair_id = 2;
-  bool pause = 3;
-  string reason = 4;
+  uint64 market_id = 2;
+  MarketStatus status = 3;
 }
-message MsgPauseUnpausePairResponse { PairStatus new_status = 1; }
+message MsgSetMarketStatusResponse {}
 
-message MsgUpdatePairRisk {
-  option (cosmos.msg.v1.signer) = "authority";
-  string authority = 1;
-  uint64 pair_id = 2;
-  uint64 price_band_lo = 3;
-  uint64 price_band_hi = 4;
-  uint64 max_position_per_user = 5;
-}
-message MsgUpdatePairRiskResponse {}
-
-message MsgPlaceLimitOrder {
+// PlaceOrder escrows quote (BUY) or base (SELL) and rests the order for the
+// next batch auction.
+message MsgPlaceOrder {
   option (cosmos.msg.v1.signer) = "owner";
   string owner = 1;
-  uint64 pair_id = 2;
-  Side side = 3;
+  uint64 market_id = 2;
+  OrderSide side = 3;
   uint64 price = 4;
   uint64 quantity = 5;
-  string memo = 6;
 }
-message MsgPlaceLimitOrderResponse {
-  uint64 order_id = 1;
-  // Continuous-mode immediate-fill summary; zero for FBA.
-  uint64 filled_qty = 2;
-  uint64 remaining_qty = 3;
-}
+message MsgPlaceOrderResponse { uint64 order_id = 1; }
 
+// CancelOrder withdraws an open order and refunds its remaining escrow.
 message MsgCancelOrder {
   option (cosmos.msg.v1.signer) = "owner";
   string owner = 1;
   uint64 order_id = 2;
-  string reason = 3;
 }
-message MsgCancelOrderResponse { uint64 refunded_amount = 1; }
-
-message MsgClearBatch {
-  option (cosmos.msg.v1.signer) = "caller";
-  string caller = 1;
-  uint64 pair_id = 2;
-}
-message MsgClearBatchResponse {
-  uint32 matched_pairs = 1;
-  uint64 clearing_price = 2;
-  // batch_done is true when the entire batch is cleared (no
-  // crossing orders remain). false when the call hit
-  // max_matches_per_clear and the caller should re-invoke.
-  bool batch_done = 3;
-}
+message MsgCancelOrderResponse { uint64 refunded = 1; }
 
 message MsgUpdateParams {
   option (cosmos.msg.v1.signer) = "authority";
@@ -103,3 +73,31 @@ message MsgUpdateParams {
   Params params = 2 [(gogoproto.nullable) = false];
 }
 message MsgUpdateParamsResponse {}
+
+// ---- listing bond ----------------------------------------------------------
+
+// PostBond escrows params.listing_bond from the market operator into the
+// market module account and opens the market for trading
+// (PENDING_BOND -> ACTIVE). Only the designated operator may post.
+message MsgPostBond {
+  option (cosmos.msg.v1.signer) = "operator";
+  string operator = 1;
+  uint64 market_id = 2;
+}
+message MsgPostBondResponse {
+  string amount = 1; // escrowed amount (base units)
+  string denom = 2;
+}
+
+// DelistMarket (governance) cancels every open order with a full escrow
+// refund, refunds the listing bond to the operator and puts the market in
+// the terminal DELISTED state.
+message MsgDelistMarket {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  uint64 market_id = 2;
+}
+message MsgDelistMarketResponse {
+  uint32 cancelled_orders = 1;
+  string refunded = 2; // bond amount returned to the operator
+}

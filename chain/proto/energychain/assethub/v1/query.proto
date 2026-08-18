@@ -1,0 +1,84 @@
+syntax = "proto3";
+package energychain.assethub.v1;
+
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/assethub/v1/types.proto";
+
+option go_package = "energychain/x/assethub/types";
+
+service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+
+  rpc Provider(QueryProviderRequest) returns (QueryProviderResponse);
+  rpc Providers(QueryProvidersRequest) returns (QueryProvidersResponse);
+
+  rpc Device(QueryDeviceRequest) returns (QueryDeviceResponse);
+  rpc Devices(QueryDevicesRequest) returns (QueryDevicesResponse);
+  rpc DevicesByOperator(QueryDevicesByOperatorRequest) returns (QueryDevicesByOperatorResponse);
+
+  rpc Reading(QueryReadingRequest) returns (QueryReadingResponse);
+  rpc ReadingsByDevice(QueryReadingsByDeviceRequest) returns (QueryReadingsByDeviceResponse);
+
+  rpc Topic(QueryTopicRequest) returns (QueryTopicResponse);
+  rpc Topics(QueryTopicsRequest) returns (QueryTopicsResponse);
+  rpc Submission(QuerySubmissionRequest) returns (QuerySubmissionResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+
+message QueryProviderRequest { string address = 1; }
+message QueryProviderResponse { Provider provider = 1 [(gogoproto.nullable) = false]; }
+
+message QueryProvidersRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryProvidersResponse {
+  repeated Provider providers = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryDeviceRequest { string id = 1; }
+message QueryDeviceResponse { Device device = 1 [(gogoproto.nullable) = false]; }
+
+message QueryDevicesRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryDevicesResponse {
+  repeated Device devices = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryDevicesByOperatorRequest {
+  string operator = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryDevicesByOperatorResponse {
+  repeated Device devices = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryReadingRequest { uint64 id = 1; }
+message QueryReadingResponse { MeteringReading reading = 1 [(gogoproto.nullable) = false]; }
+
+message QueryReadingsByDeviceRequest {
+  string device_id = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryReadingsByDeviceResponse {
+  repeated MeteringReading readings = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryTopicRequest { string id = 1; }
+message QueryTopicResponse { OracleTopic topic = 1 [(gogoproto.nullable) = false]; }
+
+message QueryTopicsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryTopicsResponse {
+  repeated OracleTopic topics = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QuerySubmissionRequest {
+  string topic_id = 1;
+  string provider = 2;
+}
+message QuerySubmissionResponse { OracleSubmission submission = 1 [(gogoproto.nullable) = false]; }

@@ -1,0 +1,37 @@
+# golangci-lint configuration for the energychain node.
+# Pinned to the linters required by CONTRIBUTING.md (gofmt -s, go vet)
+# plus a conservative set that catches the bug classes that matter for
+# a financial RWA chain: error handling, integer/identifier shadowing,
+# and ineffective assignments. Generated protobuf files are excluded.
+run:
+  timeout: 5m
+  tests: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Generated protobuf / gateway code is not hand-maintained.
+    - path: "\\.pb\\.go$"
+      linters: [govet, errcheck, staticcheck, ineffassign, unused, gosimple]
+    - path: "\\.pb\\.gw\\.go$"
+      linters: [govet, errcheck, staticcheck, ineffassign, unused, gosimple]
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck      # unchecked errors are forbidden on a value chain
+    - govet         # shadowing, struct tags, lost cancel
+    - ineffassign   # ineffective assignments
+    - staticcheck   # correctness + simplifications
+    - unused        # dead code
+    - gosimple      # simplifications
+    - gofmt         # gofmt -s
+    - misspell      # doc/comment hygiene
+
+linters-settings:
+  gofmt:
+    simplify: true
+  govet:
+    enable:
+      - shadow

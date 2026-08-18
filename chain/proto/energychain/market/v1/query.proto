@@ -3,61 +3,43 @@ package energychain.market.v1;
 
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
-
 import "energychain/market/v1/types.proto";
 
 option go_package = "energychain/x/market/types";
 
 service Query {
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
-  rpc Pair(QueryPairRequest) returns (QueryPairResponse);
-  rpc Pairs(QueryPairsRequest) returns (QueryPairsResponse);
+  rpc Market(QueryMarketRequest) returns (QueryMarketResponse);
+  rpc Markets(QueryMarketsRequest) returns (QueryMarketsResponse);
   rpc Order(QueryOrderRequest) returns (QueryOrderResponse);
-  rpc OpenOrders(QueryOpenOrdersRequest) returns (QueryOpenOrdersResponse);
-  rpc OrdersByOwner(QueryOrdersByOwnerRequest) returns (QueryOrdersByOwnerResponse);
-  rpc Position(QueryPositionRequest) returns (QueryPositionResponse);
-  rpc PoolAddress(QueryPoolAddressRequest) returns (QueryPoolAddressResponse);
+  rpc Orders(QueryOrdersRequest) returns (QueryOrdersResponse);
+  rpc OrderBook(QueryOrderBookRequest) returns (QueryOrderBookResponse);
 }
 
 message QueryParamsRequest {}
 message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
 
-message QueryPairRequest { uint64 id = 1; }
-message QueryPairResponse { Pair pair = 1 [(gogoproto.nullable) = false]; }
+message QueryMarketRequest { uint64 id = 1; }
+message QueryMarketResponse { Market market = 1 [(gogoproto.nullable) = false]; }
 
-message QueryPairsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
-message QueryPairsResponse {
-  repeated Pair pairs = 1 [(gogoproto.nullable) = false];
+message QueryMarketsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryMarketsResponse {
+  repeated Market markets = 1 [(gogoproto.nullable) = false];
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
 message QueryOrderRequest { uint64 id = 1; }
 message QueryOrderResponse { Order order = 1 [(gogoproto.nullable) = false]; }
 
-message QueryOpenOrdersRequest {
-  uint64 pair_id = 1;
-  Side side = 2; // 0=any
-  cosmos.base.query.v1beta1.PageRequest pagination = 3;
-}
-message QueryOpenOrdersResponse {
+message QueryOrdersRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryOrdersResponse {
   repeated Order orders = 1 [(gogoproto.nullable) = false];
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
-message QueryOrdersByOwnerRequest {
-  string owner = 1;
-  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+// OrderBook returns the open buy and sell orders for a market.
+message QueryOrderBookRequest { uint64 market_id = 1; }
+message QueryOrderBookResponse {
+  repeated Order buys = 1 [(gogoproto.nullable) = false];
+  repeated Order sells = 2 [(gogoproto.nullable) = false];
 }
-message QueryOrdersByOwnerResponse {
-  repeated Order orders = 1 [(gogoproto.nullable) = false];
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
-}
-
-message QueryPositionRequest {
-  uint64 pair_id = 1;
-  string owner = 2;
-}
-message QueryPositionResponse { Position position = 1 [(gogoproto.nullable) = false]; }
-
-message QueryPoolAddressRequest {}
-message QueryPoolAddressResponse { string pool = 1; }

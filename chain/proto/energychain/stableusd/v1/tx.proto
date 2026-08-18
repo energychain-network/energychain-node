@@ -1,0 +1,221 @@
+syntax = "proto3";
+package energychain.stableusd.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/stableusd/v1/types.proto";
+
+option go_package = "energychain/x/stableusd/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // Denom lifecycle.
+  rpc CreateDenom(MsgCreateDenom) returns (MsgCreateDenomResponse);
+  rpc AddMinter(MsgAddMinter) returns (MsgAddMinterResponse);
+  rpc RemoveMinter(MsgRemoveMinter) returns (MsgRemoveMinterResponse);
+  rpc SetDenomStatus(MsgSetDenomStatus) returns (MsgSetDenomStatusResponse);
+  rpc BindReserve(MsgBindReserve) returns (MsgBindReserveResponse);
+
+  // Supply.
+  rpc Mint(MsgMint) returns (MsgMintResponse);
+  rpc Burn(MsgBurn) returns (MsgBurnResponse);
+
+  // ERC20-shaped holder ops.
+  rpc Transfer(MsgTransfer) returns (MsgTransferResponse);
+  rpc Approve(MsgApprove) returns (MsgApproveResponse);
+  rpc TransferFrom(MsgTransferFrom) returns (MsgTransferFromResponse);
+
+  // Compliance controls (admin).
+  rpc Freeze(MsgFreeze) returns (MsgFreezeResponse);
+  rpc Unfreeze(MsgUnfreeze) returns (MsgUnfreezeResponse);
+  rpc Blacklist(MsgBlacklist) returns (MsgBlacklistResponse);
+  rpc Unblacklist(MsgUnblacklist) returns (MsgUnblacklistResponse);
+  rpc ForceTransfer(MsgForceTransfer) returns (MsgForceTransferResponse);
+
+  // 1:1 fiat redemption.
+  rpc RequestRedemption(MsgRequestRedemption) returns (MsgRequestRedemptionResponse);
+  rpc SettleRedemption(MsgSettleRedemption) returns (MsgSettleRedemptionResponse);
+  rpc CancelRedemption(MsgCancelRedemption) returns (MsgCancelRedemptionResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+// ---- denom lifecycle ------------------------------------------------------
+
+message MsgCreateDenom {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string id = 2;
+  string symbol = 3;
+  uint32 decimals = 4;
+  string peg_currency = 5;
+  string admin = 6;
+  string policy_id = 7;
+}
+message MsgCreateDenomResponse {}
+
+message MsgAddMinter {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string denom_id = 2;
+  string minter = 3;
+}
+message MsgAddMinterResponse {}
+
+message MsgRemoveMinter {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string denom_id = 2;
+  string minter = 3;
+}
+message MsgRemoveMinterResponse {}
+
+message MsgSetDenomStatus {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string denom_id = 2;
+  DenomStatus status = 3;
+}
+message MsgSetDenomStatusResponse {}
+
+message MsgBindReserve {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string denom_id = 2;
+  string reserve_topic = 3;
+  uint32 required_ratio_bps = 4;
+  int64 max_staleness_seconds = 5;
+}
+message MsgBindReserveResponse {}
+
+// ---- supply ---------------------------------------------------------------
+
+message MsgMint {
+  option (cosmos.msg.v1.signer) = "minter";
+  string minter = 1;
+  string denom_id = 2;
+  string recipient = 3;
+  uint64 amount = 4;
+}
+message MsgMintResponse {}
+
+message MsgBurn {
+  option (cosmos.msg.v1.signer) = "holder";
+  string holder = 1;
+  string denom_id = 2;
+  uint64 amount = 3;
+}
+message MsgBurnResponse {}
+
+// ---- transfers ------------------------------------------------------------
+
+message MsgTransfer {
+  option (cosmos.msg.v1.signer) = "from";
+  string from = 1;
+  string denom_id = 2;
+  string to = 3;
+  uint64 amount = 4;
+}
+message MsgTransferResponse {}
+
+message MsgApprove {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  string denom_id = 2;
+  string spender = 3;
+  uint64 amount = 4; // absolute allowance (replaces prior)
+}
+message MsgApproveResponse {}
+
+message MsgTransferFrom {
+  option (cosmos.msg.v1.signer) = "spender";
+  string spender = 1;
+  string denom_id = 2;
+  string from = 3;
+  string to = 4;
+  uint64 amount = 5;
+}
+message MsgTransferFromResponse {}
+
+// ---- compliance controls --------------------------------------------------
+
+message MsgFreeze {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string denom_id = 2;
+  string account = 3;
+}
+message MsgFreezeResponse {}
+
+message MsgUnfreeze {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string denom_id = 2;
+  string account = 3;
+}
+message MsgUnfreezeResponse {}
+
+message MsgBlacklist {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string denom_id = 2;
+  string account = 3;
+}
+message MsgBlacklistResponse {}
+
+message MsgUnblacklist {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string denom_id = 2;
+  string account = 3;
+}
+message MsgUnblacklistResponse {}
+
+message MsgForceTransfer {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string denom_id = 2;
+  string from = 3;
+  string to = 4;
+  uint64 amount = 5;
+  string reason = 6;
+}
+message MsgForceTransferResponse {}
+
+// ---- redemption -----------------------------------------------------------
+
+message MsgRequestRedemption {
+  option (cosmos.msg.v1.signer) = "holder";
+  string holder = 1;
+  string denom_id = 2;
+  uint64 amount = 3;
+  string memo = 4;
+}
+message MsgRequestRedemptionResponse { uint64 redemption_id = 1; }
+
+message MsgSettleRedemption {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  uint64 redemption_id = 2;
+  string memo = 3;
+}
+message MsgSettleRedemptionResponse {}
+
+message MsgCancelRedemption {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  uint64 redemption_id = 2;
+  string reason = 3;
+}
+message MsgCancelRedemptionResponse {}
+
+// ---- params ---------------------------------------------------------------
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

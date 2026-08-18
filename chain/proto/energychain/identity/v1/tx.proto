@@ -1,0 +1,151 @@
+syntax = "proto3";
+package energychain.identity.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/identity/v1/types.proto";
+
+option go_package = "energychain/x/identity/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // Registrar management (governance authority).
+  rpc AddRegistrar(MsgAddRegistrar) returns (MsgAddRegistrarResponse);
+  rpc RemoveRegistrar(MsgRemoveRegistrar) returns (MsgRemoveRegistrarResponse);
+
+  // Account / KYC management (registrar).
+  rpc SetAccount(MsgSetAccount) returns (MsgSetAccountResponse);
+  rpc FreezeAccount(MsgFreezeAccount) returns (MsgFreezeAccountResponse);
+  rpc UnfreezeAccount(MsgUnfreezeAccount) returns (MsgUnfreezeAccountResponse);
+
+  // Sanctions (governance authority).
+  rpc AddSanction(MsgAddSanction) returns (MsgAddSanctionResponse);
+  rpc RemoveSanction(MsgRemoveSanction) returns (MsgRemoveSanctionResponse);
+
+  // Transfer policies (policy owner; authority may always edit).
+  rpc CreatePolicy(MsgCreatePolicy) returns (MsgCreatePolicyResponse);
+  rpc UpdatePolicy(MsgUpdatePolicy) returns (MsgUpdatePolicyResponse);
+  rpc PausePolicy(MsgPausePolicy) returns (MsgPausePolicyResponse);
+  rpc DeletePolicy(MsgDeletePolicy) returns (MsgDeletePolicyResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+// ---- Registrar ------------------------------------------------------------
+
+message MsgAddRegistrar {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string registrar = 2;
+  string display_name = 3;
+}
+message MsgAddRegistrarResponse {}
+
+message MsgRemoveRegistrar {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string registrar = 2;
+}
+message MsgRemoveRegistrarResponse {}
+
+// ---- Account --------------------------------------------------------------
+
+message MsgSetAccount {
+  option (cosmos.msg.v1.signer) = "registrar";
+  string registrar = 1;
+  string address = 2;
+  string did = 3;
+  bool kyc_cleared = 4;
+  bool accredited = 5;
+  string jurisdiction = 6;
+  int64 kyc_expires_at = 7;
+}
+message MsgSetAccountResponse {}
+
+message MsgFreezeAccount {
+  option (cosmos.msg.v1.signer) = "registrar";
+  string registrar = 1;
+  string address = 2;
+  string reason = 3;
+}
+message MsgFreezeAccountResponse {}
+
+message MsgUnfreezeAccount {
+  option (cosmos.msg.v1.signer) = "registrar";
+  string registrar = 1;
+  string address = 2;
+  string reason = 3;
+}
+message MsgUnfreezeAccountResponse {}
+
+// ---- Sanctions ------------------------------------------------------------
+
+message MsgAddSanction {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string address = 2;
+  string list_source = 3;
+  string reason = 4;
+}
+message MsgAddSanctionResponse {}
+
+message MsgRemoveSanction {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string address = 2;
+}
+message MsgRemoveSanctionResponse {}
+
+// ---- Policy ---------------------------------------------------------------
+
+message MsgCreatePolicy {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  string id = 2;
+  string description = 3;
+  bool require_kyc = 4;
+  bool require_accredited = 5;
+  bool deny_frozen = 6;
+  repeated string allowed_jurisdictions = 7;
+  repeated string denied_jurisdictions = 8;
+}
+message MsgCreatePolicyResponse {}
+
+message MsgUpdatePolicy {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1; // policy owner OR governance authority
+  string id = 2;
+  string description = 3;
+  bool require_kyc = 4;
+  bool require_accredited = 5;
+  bool deny_frozen = 6;
+  repeated string allowed_jurisdictions = 7;
+  repeated string denied_jurisdictions = 8;
+}
+message MsgUpdatePolicyResponse {}
+
+message MsgPausePolicy {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  string id = 2;
+  bool paused = 3;
+}
+message MsgPausePolicyResponse {}
+
+message MsgDeletePolicy {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1;
+  string id = 2;
+}
+message MsgDeletePolicyResponse {}
+
+// ---- Params ---------------------------------------------------------------
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

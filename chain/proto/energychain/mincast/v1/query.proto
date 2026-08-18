@@ -1,0 +1,67 @@
+syntax = "proto3";
+package energychain.mincast.v1;
+
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+import "energychain/mincast/v1/types.proto";
+
+option go_package = "energychain/x/mincast/types";
+
+service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Market(QueryMarketRequest) returns (QueryMarketResponse);
+  rpc Markets(QueryMarketsRequest) returns (QueryMarketsResponse);
+  rpc Balance(QueryBalanceRequest) returns (QueryBalanceResponse);
+  rpc Quote(QueryQuoteRequest) returns (QueryQuoteResponse);
+  rpc Invest(QueryInvestRequest) returns (QueryInvestResponse);
+  rpc InvestsByInvestor(QueryInvestsByInvestorRequest) returns (QueryInvestsByInvestorResponse);
+  rpc RewardPool(QueryRewardPoolRequest) returns (QueryRewardPoolResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+
+message QueryMarketRequest { uint64 id = 1; }
+message QueryMarketResponse { Market market = 1 [(gogoproto.nullable) = false]; }
+
+message QueryMarketsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryMarketsResponse {
+  repeated Market markets = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryBalanceRequest {
+  uint64 market_id = 1;
+  string holder = 2;
+}
+message QueryBalanceResponse { uint64 amount = 1; }
+
+// Quote previews mint/melt without mutating state.
+message QueryQuoteRequest {
+  uint64 market_id = 1;
+  bool is_mint = 2;
+  uint64 amount = 3; // pay_amount for mint, units for melt
+}
+message QueryQuoteResponse {
+  uint64 out = 1;          // units (mint) or settlement (melt)
+  uint64 fee = 2;          // fee retained in treasury
+  uint64 floor_price = 3;  // current floor before the trade
+}
+
+message QueryInvestRequest { uint64 id = 1; }
+message QueryInvestResponse { Invest invest = 1 [(gogoproto.nullable) = false]; }
+
+message QueryInvestsByInvestorRequest {
+  string investor = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryInvestsByInvestorResponse {
+  repeated Invest invests = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryRewardPoolRequest { uint64 market_id = 1; }
+message QueryRewardPoolResponse {
+  string denom = 1;
+  uint64 reward_pool = 2;
+}

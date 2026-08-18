@@ -1,0 +1,147 @@
+syntax = "proto3";
+package energychain.mincast.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+import "energychain/mincast/v1/types.proto";
+
+option go_package = "energychain/x/mincast/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc CreateMarket(MsgCreateMarket) returns (MsgCreateMarketResponse);
+  rpc UpdateMarket(MsgUpdateMarket) returns (MsgUpdateMarketResponse);
+  rpc SetMarketStatus(MsgSetMarketStatus) returns (MsgSetMarketStatusResponse);
+
+  rpc Mint(MsgMint) returns (MsgMintResponse);
+  rpc Melt(MsgMelt) returns (MsgMeltResponse);
+  rpc Transfer(MsgTransfer) returns (MsgTransferResponse);
+
+  rpc InjectTreasury(MsgInjectTreasury) returns (MsgInjectTreasuryResponse);
+  rpc FundReward(MsgFundReward) returns (MsgFundRewardResponse);
+
+  rpc OpenInvest(MsgOpenInvest) returns (MsgOpenInvestResponse);
+  rpc CloseInvest(MsgCloseInvest) returns (MsgCloseInvestResponse);
+  rpc CancelInvest(MsgCancelInvest) returns (MsgCancelInvestResponse);
+
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+message MsgCreateMarket {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  string denom = 2;
+  string name = 3;
+  string settlement_denom = 4;
+  uint64 initial_price = 5;
+  uint32 mint_fee_bps = 6;
+  uint32 melt_fee_bps = 7;
+  string policy_id = 8;
+  bool require_kyc = 9;
+}
+message MsgCreateMarketResponse { uint64 market_id = 1; }
+
+message MsgUpdateMarket {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  uint64 market_id = 2;
+  string name = 3;
+  uint32 mint_fee_bps = 4;
+  uint32 melt_fee_bps = 5;
+  string policy_id = 6;
+  bool require_kyc = 7;
+}
+message MsgUpdateMarketResponse {}
+
+message MsgSetMarketStatus {
+  option (cosmos.msg.v1.signer) = "admin";
+  string admin = 1;
+  uint64 market_id = 2;
+  MarketStatus status = 3;
+}
+message MsgSetMarketStatusResponse {}
+
+message MsgMint {
+  option (cosmos.msg.v1.signer) = "buyer";
+  string buyer = 1;
+  uint64 market_id = 2;
+  uint64 pay_amount = 3;      // settlement units to spend
+  uint64 min_units_out = 4;   // slippage guard
+}
+message MsgMintResponse {
+  uint64 units = 1;
+  uint64 floor_price = 2;
+}
+
+message MsgMelt {
+  option (cosmos.msg.v1.signer) = "seller";
+  string seller = 1;
+  uint64 market_id = 2;
+  uint64 units = 3;            // mincast units to burn
+  uint64 min_settlement_out = 4; // slippage guard
+}
+message MsgMeltResponse {
+  uint64 settlement = 1;
+  uint64 floor_price = 2;
+}
+
+message MsgTransfer {
+  option (cosmos.msg.v1.signer) = "from";
+  string from = 1;
+  uint64 market_id = 2;
+  string to = 3;
+  uint64 amount = 4;
+}
+message MsgTransferResponse {}
+
+message MsgInjectTreasury {
+  option (cosmos.msg.v1.signer) = "funder";
+  string funder = 1;
+  uint64 market_id = 2;
+  uint64 amount = 3; // settlement added to treasury (lifts floor, no new supply)
+}
+message MsgInjectTreasuryResponse { uint64 floor_price = 1; }
+
+message MsgFundReward {
+  option (cosmos.msg.v1.signer) = "funder";
+  string funder = 1;
+  uint64 market_id = 2;
+  uint64 amount = 3; // settlement added to the invest reward pool
+}
+message MsgFundRewardResponse {}
+
+message MsgOpenInvest {
+  option (cosmos.msg.v1.signer) = "investor";
+  string investor = 1;
+  uint64 market_id = 2;
+  uint64 units = 3;
+  int64 term_seconds = 4;
+  uint32 apy_bps = 5;
+}
+message MsgOpenInvestResponse {
+  uint64 invest_id = 1;
+  uint64 yield = 2;
+  int64 maturity = 3;
+}
+
+message MsgCloseInvest {
+  option (cosmos.msg.v1.signer) = "caller";
+  string caller = 1;
+  uint64 invest_id = 2;
+}
+message MsgCloseInvestResponse { uint64 yield = 1; }
+
+message MsgCancelInvest {
+  option (cosmos.msg.v1.signer) = "investor";
+  string investor = 1;
+  uint64 invest_id = 2;
+}
+message MsgCancelInvestResponse {}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  Params params = 2 [(gogoproto.nullable) = false];
+}
+message MsgUpdateParamsResponse {}

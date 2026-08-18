@@ -4,6 +4,7 @@
 package types
 
 import (
+	cosmossdk_io_math "cosmossdk.io/math"
 	fmt "fmt"
 	_ "github.com/cosmos/gogoproto/gogoproto"
 	proto "github.com/cosmos/gogoproto/proto"
@@ -23,138 +24,55 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MatchMode is the per-Pair matching policy.
-//
-// CONTINUOUS — price-time priority, immediate match on add.
-//
-//	Closest to a centralized-exchange order book;
-//	maximizes interactivity but is exposed to
-//	within-block ordering games.
-//
-// FBA        — Frequent Batch Auction. Orders accumulate
-//
-//	during the batch window; an explicit MsgClearBatch
-//	(anyone, after batch_close_time) runs uniform
-//	clearing-price matching for all crossing orders.
-//	Structurally defeats within-block reordering
-//	attacks; used by the power-spot market.
-type MatchMode int32
+type OrderSide int32
 
 const (
-	MatchMode_MATCH_MODE_UNSPECIFIED MatchMode = 0
-	MatchMode_MATCH_MODE_CONTINUOUS  MatchMode = 1
-	MatchMode_MATCH_MODE_FBA         MatchMode = 2
+	OrderSide_ORDER_SIDE_UNSPECIFIED OrderSide = 0
+	OrderSide_ORDER_SIDE_BUY         OrderSide = 1
+	OrderSide_ORDER_SIDE_SELL        OrderSide = 2
 )
 
-var MatchMode_name = map[int32]string{
-	0: "MATCH_MODE_UNSPECIFIED",
-	1: "MATCH_MODE_CONTINUOUS",
-	2: "MATCH_MODE_FBA",
+var OrderSide_name = map[int32]string{
+	0: "ORDER_SIDE_UNSPECIFIED",
+	1: "ORDER_SIDE_BUY",
+	2: "ORDER_SIDE_SELL",
 }
 
-var MatchMode_value = map[string]int32{
-	"MATCH_MODE_UNSPECIFIED": 0,
-	"MATCH_MODE_CONTINUOUS":  1,
-	"MATCH_MODE_FBA":         2,
+var OrderSide_value = map[string]int32{
+	"ORDER_SIDE_UNSPECIFIED": 0,
+	"ORDER_SIDE_BUY":         1,
+	"ORDER_SIDE_SELL":        2,
 }
 
-func (x MatchMode) String() string {
-	return proto.EnumName(MatchMode_name, int32(x))
+func (x OrderSide) String() string {
+	return proto.EnumName(OrderSide_name, int32(x))
 }
 
-func (MatchMode) EnumDescriptor() ([]byte, []int) {
+func (OrderSide) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_0df0c7f1431f1619, []int{0}
 }
 
-// PairStatus is the per-Pair operating state.
-//
-// ACTIVE — accepting orders, matching as configured.
-// PAUSED — authority halt; no new orders, no matching. Existing
-//
-//	orders may still be CancelOrder'd (so users can
-//	recover escrow when the pair is offline).
-type PairStatus int32
-
-const (
-	PairStatus_PAIR_STATUS_UNSPECIFIED PairStatus = 0
-	PairStatus_PAIR_STATUS_ACTIVE      PairStatus = 1
-	PairStatus_PAIR_STATUS_PAUSED      PairStatus = 2
-)
-
-var PairStatus_name = map[int32]string{
-	0: "PAIR_STATUS_UNSPECIFIED",
-	1: "PAIR_STATUS_ACTIVE",
-	2: "PAIR_STATUS_PAUSED",
-}
-
-var PairStatus_value = map[string]int32{
-	"PAIR_STATUS_UNSPECIFIED": 0,
-	"PAIR_STATUS_ACTIVE":      1,
-	"PAIR_STATUS_PAUSED":      2,
-}
-
-func (x PairStatus) String() string {
-	return proto.EnumName(PairStatus_name, int32(x))
-}
-
-func (PairStatus) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_0df0c7f1431f1619, []int{1}
-}
-
-// Side is BUY / SELL relative to the base_denom.
-type Side int32
-
-const (
-	Side_SIDE_UNSPECIFIED Side = 0
-	Side_SIDE_BUY         Side = 1
-	Side_SIDE_SELL        Side = 2
-)
-
-var Side_name = map[int32]string{
-	0: "SIDE_UNSPECIFIED",
-	1: "SIDE_BUY",
-	2: "SIDE_SELL",
-}
-
-var Side_value = map[string]int32{
-	"SIDE_UNSPECIFIED": 0,
-	"SIDE_BUY":         1,
-	"SIDE_SELL":        2,
-}
-
-func (x Side) String() string {
-	return proto.EnumName(Side_name, int32(x))
-}
-
-func (Side) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_0df0c7f1431f1619, []int{2}
-}
-
-// OrderStatus is the per-Order lifecycle.
 type OrderStatus int32
 
 const (
-	OrderStatus_ORDER_STATUS_UNSPECIFIED      OrderStatus = 0
-	OrderStatus_ORDER_STATUS_OPEN             OrderStatus = 1
-	OrderStatus_ORDER_STATUS_PARTIALLY_FILLED OrderStatus = 2
-	OrderStatus_ORDER_STATUS_FILLED           OrderStatus = 3
-	OrderStatus_ORDER_STATUS_CANCELLED        OrderStatus = 4
+	OrderStatus_ORDER_STATUS_UNSPECIFIED OrderStatus = 0
+	OrderStatus_ORDER_STATUS_OPEN        OrderStatus = 1
+	OrderStatus_ORDER_STATUS_FILLED      OrderStatus = 2
+	OrderStatus_ORDER_STATUS_CANCELLED   OrderStatus = 3
 )
 
 var OrderStatus_name = map[int32]string{
 	0: "ORDER_STATUS_UNSPECIFIED",
 	1: "ORDER_STATUS_OPEN",
-	2: "ORDER_STATUS_PARTIALLY_FILLED",
-	3: "ORDER_STATUS_FILLED",
-	4: "ORDER_STATUS_CANCELLED",
+	2: "ORDER_STATUS_FILLED",
+	3: "ORDER_STATUS_CANCELLED",
 }
 
 var OrderStatus_value = map[string]int32{
-	"ORDER_STATUS_UNSPECIFIED":      0,
-	"ORDER_STATUS_OPEN":             1,
-	"ORDER_STATUS_PARTIALLY_FILLED": 2,
-	"ORDER_STATUS_FILLED":           3,
-	"ORDER_STATUS_CANCELLED":        4,
+	"ORDER_STATUS_UNSPECIFIED": 0,
+	"ORDER_STATUS_OPEN":        1,
+	"ORDER_STATUS_FILLED":      2,
+	"ORDER_STATUS_CANCELLED":   3,
 }
 
 func (x OrderStatus) String() string {
@@ -162,65 +80,84 @@ func (x OrderStatus) String() string {
 }
 
 func (OrderStatus) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_0df0c7f1431f1619, []int{3}
+	return fileDescriptor_0df0c7f1431f1619, []int{1}
 }
 
-// Pair is one tradable market.
-//
-// Pricing model:
-//   - price is in micro-units of quote_denom per unit of
-//     base_denom (scale = 10^PriceScaleDecimals). I.e. an
-//     order with price=1_500_000 and quantity=2 (base) costs
-//     3 quote_denom units.
-//   - The chain uses uint64 for both price and quantity;
-//     callers MUST sanity-check the implied notional fits.
-//
-// Position model:
-//   - For v1 there is no margin: both legs of every order are
-//     pre-escrowed (BUY locks price*quantity in quote_denom;
-//     SELL locks quantity in base_denom). Filled positions are
-//     tracked for reporting / per-user caps but the keeper
-//     does not charge variation margin.
-type Pair struct {
-	Id         uint64     `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	BaseDenom  string     `protobuf:"bytes,2,opt,name=base_denom,json=baseDenom,proto3" json:"base_denom,omitempty"`
-	QuoteDenom string     `protobuf:"bytes,3,opt,name=quote_denom,json=quoteDenom,proto3" json:"quote_denom,omitempty"`
-	Mode       MatchMode  `protobuf:"varint,4,opt,name=mode,proto3,enum=energychain.market.v1.MatchMode" json:"mode,omitempty"`
-	Status     PairStatus `protobuf:"varint,5,opt,name=status,proto3,enum=energychain.market.v1.PairStatus" json:"status,omitempty"`
-	// FBA-only batch window. Orders accept during the window;
-	// ClearBatch is callable after batch_close_time. After
-	// clearing, next batch opens at next_batch_open_time.
-	BatchIntervalSeconds int64 `protobuf:"varint,6,opt,name=batch_interval_seconds,json=batchIntervalSeconds,proto3" json:"batch_interval_seconds,omitempty"`
-	BatchCloseTime       int64 `protobuf:"varint,7,opt,name=batch_close_time,json=batchCloseTime,proto3" json:"batch_close_time,omitempty"`
-	NextBatchOpenTime    int64 `protobuf:"varint,8,opt,name=next_batch_open_time,json=nextBatchOpenTime,proto3" json:"next_batch_open_time,omitempty"`
-	// Risk gates. price_band_lo / price_band_hi are 0=disabled;
-	// otherwise an order whose price falls outside [lo, hi] is
-	// refused at placement. Authority-tunable so the chain can
-	// enforce day-ahead price caps without rewriting code.
-	PriceBandLo uint64 `protobuf:"varint,9,opt,name=price_band_lo,json=priceBandLo,proto3" json:"price_band_lo,omitempty"`
-	PriceBandHi uint64 `protobuf:"varint,10,opt,name=price_band_hi,json=priceBandHi,proto3" json:"price_band_hi,omitempty"`
-	// Per-user signed-position cap (in base_denom units, absolute
-	// value). 0 disables. The keeper compares cap against
-	// abs(net_position_after_fill) on every fill leg; a cap
-	// exceedance refuses the fill (and the entire taker order if
-	// it cannot rest at its remainder).
-	MaxPositionPerUser uint64 `protobuf:"varint,11,opt,name=max_position_per_user,json=maxPositionPerUser,proto3" json:"max_position_per_user,omitempty"`
-	CreatedAt          int64  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	Memo               string `protobuf:"bytes,13,opt,name=memo,proto3" json:"memo,omitempty"`
+type MarketStatus int32
+
+const (
+	MarketStatus_MARKET_STATUS_UNSPECIFIED  MarketStatus = 0
+	MarketStatus_MARKET_STATUS_ACTIVE       MarketStatus = 1
+	MarketStatus_MARKET_STATUS_PAUSED       MarketStatus = 2
+	MarketStatus_MARKET_STATUS_PENDING_BOND MarketStatus = 3
+	// operator to post the listing bond
+	MarketStatus_MARKET_STATUS_DELISTED MarketStatus = 4
+)
+
+var MarketStatus_name = map[int32]string{
+	0: "MARKET_STATUS_UNSPECIFIED",
+	1: "MARKET_STATUS_ACTIVE",
+	2: "MARKET_STATUS_PAUSED",
+	3: "MARKET_STATUS_PENDING_BOND",
+	4: "MARKET_STATUS_DELISTED",
 }
 
-func (m *Pair) Reset()         { *m = Pair{} }
-func (m *Pair) String() string { return proto.CompactTextString(m) }
-func (*Pair) ProtoMessage()    {}
-func (*Pair) Descriptor() ([]byte, []int) {
+var MarketStatus_value = map[string]int32{
+	"MARKET_STATUS_UNSPECIFIED":  0,
+	"MARKET_STATUS_ACTIVE":       1,
+	"MARKET_STATUS_PAUSED":       2,
+	"MARKET_STATUS_PENDING_BOND": 3,
+	"MARKET_STATUS_DELISTED":     4,
+}
+
+func (x MarketStatus) String() string {
+	return proto.EnumName(MarketStatus_name, int32(x))
+}
+
+func (MarketStatus) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_0df0c7f1431f1619, []int{2}
+}
+
+// Market is a trading pair over two x/stableusd settlement denoms cleared by a
+// frequent batch auction. Price is quote micro-units per 1 base unit, scaled by
+// PriceScale (1e6): quote_notional = price * base_qty / PriceScale.
+type Market struct {
+	Id                uint64       `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	BaseDenom         string       `protobuf:"bytes,2,opt,name=base_denom,json=baseDenom,proto3" json:"base_denom,omitempty"`
+	QuoteDenom        string       `protobuf:"bytes,3,opt,name=quote_denom,json=quoteDenom,proto3" json:"quote_denom,omitempty"`
+	Status            MarketStatus `protobuf:"varint,4,opt,name=status,proto3,enum=energychain.market.v1.MarketStatus" json:"status,omitempty"`
+	FeeBps            uint32       `protobuf:"varint,5,opt,name=fee_bps,json=feeBps,proto3" json:"fee_bps,omitempty"`
+	MinBaseQty        uint64       `protobuf:"varint,6,opt,name=min_base_qty,json=minBaseQty,proto3" json:"min_base_qty,omitempty"`
+	BatchInterval     int64        `protobuf:"varint,7,opt,name=batch_interval,json=batchInterval,proto3" json:"batch_interval,omitempty"`
+	LastBatchTime     int64        `protobuf:"varint,8,opt,name=last_batch_time,json=lastBatchTime,proto3" json:"last_batch_time,omitempty"`
+	LastClearingPrice uint64       `protobuf:"varint,9,opt,name=last_clearing_price,json=lastClearingPrice,proto3" json:"last_clearing_price,omitempty"`
+	CreatedAt         int64        `protobuf:"varint,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	RequireKyc        bool         `protobuf:"varint,11,opt,name=require_kyc,json=requireKyc,proto3" json:"require_kyc,omitempty"`
+	PolicyId          string       `protobuf:"bytes,12,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
+	// operator is the account responsible for the listing (for rwa/<id>
+	// markets it must be the token's admin, i.e. the issuer). Only the
+	// operator may post the listing bond, and the bond is refunded to the
+	// operator when governance delists the market.
+	Operator string `protobuf:"bytes,13,opt,name=operator,proto3" json:"operator,omitempty"`
+	// bond_amount/bond_denom record what was actually escrowed at post time
+	// so later governance changes to params.listing_bond never affect the
+	// refund of already-listed markets.
+	BondAmount cosmossdk_io_math.Int `protobuf:"bytes,14,opt,name=bond_amount,json=bondAmount,proto3,customtype=cosmossdk.io/math.Int" json:"bond_amount"`
+	BondDenom  string                `protobuf:"bytes,15,opt,name=bond_denom,json=bondDenom,proto3" json:"bond_denom,omitempty"`
+}
+
+func (m *Market) Reset()         { *m = Market{} }
+func (m *Market) String() string { return proto.CompactTextString(m) }
+func (*Market) ProtoMessage()    {}
+func (*Market) Descriptor() ([]byte, []int) {
 	return fileDescriptor_0df0c7f1431f1619, []int{0}
 }
-func (m *Pair) XXX_Unmarshal(b []byte) error {
+func (m *Market) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Pair) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *Market) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Pair.Marshal(b, m, deterministic)
+		return xxx_messageInfo_Market.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -230,149 +167,131 @@ func (m *Pair) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Pair) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Pair.Merge(m, src)
+func (m *Market) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Market.Merge(m, src)
 }
-func (m *Pair) XXX_Size() int {
+func (m *Market) XXX_Size() int {
 	return m.Size()
 }
-func (m *Pair) XXX_DiscardUnknown() {
-	xxx_messageInfo_Pair.DiscardUnknown(m)
+func (m *Market) XXX_DiscardUnknown() {
+	xxx_messageInfo_Market.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Pair proto.InternalMessageInfo
+var xxx_messageInfo_Market proto.InternalMessageInfo
 
-func (m *Pair) GetId() uint64 {
+func (m *Market) GetId() uint64 {
 	if m != nil {
 		return m.Id
 	}
 	return 0
 }
 
-func (m *Pair) GetBaseDenom() string {
+func (m *Market) GetBaseDenom() string {
 	if m != nil {
 		return m.BaseDenom
 	}
 	return ""
 }
 
-func (m *Pair) GetQuoteDenom() string {
+func (m *Market) GetQuoteDenom() string {
 	if m != nil {
 		return m.QuoteDenom
 	}
 	return ""
 }
 
-func (m *Pair) GetMode() MatchMode {
-	if m != nil {
-		return m.Mode
-	}
-	return MatchMode_MATCH_MODE_UNSPECIFIED
-}
-
-func (m *Pair) GetStatus() PairStatus {
+func (m *Market) GetStatus() MarketStatus {
 	if m != nil {
 		return m.Status
 	}
-	return PairStatus_PAIR_STATUS_UNSPECIFIED
+	return MarketStatus_MARKET_STATUS_UNSPECIFIED
 }
 
-func (m *Pair) GetBatchIntervalSeconds() int64 {
+func (m *Market) GetFeeBps() uint32 {
 	if m != nil {
-		return m.BatchIntervalSeconds
+		return m.FeeBps
 	}
 	return 0
 }
 
-func (m *Pair) GetBatchCloseTime() int64 {
+func (m *Market) GetMinBaseQty() uint64 {
 	if m != nil {
-		return m.BatchCloseTime
+		return m.MinBaseQty
 	}
 	return 0
 }
 
-func (m *Pair) GetNextBatchOpenTime() int64 {
+func (m *Market) GetBatchInterval() int64 {
 	if m != nil {
-		return m.NextBatchOpenTime
+		return m.BatchInterval
 	}
 	return 0
 }
 
-func (m *Pair) GetPriceBandLo() uint64 {
+func (m *Market) GetLastBatchTime() int64 {
 	if m != nil {
-		return m.PriceBandLo
+		return m.LastBatchTime
 	}
 	return 0
 }
 
-func (m *Pair) GetPriceBandHi() uint64 {
+func (m *Market) GetLastClearingPrice() uint64 {
 	if m != nil {
-		return m.PriceBandHi
+		return m.LastClearingPrice
 	}
 	return 0
 }
 
-func (m *Pair) GetMaxPositionPerUser() uint64 {
-	if m != nil {
-		return m.MaxPositionPerUser
-	}
-	return 0
-}
-
-func (m *Pair) GetCreatedAt() int64 {
+func (m *Market) GetCreatedAt() int64 {
 	if m != nil {
 		return m.CreatedAt
 	}
 	return 0
 }
 
-func (m *Pair) GetMemo() string {
+func (m *Market) GetRequireKyc() bool {
 	if m != nil {
-		return m.Memo
+		return m.RequireKyc
+	}
+	return false
+}
+
+func (m *Market) GetPolicyId() string {
+	if m != nil {
+		return m.PolicyId
 	}
 	return ""
 }
 
-// Order is one resting / historical order.
-//
-// remaining_qty is the unfilled portion. When remaining_qty
-// reaches 0, status flips to FILLED. Cancelling an OPEN /
-// PARTIALLY_FILLED order refunds the remaining-leg escrow.
-//
-// BUY escrow accounting: locked_quote = price * remaining_qty
-//
-//	(drained at each fill; what's left at cancel is returned).
-//
-// SELL escrow accounting: locked_base = remaining_qty
-//
-//	(drained at each fill; what's left at cancel is returned).
+func (m *Market) GetOperator() string {
+	if m != nil {
+		return m.Operator
+	}
+	return ""
+}
+
+func (m *Market) GetBondDenom() string {
+	if m != nil {
+		return m.BondDenom
+	}
+	return ""
+}
+
+// Order is a resting limit order. For BUY, `escrowed` holds quote_denom; for
+// SELL it holds base_denom. `seq` is the global monotonic placement sequence
+// used for deterministic price-time priority.
 type Order struct {
-	Id           uint64      `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	PairId       uint64      `protobuf:"varint,2,opt,name=pair_id,json=pairId,proto3" json:"pair_id,omitempty"`
-	Owner        string      `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
-	Side         Side        `protobuf:"varint,4,opt,name=side,proto3,enum=energychain.market.v1.Side" json:"side,omitempty"`
-	Price        uint64      `protobuf:"varint,5,opt,name=price,proto3" json:"price,omitempty"`
-	Quantity     uint64      `protobuf:"varint,6,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	RemainingQty uint64      `protobuf:"varint,7,opt,name=remaining_qty,json=remainingQty,proto3" json:"remaining_qty,omitempty"`
-	Status       OrderStatus `protobuf:"varint,8,opt,name=status,proto3,enum=energychain.market.v1.OrderStatus" json:"status,omitempty"`
-	PlacedAt     int64       `protobuf:"varint,9,opt,name=placed_at,json=placedAt,proto3" json:"placed_at,omitempty"`
-	LastFilledAt int64       `protobuf:"varint,10,opt,name=last_filled_at,json=lastFilledAt,proto3" json:"last_filled_at,omitempty"`
-	FilledQty    uint64      `protobuf:"varint,11,opt,name=filled_qty,json=filledQty,proto3" json:"filled_qty,omitempty"`
-	// Total quote_denom paid (BUY) or received (SELL) across all
-	// fills. Used by clients to derive average fill price; the
-	// module does not compute the average internally to keep
-	// bookkeeping minimal.
-	CumulativeQuote uint64 `protobuf:"varint,12,opt,name=cumulative_quote,json=cumulativeQuote,proto3" json:"cumulative_quote,omitempty"`
-	Memo            string `protobuf:"bytes,13,opt,name=memo,proto3" json:"memo,omitempty"`
-	// escrow_locked is the exact amount of escrow currently held
-	// by the module pool for this order. Tracked separately from
-	// remaining_qty because, for BUY orders, recomputing the
-	// refund as QuoteForFill(price, remaining_qty) at cancel
-	// time can drift by floor-divide truncation residue versus
-	// the sum-of-fill drains; tracking it explicitly guarantees
-	// every cancel refunds exactly what was locked. Denominated
-	// in quote_denom for BUY, base_denom for SELL.
-	EscrowLocked uint64 `protobuf:"varint,14,opt,name=escrow_locked,json=escrowLocked,proto3" json:"escrow_locked,omitempty"`
+	Id        uint64      `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	MarketId  uint64      `protobuf:"varint,2,opt,name=market_id,json=marketId,proto3" json:"market_id,omitempty"`
+	Owner     string      `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
+	Side      OrderSide   `protobuf:"varint,4,opt,name=side,proto3,enum=energychain.market.v1.OrderSide" json:"side,omitempty"`
+	Price     uint64      `protobuf:"varint,5,opt,name=price,proto3" json:"price,omitempty"`
+	Quantity  uint64      `protobuf:"varint,6,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Filled    uint64      `protobuf:"varint,7,opt,name=filled,proto3" json:"filled,omitempty"`
+	Escrowed  uint64      `protobuf:"varint,8,opt,name=escrowed,proto3" json:"escrowed,omitempty"`
+	Status    OrderStatus `protobuf:"varint,9,opt,name=status,proto3,enum=energychain.market.v1.OrderStatus" json:"status,omitempty"`
+	CreatedAt int64       `protobuf:"varint,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Seq       uint64      `protobuf:"varint,11,opt,name=seq,proto3" json:"seq,omitempty"`
 }
 
 func (m *Order) Reset()         { *m = Order{} }
@@ -415,9 +334,9 @@ func (m *Order) GetId() uint64 {
 	return 0
 }
 
-func (m *Order) GetPairId() uint64 {
+func (m *Order) GetMarketId() uint64 {
 	if m != nil {
-		return m.PairId
+		return m.MarketId
 	}
 	return 0
 }
@@ -429,11 +348,11 @@ func (m *Order) GetOwner() string {
 	return ""
 }
 
-func (m *Order) GetSide() Side {
+func (m *Order) GetSide() OrderSide {
 	if m != nil {
 		return m.Side
 	}
-	return Side_SIDE_UNSPECIFIED
+	return OrderSide_ORDER_SIDE_UNSPECIFIED
 }
 
 func (m *Order) GetPrice() uint64 {
@@ -450,9 +369,16 @@ func (m *Order) GetQuantity() uint64 {
 	return 0
 }
 
-func (m *Order) GetRemainingQty() uint64 {
+func (m *Order) GetFilled() uint64 {
 	if m != nil {
-		return m.RemainingQty
+		return m.Filled
+	}
+	return 0
+}
+
+func (m *Order) GetEscrowed() uint64 {
+	if m != nil {
+		return m.Escrowed
 	}
 	return 0
 }
@@ -464,157 +390,41 @@ func (m *Order) GetStatus() OrderStatus {
 	return OrderStatus_ORDER_STATUS_UNSPECIFIED
 }
 
-func (m *Order) GetPlacedAt() int64 {
+func (m *Order) GetCreatedAt() int64 {
 	if m != nil {
-		return m.PlacedAt
+		return m.CreatedAt
 	}
 	return 0
 }
 
-func (m *Order) GetLastFilledAt() int64 {
+func (m *Order) GetSeq() uint64 {
 	if m != nil {
-		return m.LastFilledAt
-	}
-	return 0
-}
-
-func (m *Order) GetFilledQty() uint64 {
-	if m != nil {
-		return m.FilledQty
-	}
-	return 0
-}
-
-func (m *Order) GetCumulativeQuote() uint64 {
-	if m != nil {
-		return m.CumulativeQuote
-	}
-	return 0
-}
-
-func (m *Order) GetMemo() string {
-	if m != nil {
-		return m.Memo
-	}
-	return ""
-}
-
-func (m *Order) GetEscrowLocked() uint64 {
-	if m != nil {
-		return m.EscrowLocked
-	}
-	return 0
-}
-
-// Position tracks a user's net position per pair, in
-// base_denom units. Signed: positive = net long (more BUY-
-// fills than SELL-fills), negative = net short.
-type Position struct {
-	PairId uint64 `protobuf:"varint,1,opt,name=pair_id,json=pairId,proto3" json:"pair_id,omitempty"`
-	Owner  string `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
-	// signed_net = net_long - net_short, stored as a positive
-	// magnitude plus a side flag. Done this way to avoid signed
-	// integers in protobuf accounting.
-	Magnitude        uint64 `protobuf:"varint,3,opt,name=magnitude,proto3" json:"magnitude,omitempty"`
-	IsShort          bool   `protobuf:"varint,4,opt,name=is_short,json=isShort,proto3" json:"is_short,omitempty"`
-	CumulativeBought uint64 `protobuf:"varint,5,opt,name=cumulative_bought,json=cumulativeBought,proto3" json:"cumulative_bought,omitempty"`
-	CumulativeSold   uint64 `protobuf:"varint,6,opt,name=cumulative_sold,json=cumulativeSold,proto3" json:"cumulative_sold,omitempty"`
-}
-
-func (m *Position) Reset()         { *m = Position{} }
-func (m *Position) String() string { return proto.CompactTextString(m) }
-func (*Position) ProtoMessage()    {}
-func (*Position) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0df0c7f1431f1619, []int{2}
-}
-func (m *Position) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *Position) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_Position.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *Position) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Position.Merge(m, src)
-}
-func (m *Position) XXX_Size() int {
-	return m.Size()
-}
-func (m *Position) XXX_DiscardUnknown() {
-	xxx_messageInfo_Position.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Position proto.InternalMessageInfo
-
-func (m *Position) GetPairId() uint64 {
-	if m != nil {
-		return m.PairId
-	}
-	return 0
-}
-
-func (m *Position) GetOwner() string {
-	if m != nil {
-		return m.Owner
-	}
-	return ""
-}
-
-func (m *Position) GetMagnitude() uint64 {
-	if m != nil {
-		return m.Magnitude
-	}
-	return 0
-}
-
-func (m *Position) GetIsShort() bool {
-	if m != nil {
-		return m.IsShort
-	}
-	return false
-}
-
-func (m *Position) GetCumulativeBought() uint64 {
-	if m != nil {
-		return m.CumulativeBought
-	}
-	return 0
-}
-
-func (m *Position) GetCumulativeSold() uint64 {
-	if m != nil {
-		return m.CumulativeSold
+		return m.Seq
 	}
 	return 0
 }
 
 type Params struct {
-	MaxPairs                    uint32 `protobuf:"varint,1,opt,name=max_pairs,json=maxPairs,proto3" json:"max_pairs,omitempty"`
-	MaxOpenOrdersPerPair        uint32 `protobuf:"varint,2,opt,name=max_open_orders_per_pair,json=maxOpenOrdersPerPair,proto3" json:"max_open_orders_per_pair,omitempty"`
-	MaxOpenOrdersPerUserPerPair uint32 `protobuf:"varint,3,opt,name=max_open_orders_per_user_per_pair,json=maxOpenOrdersPerUserPerPair,proto3" json:"max_open_orders_per_user_per_pair,omitempty"`
-	MaxFillsPerMatch            uint32 `protobuf:"varint,4,opt,name=max_fills_per_match,json=maxFillsPerMatch,proto3" json:"max_fills_per_match,omitempty"`
-	// max_matches_per_clear bounds how much work a single FBA
-	// ClearBatch call can do; prevents block-gas exhaustion if a
-	// pair accumulated tens of thousands of orders. ClearBatch
-	// is idempotent for the remainder of the same batch — the
-	// caller can re-invoke until the queue clears.
-	MaxMatchesPerClear uint32 `protobuf:"varint,5,opt,name=max_matches_per_clear,json=maxMatchesPerClear,proto3" json:"max_matches_per_clear,omitempty"`
-	MemoMaxLen         uint32 `protobuf:"varint,6,opt,name=memo_max_len,json=memoMaxLen,proto3" json:"memo_max_len,omitempty"`
+	MaxMarkets             uint32 `protobuf:"varint,1,opt,name=max_markets,json=maxMarkets,proto3" json:"max_markets,omitempty"`
+	MaxOpenOrdersPerMarket uint32 `protobuf:"varint,2,opt,name=max_open_orders_per_market,json=maxOpenOrdersPerMarket,proto3" json:"max_open_orders_per_market,omitempty"`
+	MaxFillsPerBatch       uint32 `protobuf:"varint,3,opt,name=max_fills_per_batch,json=maxFillsPerBatch,proto3" json:"max_fills_per_batch,omitempty"`
+	MaxFeeBps              uint32 `protobuf:"varint,4,opt,name=max_fee_bps,json=maxFeeBps,proto3" json:"max_fee_bps,omitempty"`
+	MinBatchInterval       int64  `protobuf:"varint,5,opt,name=min_batch_interval,json=minBatchInterval,proto3" json:"min_batch_interval,omitempty"`
+	Paused                 bool   `protobuf:"varint,6,opt,name=paused,proto3" json:"paused,omitempty"`
+	// listing_bond is the amount of listing_bond_denom the market operator
+	// must escrow (MsgPostBond) before a newly created market opens for
+	// trading. It is refunded in full when governance delists the market.
+	// 0 disables the bond gate (markets activate immediately). Governance
+	// tunes it via MsgUpdateParams; changes only apply to future bonds.
+	ListingBond      cosmossdk_io_math.Int `protobuf:"bytes,7,opt,name=listing_bond,json=listingBond,proto3,customtype=cosmossdk.io/math.Int" json:"listing_bond"`
+	ListingBondDenom string                `protobuf:"bytes,8,opt,name=listing_bond_denom,json=listingBondDenom,proto3" json:"listing_bond_denom,omitempty"`
 }
 
 func (m *Params) Reset()         { *m = Params{} }
 func (m *Params) String() string { return proto.CompactTextString(m) }
 func (*Params) ProtoMessage()    {}
 func (*Params) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0df0c7f1431f1619, []int{3}
+	return fileDescriptor_0df0c7f1431f1619, []int{2}
 }
 func (m *Params) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -643,133 +453,131 @@ func (m *Params) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Params proto.InternalMessageInfo
 
-func (m *Params) GetMaxPairs() uint32 {
+func (m *Params) GetMaxMarkets() uint32 {
 	if m != nil {
-		return m.MaxPairs
+		return m.MaxMarkets
 	}
 	return 0
 }
 
-func (m *Params) GetMaxOpenOrdersPerPair() uint32 {
+func (m *Params) GetMaxOpenOrdersPerMarket() uint32 {
 	if m != nil {
-		return m.MaxOpenOrdersPerPair
+		return m.MaxOpenOrdersPerMarket
 	}
 	return 0
 }
 
-func (m *Params) GetMaxOpenOrdersPerUserPerPair() uint32 {
+func (m *Params) GetMaxFillsPerBatch() uint32 {
 	if m != nil {
-		return m.MaxOpenOrdersPerUserPerPair
+		return m.MaxFillsPerBatch
 	}
 	return 0
 }
 
-func (m *Params) GetMaxFillsPerMatch() uint32 {
+func (m *Params) GetMaxFeeBps() uint32 {
 	if m != nil {
-		return m.MaxFillsPerMatch
+		return m.MaxFeeBps
 	}
 	return 0
 }
 
-func (m *Params) GetMaxMatchesPerClear() uint32 {
+func (m *Params) GetMinBatchInterval() int64 {
 	if m != nil {
-		return m.MaxMatchesPerClear
+		return m.MinBatchInterval
 	}
 	return 0
 }
 
-func (m *Params) GetMemoMaxLen() uint32 {
+func (m *Params) GetPaused() bool {
 	if m != nil {
-		return m.MemoMaxLen
+		return m.Paused
 	}
-	return 0
+	return false
+}
+
+func (m *Params) GetListingBondDenom() string {
+	if m != nil {
+		return m.ListingBondDenom
+	}
+	return ""
 }
 
 func init() {
-	proto.RegisterEnum("energychain.market.v1.MatchMode", MatchMode_name, MatchMode_value)
-	proto.RegisterEnum("energychain.market.v1.PairStatus", PairStatus_name, PairStatus_value)
-	proto.RegisterEnum("energychain.market.v1.Side", Side_name, Side_value)
+	proto.RegisterEnum("energychain.market.v1.OrderSide", OrderSide_name, OrderSide_value)
 	proto.RegisterEnum("energychain.market.v1.OrderStatus", OrderStatus_name, OrderStatus_value)
-	proto.RegisterType((*Pair)(nil), "energychain.market.v1.Pair")
+	proto.RegisterEnum("energychain.market.v1.MarketStatus", MarketStatus_name, MarketStatus_value)
+	proto.RegisterType((*Market)(nil), "energychain.market.v1.Market")
 	proto.RegisterType((*Order)(nil), "energychain.market.v1.Order")
-	proto.RegisterType((*Position)(nil), "energychain.market.v1.Position")
 	proto.RegisterType((*Params)(nil), "energychain.market.v1.Params")
 }
 
 func init() { proto.RegisterFile("energychain/market/v1/types.proto", fileDescriptor_0df0c7f1431f1619) }
 
 var fileDescriptor_0df0c7f1431f1619 = []byte{
-	// 1059 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x55, 0xdf, 0x4e, 0xe3, 0xc6,
-	0x17, 0xc6, 0xc1, 0xcb, 0x26, 0x07, 0x92, 0x9f, 0x99, 0xe5, 0x8f, 0x17, 0x76, 0xf3, 0x0b, 0x69,
-	0xa5, 0x52, 0xaa, 0x12, 0xd1, 0xa2, 0x4a, 0xdb, 0x3b, 0x27, 0x04, 0x6d, 0xa4, 0x84, 0x64, 0xed,
-	0x64, 0x25, 0x7a, 0x33, 0x1a, 0xe2, 0x69, 0x18, 0xad, 0xed, 0x09, 0xf6, 0x84, 0x0d, 0x2f, 0xd0,
-	0xeb, 0x5e, 0xf7, 0x0d, 0xfa, 0x26, 0x7b, 0xc9, 0x65, 0x2f, 0x2b, 0x78, 0x91, 0x6a, 0x8e, 0x03,
-	0x98, 0x2c, 0xdc, 0x79, 0xbe, 0xef, 0x3b, 0x47, 0x67, 0xce, 0x77, 0xce, 0x18, 0x76, 0x78, 0xc4,
-	0xe3, 0xd1, 0xd5, 0xf0, 0x9c, 0x89, 0xa8, 0x16, 0xb2, 0xf8, 0x13, 0x57, 0xb5, 0xcb, 0x83, 0x9a,
-	0xba, 0x1a, 0xf3, 0x64, 0x7f, 0x1c, 0x4b, 0x25, 0xc9, 0x7a, 0x46, 0xb2, 0x9f, 0x4a, 0xf6, 0x2f,
-	0x0f, 0xb6, 0xd6, 0x46, 0x72, 0x24, 0x51, 0x51, 0xd3, 0x5f, 0xa9, 0xb8, 0xfa, 0x87, 0x09, 0x66,
-	0x8f, 0x89, 0x98, 0x94, 0x20, 0x27, 0x7c, 0xdb, 0xa8, 0x18, 0xbb, 0xa6, 0x9b, 0x13, 0x3e, 0x79,
-	0x0b, 0x70, 0xc6, 0x12, 0x4e, 0x7d, 0x1e, 0xc9, 0xd0, 0xce, 0x55, 0x8c, 0xdd, 0x82, 0x5b, 0xd0,
-	0xc8, 0x91, 0x06, 0xc8, 0xff, 0x61, 0xf9, 0x62, 0x22, 0xd5, 0x1d, 0xbf, 0x88, 0x3c, 0x20, 0x94,
-	0x0a, 0x0e, 0xc1, 0x0c, 0xa5, 0xcf, 0x6d, 0xb3, 0x62, 0xec, 0x96, 0x7e, 0xaa, 0xec, 0x3f, 0x59,
-	0xd4, 0x7e, 0x87, 0xa9, 0xe1, 0x79, 0x47, 0xfa, 0xdc, 0x45, 0x35, 0x79, 0x07, 0x4b, 0x89, 0x62,
-	0x6a, 0x92, 0xd8, 0x2f, 0x30, 0x6e, 0xe7, 0x99, 0x38, 0x5d, 0xb2, 0x87, 0x42, 0x77, 0x16, 0x40,
-	0x0e, 0x61, 0xe3, 0x4c, 0x67, 0xa3, 0x22, 0x52, 0x3c, 0xbe, 0x64, 0x01, 0x4d, 0xf8, 0x50, 0x46,
-	0x7e, 0x62, 0x2f, 0x55, 0x8c, 0xdd, 0x45, 0x77, 0x0d, 0xd9, 0xd6, 0x8c, 0xf4, 0x52, 0x8e, 0xec,
-	0x82, 0x95, 0x46, 0x0d, 0x03, 0x99, 0x70, 0xaa, 0x44, 0xc8, 0xed, 0x97, 0xa8, 0x2f, 0x21, 0xde,
-	0xd0, 0x70, 0x5f, 0x84, 0x9c, 0xd4, 0x60, 0x2d, 0xe2, 0x53, 0x45, 0x53, 0xb9, 0x1c, 0xf3, 0x28,
-	0x55, 0xe7, 0x51, 0xbd, 0xaa, 0xb9, 0xba, 0xa6, 0xba, 0x63, 0x1e, 0x61, 0x40, 0x15, 0x8a, 0xe3,
-	0x58, 0x0c, 0x39, 0x3d, 0x63, 0x91, 0x4f, 0x03, 0x69, 0x17, 0xb0, 0xb9, 0xcb, 0x08, 0xd6, 0x59,
-	0xe4, 0xb7, 0xe5, 0x9c, 0xe6, 0x5c, 0xd8, 0x30, 0xa7, 0x79, 0x2f, 0xc8, 0x01, 0xac, 0x87, 0x6c,
-	0x4a, 0xc7, 0x32, 0x11, 0x4a, 0xc8, 0x88, 0x8e, 0x79, 0x4c, 0x27, 0x09, 0x8f, 0xed, 0x65, 0xd4,
-	0x92, 0x90, 0x4d, 0x7b, 0x33, 0xae, 0xc7, 0xe3, 0x41, 0xc2, 0x63, 0x6d, 0xde, 0x30, 0xe6, 0x4c,
-	0x71, 0x9f, 0x32, 0x65, 0xaf, 0x60, 0x85, 0x85, 0x19, 0xe2, 0x28, 0x42, 0xc0, 0x0c, 0x79, 0x28,
-	0xed, 0x22, 0xba, 0x86, 0xdf, 0xd5, 0xeb, 0x45, 0x78, 0xd1, 0x8d, 0x7d, 0xfe, 0xf5, 0x24, 0x6c,
-	0xc2, 0xcb, 0x31, 0x13, 0x31, 0x15, 0x3e, 0x8e, 0x81, 0xe9, 0x2e, 0xe9, 0x63, 0xcb, 0x27, 0x6b,
-	0xf0, 0x42, 0x7e, 0x8e, 0x78, 0x3c, 0x73, 0x3f, 0x3d, 0x90, 0x1a, 0x98, 0x89, 0xb8, 0x37, 0x7e,
-	0xfb, 0x19, 0x03, 0x3d, 0xa1, 0x3d, 0xd7, 0x42, 0x9d, 0x06, 0xaf, 0x8b, 0x96, 0x9b, 0x6e, 0x7a,
-	0x20, 0x5b, 0x90, 0xbf, 0x98, 0xb0, 0x48, 0x09, 0x75, 0x85, 0x06, 0x9a, 0xee, 0xfd, 0x99, 0x7c,
-	0x03, 0xc5, 0x98, 0x87, 0x4c, 0x44, 0x22, 0x1a, 0xd1, 0x0b, 0x75, 0x85, 0x8e, 0x99, 0xee, 0xca,
-	0x3d, 0xf8, 0x41, 0x5d, 0x91, 0x5f, 0xef, 0x47, 0x29, 0x8f, 0x95, 0x54, 0x9f, 0xa9, 0x04, 0x2f,
-	0x3d, 0x37, 0x4b, 0xdb, 0x50, 0x18, 0x07, 0x6c, 0x98, 0xb6, 0xaf, 0x80, 0xed, 0xcb, 0xa7, 0x80,
-	0xa3, 0xc8, 0xb7, 0x50, 0x0a, 0x58, 0xa2, 0xe8, 0xef, 0x22, 0x08, 0x52, 0x05, 0xa0, 0x62, 0x45,
-	0xa3, 0xc7, 0x08, 0x3a, 0x4a, 0x5b, 0x30, 0x13, 0xe8, 0x02, 0x53, 0xab, 0x0a, 0x29, 0xa2, 0xab,
-	0xfb, 0x1e, 0xac, 0xe1, 0x24, 0x9c, 0x04, 0x4c, 0x89, 0x4b, 0x4e, 0x71, 0x6f, 0xd0, 0x27, 0xd3,
-	0xfd, 0xdf, 0x03, 0xfe, 0x41, 0xc3, 0x4f, 0xb9, 0xa5, 0x3b, 0xc0, 0x93, 0x61, 0x2c, 0x3f, 0xd3,
-	0x40, 0x0e, 0x3f, 0x71, 0xdf, 0x2e, 0xa5, 0x1d, 0x48, 0xc1, 0x36, 0x62, 0xd5, 0x2f, 0x06, 0xe4,
-	0xef, 0x26, 0x23, 0xeb, 0xa2, 0xf1, 0xb4, 0x8b, 0xb9, 0xac, 0x8b, 0x6f, 0xa0, 0x10, 0xb2, 0x51,
-	0x24, 0xd4, 0xc4, 0xe7, 0xe8, 0xaf, 0xe9, 0x3e, 0x00, 0xe4, 0x35, 0xe4, 0x45, 0x42, 0x93, 0x73,
-	0x19, 0x2b, 0xf4, 0x39, 0xef, 0xbe, 0x14, 0x89, 0xa7, 0x8f, 0xe4, 0x07, 0x58, 0xcd, 0x5c, 0xec,
-	0x4c, 0x4e, 0x46, 0xe7, 0x6a, 0xe6, 0x6c, 0xe6, 0xc6, 0x75, 0xc4, 0xc9, 0x77, 0x90, 0xb9, 0x2d,
-	0x4d, 0x64, 0xe0, 0xcf, 0xbc, 0x2e, 0x3d, 0xc0, 0x9e, 0x0c, 0xfc, 0xea, 0xdf, 0x39, 0x58, 0xea,
-	0xb1, 0x98, 0x85, 0xe8, 0x0d, 0xae, 0x03, 0x13, 0x71, 0x82, 0x57, 0x29, 0xba, 0x79, 0xbd, 0x02,
-	0xfa, 0x4c, 0x7e, 0x01, 0x5b, 0x93, 0xb8, 0x9d, 0x52, 0x1b, 0x9b, 0xe0, 0xba, 0x68, 0x31, 0xde,
-	0xaf, 0xe8, 0xae, 0x85, 0x6c, 0xaa, 0x57, 0x14, 0x6d, 0x4f, 0x7a, 0x3c, 0xc6, 0xd7, 0xef, 0x18,
-	0x76, 0x9e, 0x8a, 0xd3, 0x6b, 0xf6, 0x90, 0x60, 0x11, 0x13, 0x6c, 0xcf, 0x27, 0xd0, 0x1b, 0x77,
-	0x97, 0xe7, 0x47, 0x78, 0xa5, 0xf3, 0x68, 0x9f, 0xd3, 0x0c, 0xa1, 0x7e, 0x12, 0xb0, 0x47, 0x45,
-	0xd7, 0x0a, 0xd9, 0x54, 0xcf, 0x87, 0x0e, 0xc2, 0x87, 0xef, 0x6e, 0xb5, 0x51, 0xc4, 0xd3, 0x80,
-	0x61, 0xc0, 0x59, 0x8c, 0x0d, 0x2b, 0xe2, 0x6a, 0x77, 0x52, 0xae, 0xc7, 0xe3, 0x86, 0x66, 0x48,
-	0x05, 0x56, 0xf4, 0x04, 0x50, 0x1d, 0x17, 0xf0, 0x08, 0xfb, 0x55, 0x74, 0x41, 0x63, 0x1d, 0x36,
-	0x6d, 0xf3, 0x68, 0xef, 0x23, 0x14, 0xee, 0x9f, 0x55, 0xb2, 0x05, 0x1b, 0x1d, 0xa7, 0xdf, 0x78,
-	0x4f, 0x3b, 0xdd, 0xa3, 0x26, 0x1d, 0x9c, 0x78, 0xbd, 0x66, 0xa3, 0x75, 0xdc, 0x6a, 0x1e, 0x59,
-	0x0b, 0xe4, 0x35, 0xac, 0x67, 0xb8, 0x46, 0xf7, 0xa4, 0xdf, 0x3a, 0x19, 0x74, 0x07, 0x9e, 0x65,
-	0x10, 0x02, 0xa5, 0x0c, 0x75, 0x5c, 0x77, 0xac, 0xdc, 0xde, 0x29, 0xc0, 0xc3, 0xb3, 0x4b, 0xb6,
-	0x61, 0xb3, 0xe7, 0xb4, 0x5c, 0xea, 0xf5, 0x9d, 0xfe, 0xc0, 0x9b, 0xcb, 0xbc, 0x01, 0x24, 0x4b,
-	0x3a, 0x8d, 0x7e, 0xeb, 0x63, 0xd3, 0x32, 0xe6, 0xf1, 0x9e, 0x33, 0xf0, 0x9a, 0x47, 0x56, 0x6e,
-	0xef, 0x1d, 0x98, 0x5e, 0xfa, 0x14, 0x58, 0x5e, 0xeb, 0xab, 0x3a, 0x57, 0x20, 0x8f, 0x68, 0x7d,
-	0x70, 0x6a, 0x19, 0xa4, 0x08, 0x05, 0x3c, 0x79, 0xcd, 0x76, 0xdb, 0xca, 0xed, 0xfd, 0x65, 0xc0,
-	0x72, 0x66, 0x85, 0xc9, 0x1b, 0xb0, 0xbb, 0xee, 0x51, 0xf3, 0x99, 0xc2, 0xd6, 0x61, 0xf5, 0x11,
-	0xdb, 0xed, 0x35, 0x4f, 0x2c, 0x83, 0xec, 0xc0, 0xdb, 0x47, 0x70, 0xcf, 0x71, 0xfb, 0x2d, 0xa7,
-	0xdd, 0x3e, 0xa5, 0xc7, 0xad, 0x76, 0x5b, 0x97, 0x48, 0x36, 0xe1, 0xd5, 0x23, 0xc9, 0x8c, 0x58,
-	0xd4, 0x1d, 0x7e, 0x44, 0x34, 0x9c, 0x93, 0x46, 0x13, 0x39, 0xb3, 0x7e, 0xf8, 0xe5, 0xa6, 0x6c,
-	0x5c, 0xdf, 0x94, 0x8d, 0x7f, 0x6f, 0xca, 0xc6, 0x9f, 0xb7, 0xe5, 0x85, 0xeb, 0xdb, 0xf2, 0xc2,
-	0x3f, 0xb7, 0xe5, 0x85, 0xdf, 0xb6, 0xb2, 0xff, 0xf1, 0xe9, 0xdd, 0x9f, 0x1c, 0x7f, 0xe3, 0x67,
-	0x4b, 0xf8, 0x6b, 0xfe, 0xf9, 0xbf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x47, 0x4e, 0x64, 0x91, 0xec,
-	0x07, 0x00, 0x00,
+	// 954 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x55, 0xcf, 0x6e, 0xdb, 0xc6,
+	0x13, 0x36, 0x65, 0x59, 0x91, 0xc6, 0x96, 0xcd, 0xac, 0xff, 0x84, 0x3f, 0xe5, 0x67, 0x59, 0x75,
+	0xd1, 0x42, 0x30, 0x5a, 0x19, 0x69, 0x73, 0x4a, 0x81, 0xa2, 0x92, 0x45, 0x17, 0x44, 0x1c, 0x59,
+	0xa5, 0xe4, 0x02, 0xed, 0x85, 0x58, 0x93, 0x6b, 0x9b, 0xb0, 0xc8, 0xa5, 0xb8, 0x2b, 0x5b, 0x7a,
+	0x8b, 0xbe, 0x40, 0xcf, 0x7d, 0x95, 0x1c, 0x03, 0xf4, 0x52, 0xf4, 0x10, 0x14, 0xf6, 0xad, 0x4f,
+	0x51, 0xec, 0x2c, 0x2d, 0x50, 0x49, 0xda, 0xdc, 0xb4, 0xdf, 0xf7, 0xcd, 0xce, 0x70, 0xe6, 0x1b,
+	0x2d, 0x7c, 0xc2, 0x62, 0x96, 0x5e, 0xce, 0xfc, 0x2b, 0x1a, 0xc6, 0x87, 0x11, 0x4d, 0xaf, 0x99,
+	0x3c, 0xbc, 0x79, 0x76, 0x28, 0x67, 0x09, 0x13, 0xad, 0x24, 0xe5, 0x92, 0x93, 0xed, 0x9c, 0xa4,
+	0xa5, 0x25, 0xad, 0x9b, 0x67, 0xb5, 0xad, 0x4b, 0x7e, 0xc9, 0x51, 0x71, 0xa8, 0x7e, 0x69, 0xf1,
+	0xfe, 0x6f, 0x45, 0x28, 0xbd, 0x42, 0x0d, 0x59, 0x87, 0x42, 0x18, 0x58, 0x46, 0xc3, 0x68, 0x16,
+	0xdd, 0x42, 0x18, 0x90, 0x5d, 0x80, 0x73, 0x2a, 0x98, 0x17, 0xb0, 0x98, 0x47, 0x56, 0xa1, 0x61,
+	0x34, 0x2b, 0x6e, 0x45, 0x21, 0x5d, 0x05, 0x90, 0x3d, 0x58, 0x1d, 0x4f, 0xb8, 0x7c, 0xe0, 0x97,
+	0x91, 0x07, 0x84, 0xb4, 0xe0, 0x1b, 0x28, 0x09, 0x49, 0xe5, 0x44, 0x58, 0xc5, 0x86, 0xd1, 0x5c,
+	0xff, 0xea, 0xd3, 0xd6, 0x07, 0x0b, 0x6b, 0xe9, 0xf4, 0x03, 0x94, 0xba, 0x59, 0x08, 0x79, 0x02,
+	0x8f, 0x2e, 0x18, 0xf3, 0xce, 0x13, 0x61, 0xad, 0x34, 0x8c, 0x66, 0xd5, 0x2d, 0x5d, 0x30, 0xd6,
+	0x49, 0x04, 0x69, 0xc0, 0x5a, 0x14, 0xc6, 0x1e, 0x56, 0x36, 0x96, 0x33, 0xab, 0x84, 0xf5, 0x42,
+	0x14, 0xc6, 0x1d, 0x2a, 0xd8, 0x0f, 0x72, 0x46, 0x3e, 0x83, 0xf5, 0x73, 0x2a, 0xfd, 0x2b, 0x2f,
+	0x8c, 0x25, 0x4b, 0x6f, 0xe8, 0xc8, 0x7a, 0xd4, 0x30, 0x9a, 0xcb, 0x6e, 0x15, 0x51, 0x27, 0x03,
+	0xc9, 0xe7, 0xb0, 0x31, 0xa2, 0x42, 0x7a, 0x5a, 0x2b, 0xc3, 0x88, 0x59, 0x65, 0xad, 0x53, 0x70,
+	0x47, 0xa1, 0xc3, 0x30, 0x62, 0xa4, 0x05, 0x9b, 0xa8, 0xf3, 0x47, 0x8c, 0xa6, 0x61, 0x7c, 0xe9,
+	0x25, 0x69, 0xe8, 0x33, 0xab, 0x82, 0x79, 0x1f, 0x2b, 0xea, 0x28, 0x63, 0xfa, 0x8a, 0x50, 0x6d,
+	0xf3, 0x53, 0x46, 0x25, 0x0b, 0x3c, 0x2a, 0x2d, 0xc0, 0x2b, 0x2b, 0x19, 0xd2, 0x96, 0xaa, 0x6d,
+	0x29, 0x1b, 0x4f, 0xc2, 0x94, 0x79, 0xd7, 0x33, 0xdf, 0x5a, 0x6d, 0x18, 0xcd, 0xb2, 0x0b, 0x19,
+	0xf4, 0x72, 0xe6, 0x93, 0xa7, 0x50, 0x49, 0xf8, 0x28, 0xf4, 0x67, 0x5e, 0x18, 0x58, 0x6b, 0xd8,
+	0xd5, 0xb2, 0x06, 0x9c, 0x80, 0xd4, 0xa0, 0xcc, 0x13, 0x96, 0x52, 0xc9, 0x53, 0xab, 0xaa, 0xb9,
+	0x87, 0x33, 0xf9, 0x16, 0x56, 0xcf, 0x79, 0x1c, 0x78, 0x34, 0xe2, 0x93, 0x58, 0x5a, 0xeb, 0x8a,
+	0xee, 0xec, 0xbe, 0x7e, 0xbb, 0xb7, 0xf4, 0xe7, 0xdb, 0xbd, 0x6d, 0x9f, 0x8b, 0x88, 0x0b, 0x11,
+	0x5c, 0xb7, 0x42, 0x7e, 0x18, 0x51, 0x79, 0xd5, 0x72, 0x62, 0xe9, 0x82, 0x8a, 0x68, 0x63, 0x00,
+	0xce, 0x5b, 0xc5, 0xeb, 0x79, 0x6e, 0x64, 0xf3, 0xe6, 0x71, 0x80, 0xe3, 0xdc, 0xff, 0xbd, 0x00,
+	0x2b, 0xa7, 0x69, 0xc0, 0xd2, 0xf7, 0x8c, 0xf2, 0x14, 0x2a, 0x7a, 0x9a, 0xaa, 0xe2, 0x02, 0xc2,
+	0x65, 0x0d, 0x38, 0x01, 0xd9, 0x82, 0x15, 0x7e, 0x1b, 0xb3, 0x34, 0x33, 0x88, 0x3e, 0x90, 0xe7,
+	0x50, 0x14, 0x61, 0xc0, 0x32, 0x67, 0x34, 0xfe, 0xc5, 0x19, 0x98, 0x6e, 0x10, 0x06, 0xcc, 0x45,
+	0xb5, 0xba, 0x4b, 0x37, 0x7f, 0x05, 0x93, 0xe8, 0x83, 0xea, 0xc9, 0x78, 0x42, 0x63, 0x19, 0xce,
+	0xdd, 0x30, 0x3f, 0x93, 0x1d, 0x28, 0x5d, 0x84, 0xa3, 0x11, 0x0b, 0xd0, 0x03, 0x45, 0x37, 0x3b,
+	0xa9, 0x18, 0x26, 0xfc, 0x94, 0xdf, 0xb2, 0x00, 0xa7, 0x5e, 0x74, 0xe7, 0x67, 0xf2, 0x62, 0xee,
+	0xdb, 0x0a, 0x56, 0xb7, 0xff, 0x9f, 0xd5, 0x2d, 0xda, 0xf6, 0x23, 0xc3, 0x37, 0x61, 0x59, 0xb0,
+	0x31, 0x0e, 0xbd, 0xe8, 0xaa, 0x9f, 0xfb, 0x7f, 0x17, 0xa0, 0xd4, 0xa7, 0x29, 0x8d, 0x84, 0x72,
+	0x46, 0x44, 0xa7, 0x9e, 0x4e, 0x20, 0xb0, 0xbf, 0x55, 0x17, 0x22, 0x3a, 0xd5, 0x0b, 0x22, 0xc8,
+	0x0b, 0xa8, 0x29, 0x01, 0x4f, 0x58, 0xec, 0x71, 0x95, 0x5c, 0x78, 0x09, 0x4b, 0xb3, 0x00, 0x6c,
+	0x7c, 0xd5, 0xdd, 0x89, 0xe8, 0xf4, 0x34, 0x61, 0x31, 0x16, 0x27, 0xfa, 0x2c, 0xcd, 0x96, 0xfb,
+	0x4b, 0xd8, 0x54, 0xb1, 0xea, 0xf3, 0x75, 0x14, 0xda, 0x1e, 0x87, 0x52, 0x75, 0xcd, 0x88, 0x4e,
+	0x8f, 0x15, 0xd3, 0x67, 0x29, 0x1a, 0x9f, 0xd4, 0x75, 0x2d, 0x0f, 0x2b, 0x58, 0x44, 0x59, 0x45,
+	0xc9, 0xf4, 0x16, 0x7e, 0x01, 0x44, 0x6f, 0xe1, 0xc2, 0x9e, 0xad, 0xe0, 0xf7, 0x9a, 0xb8, 0x8b,
+	0xf9, 0x55, 0xdb, 0x81, 0x52, 0x42, 0x27, 0x82, 0x05, 0x38, 0x9f, 0xb2, 0x9b, 0x9d, 0xc8, 0x77,
+	0xb0, 0x36, 0x0a, 0x85, 0x54, 0x4b, 0xa5, 0x7c, 0x86, 0x33, 0xfa, 0xa8, 0x65, 0x57, 0xb3, 0x90,
+	0x0e, 0x8f, 0x03, 0x55, 0x47, 0xfe, 0x86, 0xcc, 0xbb, 0x65, 0xb4, 0x9a, 0x99, 0x13, 0xa2, 0x85,
+	0x0f, 0xfa, 0x50, 0x99, 0x5b, 0x8a, 0xd4, 0x60, 0xe7, 0xd4, 0xed, 0xda, 0xae, 0x37, 0x70, 0xba,
+	0xb6, 0x77, 0xd6, 0x1b, 0xf4, 0xed, 0x23, 0xe7, 0xd8, 0xb1, 0xbb, 0xe6, 0x12, 0x21, 0xb0, 0x9e,
+	0xe3, 0x3a, 0x67, 0x3f, 0x99, 0x06, 0xd9, 0x84, 0x8d, 0x1c, 0x36, 0xb0, 0x4f, 0x4e, 0xcc, 0xc2,
+	0xc1, 0x2d, 0xac, 0xe6, 0x6c, 0x40, 0xfe, 0x0f, 0x56, 0xa6, 0x19, 0xb6, 0x87, 0x67, 0x83, 0x77,
+	0x6e, 0xdd, 0x86, 0xc7, 0x0b, 0xec, 0x69, 0xdf, 0xee, 0x99, 0x06, 0x79, 0x02, 0x9b, 0x0b, 0xf0,
+	0xb1, 0x73, 0x72, 0x62, 0x77, 0xcd, 0x42, 0xae, 0x42, 0x4d, 0x1c, 0xb5, 0x7b, 0x47, 0x36, 0x72,
+	0xcb, 0x07, 0xbf, 0x1a, 0xb0, 0x96, 0xff, 0xe3, 0x24, 0xbb, 0xf0, 0xbf, 0x57, 0x6d, 0xf7, 0xa5,
+	0x3d, 0xfc, 0x70, 0x6e, 0x0b, 0xb6, 0x16, 0xe9, 0xf6, 0xd1, 0xd0, 0xf9, 0xd1, 0x36, 0x8d, 0xf7,
+	0x99, 0x7e, 0xfb, 0x6c, 0x80, 0xf9, 0xeb, 0x50, 0x7b, 0x87, 0xb1, 0x7b, 0x5d, 0xa7, 0xf7, 0xbd,
+	0xd7, 0x39, 0xed, 0x75, 0xcd, 0x65, 0x55, 0xdf, 0x22, 0xdf, 0xb5, 0x4f, 0x9c, 0xc1, 0xd0, 0xee,
+	0x9a, 0xc5, 0xce, 0xf3, 0xd7, 0x77, 0x75, 0xe3, 0xcd, 0x5d, 0xdd, 0xf8, 0xeb, 0xae, 0x6e, 0xfc,
+	0x72, 0x5f, 0x5f, 0x7a, 0x73, 0x5f, 0x5f, 0xfa, 0xe3, 0xbe, 0xbe, 0xf4, 0x73, 0x2d, 0xff, 0x82,
+	0x4d, 0x1f, 0xde, 0x30, 0x7c, 0xc0, 0xce, 0x4b, 0xf8, 0x28, 0x7d, 0xfd, 0x4f, 0x00, 0x00, 0x00,
+	0xff, 0xff, 0x9e, 0x96, 0xca, 0x4d, 0xe6, 0x06, 0x00, 0x00,
 }
 
-func (m *Pair) Marshal() (dAtA []byte, err error) {
+func (m *Market) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -779,65 +587,89 @@ func (m *Pair) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Pair) MarshalTo(dAtA []byte) (int, error) {
+func (m *Market) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *Pair) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *Market) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Memo) > 0 {
-		i -= len(m.Memo)
-		copy(dAtA[i:], m.Memo)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.Memo)))
+	if len(m.BondDenom) > 0 {
+		i -= len(m.BondDenom)
+		copy(dAtA[i:], m.BondDenom)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.BondDenom)))
+		i--
+		dAtA[i] = 0x7a
+	}
+	{
+		size := m.BondAmount.Size()
+		i -= size
+		if _, err := m.BondAmount.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTypes(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x72
+	if len(m.Operator) > 0 {
+		i -= len(m.Operator)
+		copy(dAtA[i:], m.Operator)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.Operator)))
 		i--
 		dAtA[i] = 0x6a
+	}
+	if len(m.PolicyId) > 0 {
+		i -= len(m.PolicyId)
+		copy(dAtA[i:], m.PolicyId)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.PolicyId)))
+		i--
+		dAtA[i] = 0x62
+	}
+	if m.RequireKyc {
+		i--
+		if m.RequireKyc {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x58
 	}
 	if m.CreatedAt != 0 {
 		i = encodeVarintTypes(dAtA, i, uint64(m.CreatedAt))
 		i--
-		dAtA[i] = 0x60
-	}
-	if m.MaxPositionPerUser != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.MaxPositionPerUser))
-		i--
-		dAtA[i] = 0x58
-	}
-	if m.PriceBandHi != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.PriceBandHi))
-		i--
 		dAtA[i] = 0x50
 	}
-	if m.PriceBandLo != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.PriceBandLo))
+	if m.LastClearingPrice != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.LastClearingPrice))
 		i--
 		dAtA[i] = 0x48
 	}
-	if m.NextBatchOpenTime != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.NextBatchOpenTime))
+	if m.LastBatchTime != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.LastBatchTime))
 		i--
 		dAtA[i] = 0x40
 	}
-	if m.BatchCloseTime != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.BatchCloseTime))
+	if m.BatchInterval != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.BatchInterval))
 		i--
 		dAtA[i] = 0x38
 	}
-	if m.BatchIntervalSeconds != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.BatchIntervalSeconds))
+	if m.MinBaseQty != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.MinBaseQty))
 		i--
 		dAtA[i] = 0x30
 	}
-	if m.Status != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.Status))
+	if m.FeeBps != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.FeeBps))
 		i--
 		dAtA[i] = 0x28
 	}
-	if m.Mode != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.Mode))
+	if m.Status != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.Status))
 		i--
 		dAtA[i] = 0x20
 	}
@@ -883,45 +715,28 @@ func (m *Order) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.EscrowLocked != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.EscrowLocked))
-		i--
-		dAtA[i] = 0x70
-	}
-	if len(m.Memo) > 0 {
-		i -= len(m.Memo)
-		copy(dAtA[i:], m.Memo)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.Memo)))
-		i--
-		dAtA[i] = 0x6a
-	}
-	if m.CumulativeQuote != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.CumulativeQuote))
-		i--
-		dAtA[i] = 0x60
-	}
-	if m.FilledQty != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.FilledQty))
+	if m.Seq != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.Seq))
 		i--
 		dAtA[i] = 0x58
 	}
-	if m.LastFilledAt != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.LastFilledAt))
+	if m.CreatedAt != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.CreatedAt))
 		i--
 		dAtA[i] = 0x50
-	}
-	if m.PlacedAt != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.PlacedAt))
-		i--
-		dAtA[i] = 0x48
 	}
 	if m.Status != 0 {
 		i = encodeVarintTypes(dAtA, i, uint64(m.Status))
 		i--
+		dAtA[i] = 0x48
+	}
+	if m.Escrowed != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.Escrowed))
+		i--
 		dAtA[i] = 0x40
 	}
-	if m.RemainingQty != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.RemainingQty))
+	if m.Filled != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.Filled))
 		i--
 		dAtA[i] = 0x38
 	}
@@ -947,73 +762,13 @@ func (m *Order) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.PairId != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.PairId))
+	if m.MarketId != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.MarketId))
 		i--
 		dAtA[i] = 0x10
 	}
 	if m.Id != 0 {
 		i = encodeVarintTypes(dAtA, i, uint64(m.Id))
-		i--
-		dAtA[i] = 0x8
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *Position) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *Position) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *Position) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.CumulativeSold != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.CumulativeSold))
-		i--
-		dAtA[i] = 0x30
-	}
-	if m.CumulativeBought != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.CumulativeBought))
-		i--
-		dAtA[i] = 0x28
-	}
-	if m.IsShort {
-		i--
-		if m.IsShort {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i--
-		dAtA[i] = 0x20
-	}
-	if m.Magnitude != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.Magnitude))
-		i--
-		dAtA[i] = 0x18
-	}
-	if len(m.Owner) > 0 {
-		i -= len(m.Owner)
-		copy(dAtA[i:], m.Owner)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.Owner)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if m.PairId != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.PairId))
 		i--
 		dAtA[i] = 0x8
 	}
@@ -1040,33 +795,55 @@ func (m *Params) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.MemoMaxLen != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.MemoMaxLen))
+	if len(m.ListingBondDenom) > 0 {
+		i -= len(m.ListingBondDenom)
+		copy(dAtA[i:], m.ListingBondDenom)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.ListingBondDenom)))
+		i--
+		dAtA[i] = 0x42
+	}
+	{
+		size := m.ListingBond.Size()
+		i -= size
+		if _, err := m.ListingBond.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTypes(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x3a
+	if m.Paused {
+		i--
+		if m.Paused {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
 		i--
 		dAtA[i] = 0x30
 	}
-	if m.MaxMatchesPerClear != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.MaxMatchesPerClear))
+	if m.MinBatchInterval != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.MinBatchInterval))
 		i--
 		dAtA[i] = 0x28
 	}
-	if m.MaxFillsPerMatch != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.MaxFillsPerMatch))
+	if m.MaxFeeBps != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.MaxFeeBps))
 		i--
 		dAtA[i] = 0x20
 	}
-	if m.MaxOpenOrdersPerUserPerPair != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.MaxOpenOrdersPerUserPerPair))
+	if m.MaxFillsPerBatch != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.MaxFillsPerBatch))
 		i--
 		dAtA[i] = 0x18
 	}
-	if m.MaxOpenOrdersPerPair != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.MaxOpenOrdersPerPair))
+	if m.MaxOpenOrdersPerMarket != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.MaxOpenOrdersPerMarket))
 		i--
 		dAtA[i] = 0x10
 	}
-	if m.MaxPairs != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.MaxPairs))
+	if m.MaxMarkets != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.MaxMarkets))
 		i--
 		dAtA[i] = 0x8
 	}
@@ -1084,7 +861,7 @@ func encodeVarintTypes(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *Pair) Size() (n int) {
+func (m *Market) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1101,34 +878,41 @@ func (m *Pair) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
-	if m.Mode != 0 {
-		n += 1 + sovTypes(uint64(m.Mode))
-	}
 	if m.Status != 0 {
 		n += 1 + sovTypes(uint64(m.Status))
 	}
-	if m.BatchIntervalSeconds != 0 {
-		n += 1 + sovTypes(uint64(m.BatchIntervalSeconds))
+	if m.FeeBps != 0 {
+		n += 1 + sovTypes(uint64(m.FeeBps))
 	}
-	if m.BatchCloseTime != 0 {
-		n += 1 + sovTypes(uint64(m.BatchCloseTime))
+	if m.MinBaseQty != 0 {
+		n += 1 + sovTypes(uint64(m.MinBaseQty))
 	}
-	if m.NextBatchOpenTime != 0 {
-		n += 1 + sovTypes(uint64(m.NextBatchOpenTime))
+	if m.BatchInterval != 0 {
+		n += 1 + sovTypes(uint64(m.BatchInterval))
 	}
-	if m.PriceBandLo != 0 {
-		n += 1 + sovTypes(uint64(m.PriceBandLo))
+	if m.LastBatchTime != 0 {
+		n += 1 + sovTypes(uint64(m.LastBatchTime))
 	}
-	if m.PriceBandHi != 0 {
-		n += 1 + sovTypes(uint64(m.PriceBandHi))
-	}
-	if m.MaxPositionPerUser != 0 {
-		n += 1 + sovTypes(uint64(m.MaxPositionPerUser))
+	if m.LastClearingPrice != 0 {
+		n += 1 + sovTypes(uint64(m.LastClearingPrice))
 	}
 	if m.CreatedAt != 0 {
 		n += 1 + sovTypes(uint64(m.CreatedAt))
 	}
-	l = len(m.Memo)
+	if m.RequireKyc {
+		n += 2
+	}
+	l = len(m.PolicyId)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	l = len(m.Operator)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	l = m.BondAmount.Size()
+	n += 1 + l + sovTypes(uint64(l))
+	l = len(m.BondDenom)
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
@@ -1144,8 +928,8 @@ func (m *Order) Size() (n int) {
 	if m.Id != 0 {
 		n += 1 + sovTypes(uint64(m.Id))
 	}
-	if m.PairId != 0 {
-		n += 1 + sovTypes(uint64(m.PairId))
+	if m.MarketId != 0 {
+		n += 1 + sovTypes(uint64(m.MarketId))
 	}
 	l = len(m.Owner)
 	if l > 0 {
@@ -1160,58 +944,20 @@ func (m *Order) Size() (n int) {
 	if m.Quantity != 0 {
 		n += 1 + sovTypes(uint64(m.Quantity))
 	}
-	if m.RemainingQty != 0 {
-		n += 1 + sovTypes(uint64(m.RemainingQty))
+	if m.Filled != 0 {
+		n += 1 + sovTypes(uint64(m.Filled))
+	}
+	if m.Escrowed != 0 {
+		n += 1 + sovTypes(uint64(m.Escrowed))
 	}
 	if m.Status != 0 {
 		n += 1 + sovTypes(uint64(m.Status))
 	}
-	if m.PlacedAt != 0 {
-		n += 1 + sovTypes(uint64(m.PlacedAt))
+	if m.CreatedAt != 0 {
+		n += 1 + sovTypes(uint64(m.CreatedAt))
 	}
-	if m.LastFilledAt != 0 {
-		n += 1 + sovTypes(uint64(m.LastFilledAt))
-	}
-	if m.FilledQty != 0 {
-		n += 1 + sovTypes(uint64(m.FilledQty))
-	}
-	if m.CumulativeQuote != 0 {
-		n += 1 + sovTypes(uint64(m.CumulativeQuote))
-	}
-	l = len(m.Memo)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.EscrowLocked != 0 {
-		n += 1 + sovTypes(uint64(m.EscrowLocked))
-	}
-	return n
-}
-
-func (m *Position) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.PairId != 0 {
-		n += 1 + sovTypes(uint64(m.PairId))
-	}
-	l = len(m.Owner)
-	if l > 0 {
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.Magnitude != 0 {
-		n += 1 + sovTypes(uint64(m.Magnitude))
-	}
-	if m.IsShort {
-		n += 2
-	}
-	if m.CumulativeBought != 0 {
-		n += 1 + sovTypes(uint64(m.CumulativeBought))
-	}
-	if m.CumulativeSold != 0 {
-		n += 1 + sovTypes(uint64(m.CumulativeSold))
+	if m.Seq != 0 {
+		n += 1 + sovTypes(uint64(m.Seq))
 	}
 	return n
 }
@@ -1222,23 +968,29 @@ func (m *Params) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.MaxPairs != 0 {
-		n += 1 + sovTypes(uint64(m.MaxPairs))
+	if m.MaxMarkets != 0 {
+		n += 1 + sovTypes(uint64(m.MaxMarkets))
 	}
-	if m.MaxOpenOrdersPerPair != 0 {
-		n += 1 + sovTypes(uint64(m.MaxOpenOrdersPerPair))
+	if m.MaxOpenOrdersPerMarket != 0 {
+		n += 1 + sovTypes(uint64(m.MaxOpenOrdersPerMarket))
 	}
-	if m.MaxOpenOrdersPerUserPerPair != 0 {
-		n += 1 + sovTypes(uint64(m.MaxOpenOrdersPerUserPerPair))
+	if m.MaxFillsPerBatch != 0 {
+		n += 1 + sovTypes(uint64(m.MaxFillsPerBatch))
 	}
-	if m.MaxFillsPerMatch != 0 {
-		n += 1 + sovTypes(uint64(m.MaxFillsPerMatch))
+	if m.MaxFeeBps != 0 {
+		n += 1 + sovTypes(uint64(m.MaxFeeBps))
 	}
-	if m.MaxMatchesPerClear != 0 {
-		n += 1 + sovTypes(uint64(m.MaxMatchesPerClear))
+	if m.MinBatchInterval != 0 {
+		n += 1 + sovTypes(uint64(m.MinBatchInterval))
 	}
-	if m.MemoMaxLen != 0 {
-		n += 1 + sovTypes(uint64(m.MemoMaxLen))
+	if m.Paused {
+		n += 2
+	}
+	l = m.ListingBond.Size()
+	n += 1 + l + sovTypes(uint64(l))
+	l = len(m.ListingBondDenom)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
 	}
 	return n
 }
@@ -1249,7 +1001,7 @@ func sovTypes(x uint64) (n int) {
 func sozTypes(x uint64) (n int) {
 	return sovTypes(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *Pair) Unmarshal(dAtA []byte) error {
+func (m *Market) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1272,10 +1024,10 @@ func (m *Pair) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Pair: wiretype end group for non-group")
+			return fmt.Errorf("proto: Market: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Pair: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Market: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1363,25 +1115,6 @@ func (m *Pair) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 4:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Mode", wireType)
-			}
-			m.Mode = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Mode |= MatchMode(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 5:
-			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
 			}
 			m.Status = 0
@@ -1394,16 +1127,35 @@ func (m *Pair) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Status |= PairStatus(b&0x7F) << shift
+				m.Status |= MarketStatus(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FeeBps", wireType)
+			}
+			m.FeeBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.FeeBps |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 6:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BatchIntervalSeconds", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MinBaseQty", wireType)
 			}
-			m.BatchIntervalSeconds = 0
+			m.MinBaseQty = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -1413,16 +1165,16 @@ func (m *Pair) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.BatchIntervalSeconds |= int64(b&0x7F) << shift
+				m.MinBaseQty |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 7:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BatchCloseTime", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field BatchInterval", wireType)
 			}
-			m.BatchCloseTime = 0
+			m.BatchInterval = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -1432,16 +1184,16 @@ func (m *Pair) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.BatchCloseTime |= int64(b&0x7F) << shift
+				m.BatchInterval |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 8:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field NextBatchOpenTime", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field LastBatchTime", wireType)
 			}
-			m.NextBatchOpenTime = 0
+			m.LastBatchTime = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -1451,16 +1203,16 @@ func (m *Pair) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.NextBatchOpenTime |= int64(b&0x7F) << shift
+				m.LastBatchTime |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 9:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PriceBandLo", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field LastClearingPrice", wireType)
 			}
-			m.PriceBandLo = 0
+			m.LastClearingPrice = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -1470,50 +1222,12 @@ func (m *Pair) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.PriceBandLo |= uint64(b&0x7F) << shift
+				m.LastClearingPrice |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 10:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PriceBandHi", wireType)
-			}
-			m.PriceBandHi = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.PriceBandHi |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 11:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MaxPositionPerUser", wireType)
-			}
-			m.MaxPositionPerUser = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.MaxPositionPerUser |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 12:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field CreatedAt", wireType)
 			}
@@ -1532,9 +1246,29 @@ func (m *Pair) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 13:
+		case 11:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RequireKyc", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.RequireKyc = bool(v != 0)
+		case 12:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Memo", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field PolicyId", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -1562,7 +1296,105 @@ func (m *Pair) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Memo = string(dAtA[iNdEx:postIndex])
+			m.PolicyId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 13:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Operator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Operator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 14:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BondAmount", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.BondAmount.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BondDenom", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.BondDenom = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -1635,9 +1467,9 @@ func (m *Order) Unmarshal(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PairId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MarketId", wireType)
 			}
-			m.PairId = 0
+			m.MarketId = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -1647,7 +1479,7 @@ func (m *Order) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.PairId |= uint64(b&0x7F) << shift
+				m.MarketId |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1698,7 +1530,7 @@ func (m *Order) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Side |= Side(b&0x7F) << shift
+				m.Side |= OrderSide(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1743,9 +1575,9 @@ func (m *Order) Unmarshal(dAtA []byte) error {
 			}
 		case 7:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RemainingQty", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Filled", wireType)
 			}
-			m.RemainingQty = 0
+			m.Filled = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -1755,12 +1587,31 @@ func (m *Order) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.RemainingQty |= uint64(b&0x7F) << shift
+				m.Filled |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Escrowed", wireType)
+			}
+			m.Escrowed = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Escrowed |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
 			}
@@ -1779,30 +1630,11 @@ func (m *Order) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 9:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PlacedAt", wireType)
-			}
-			m.PlacedAt = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.PlacedAt |= int64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		case 10:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LastFilledAt", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field CreatedAt", wireType)
 			}
-			m.LastFilledAt = 0
+			m.CreatedAt = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -1812,16 +1644,16 @@ func (m *Order) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.LastFilledAt |= int64(b&0x7F) << shift
+				m.CreatedAt |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 11:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field FilledQty", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Seq", wireType)
 			}
-			m.FilledQty = 0
+			m.Seq = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -1831,255 +1663,7 @@ func (m *Order) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.FilledQty |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 12:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CumulativeQuote", wireType)
-			}
-			m.CumulativeQuote = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.CumulativeQuote |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 13:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Memo", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Memo = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 14:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EscrowLocked", wireType)
-			}
-			m.EscrowLocked = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.EscrowLocked |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipTypes(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *Position) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowTypes
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: Position: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Position: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PairId", wireType)
-			}
-			m.PairId = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.PairId |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Owner", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Owner = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Magnitude", wireType)
-			}
-			m.Magnitude = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Magnitude |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field IsShort", wireType)
-			}
-			var v int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.IsShort = bool(v != 0)
-		case 5:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CumulativeBought", wireType)
-			}
-			m.CumulativeBought = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.CumulativeBought |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 6:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CumulativeSold", wireType)
-			}
-			m.CumulativeSold = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.CumulativeSold |= uint64(b&0x7F) << shift
+				m.Seq |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -2136,9 +1720,9 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MaxPairs", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxMarkets", wireType)
 			}
-			m.MaxPairs = 0
+			m.MaxMarkets = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -2148,16 +1732,16 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.MaxPairs |= uint32(b&0x7F) << shift
+				m.MaxMarkets |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MaxOpenOrdersPerPair", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxOpenOrdersPerMarket", wireType)
 			}
-			m.MaxOpenOrdersPerPair = 0
+			m.MaxOpenOrdersPerMarket = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -2167,16 +1751,16 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.MaxOpenOrdersPerPair |= uint32(b&0x7F) << shift
+				m.MaxOpenOrdersPerMarket |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 3:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MaxOpenOrdersPerUserPerPair", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxFillsPerBatch", wireType)
 			}
-			m.MaxOpenOrdersPerUserPerPair = 0
+			m.MaxFillsPerBatch = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -2186,16 +1770,16 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.MaxOpenOrdersPerUserPerPair |= uint32(b&0x7F) << shift
+				m.MaxFillsPerBatch |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 4:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MaxFillsPerMatch", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxFeeBps", wireType)
 			}
-			m.MaxFillsPerMatch = 0
+			m.MaxFeeBps = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -2205,16 +1789,16 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.MaxFillsPerMatch |= uint32(b&0x7F) << shift
+				m.MaxFeeBps |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 5:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MaxMatchesPerClear", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MinBatchInterval", wireType)
 			}
-			m.MaxMatchesPerClear = 0
+			m.MinBatchInterval = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -2224,16 +1808,16 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.MaxMatchesPerClear |= uint32(b&0x7F) << shift
+				m.MinBatchInterval |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
 		case 6:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MemoMaxLen", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Paused", wireType)
 			}
-			m.MemoMaxLen = 0
+			var v int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -2243,11 +1827,78 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.MemoMaxLen |= uint32(b&0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			m.Paused = bool(v != 0)
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ListingBond", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.ListingBond.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ListingBondDenom", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ListingBondDenom = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTypes(dAtA[iNdEx:])

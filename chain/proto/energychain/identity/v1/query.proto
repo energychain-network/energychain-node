@@ -1,0 +1,89 @@
+syntax = "proto3";
+package energychain.identity.v1;
+
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "gogoproto/gogo.proto";
+
+import "energychain/identity/v1/types.proto";
+
+option go_package = "energychain/x/identity/types";
+
+service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+
+  rpc Account(QueryAccountRequest) returns (QueryAccountResponse);
+  rpc Accounts(QueryAccountsRequest) returns (QueryAccountsResponse);
+
+  rpc Registrars(QueryRegistrarsRequest) returns (QueryRegistrarsResponse);
+
+  rpc Sanctioned(QuerySanctionedRequest) returns (QuerySanctionedResponse);
+  rpc Sanctions(QuerySanctionsRequest) returns (QuerySanctionsResponse);
+
+  rpc Policy(QueryPolicyRequest) returns (QueryPolicyResponse);
+  rpc Policies(QueryPoliciesRequest) returns (QueryPoliciesResponse);
+
+  // EvaluateTransfer is a read-only dry-run of the compliance gate so
+  // wallets / UIs can pre-check a transfer before broadcasting.
+  rpc EvaluateTransfer(QueryEvaluateTransferRequest) returns (QueryEvaluateTransferResponse);
+
+  rpc AuditEntries(QueryAuditEntriesRequest) returns (QueryAuditEntriesResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+
+message QueryAccountRequest { string address = 1; }
+message QueryAccountResponse { Account account = 1 [(gogoproto.nullable) = false]; }
+
+message QueryAccountsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryAccountsResponse {
+  repeated Account accounts = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryRegistrarsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryRegistrarsResponse {
+  repeated Registrar registrars = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QuerySanctionedRequest { string address = 1; }
+message QuerySanctionedResponse {
+  bool sanctioned = 1;
+  Sanction entry = 2 [(gogoproto.nullable) = false];
+}
+
+message QuerySanctionsRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QuerySanctionsResponse {
+  repeated Sanction sanctions = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryPolicyRequest { string id = 1; }
+message QueryPolicyResponse { Policy policy = 1 [(gogoproto.nullable) = false]; }
+
+message QueryPoliciesRequest { cosmos.base.query.v1beta1.PageRequest pagination = 1; }
+message QueryPoliciesResponse {
+  repeated Policy policies = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryEvaluateTransferRequest {
+  string policy_id = 1;
+  string from = 2;
+  string to = 3;
+  uint64 amount = 4;
+}
+message QueryEvaluateTransferResponse {
+  bool allowed = 1;
+  string reason = 2; // empty when allowed
+}
+
+message QueryAuditEntriesRequest {
+  string module = 1; // optional filter; empty = all
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryAuditEntriesResponse {
+  repeated AuditEntry entries = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}

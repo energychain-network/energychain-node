@@ -1,0 +1,14 @@
+syntax = "proto3";
+package energychain.offering.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/offering/v1/types.proto";
+
+option go_package = "energychain/x/offering/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated Offering offerings = 2 [(gogoproto.nullable) = false];
+  repeated Subscription subscriptions = 3 [(gogoproto.nullable) = false];
+  uint64 offering_id_seq = 4;
+}

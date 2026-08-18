@@ -1,0 +1,133 @@
+syntax = "proto3";
+package energychain.rwatoken.v1;
+
+option go_package = "energychain/x/rwatoken/types";
+
+enum TokenStatus {
+  TOKEN_STATUS_UNSPECIFIED = 0;
+  TOKEN_STATUS_ACTIVE      = 1;
+  TOKEN_STATUS_PAUSED      = 2; // transfers blocked; admin ops allowed
+  TOKEN_STATUS_MATURED     = 3; // no mint/transfer; redemption only
+}
+
+enum RedemptionStatus {
+  REDEMPTION_STATUS_UNSPECIFIED = 0;
+  REDEMPTION_STATUS_PENDING     = 1;
+  REDEMPTION_STATUS_SETTLED     = 2;
+  REDEMPTION_STATUS_CANCELLED   = 3;
+}
+
+// Token is a compliant tokenized real-world asset (ERC-3643/1400 style):
+// a permissioned security token whose transfers are gated by an
+// x/identity policy and whose dividends / redemptions settle in an
+// x/stableusd denom.
+message Token {
+  uint64 id = 1;
+  string symbol = 2;
+  string name = 3;
+  string admin = 4;                  // bech32; issuer/operator
+  string asset_class = 5;            // e.g. charging_pile_revenue
+  uint32 decimals = 6;
+  uint64 total_supply = 7;           // outstanding units (excludes burned)
+  TokenStatus status = 8;
+
+  string settlement_denom = 9;       // x/stableusd denom for payouts
+  string policy_id = 10;             // x/identity transfer policy (optional)
+  bool require_kyc = 11;             // gate receivers via x/identity KYC
+  uint64 redemption_price = 12;      // settlement units paid per RWA unit
+  int64 redemption_delay_seconds = 13; // T+N settlement window
+  uint64 per_holder_cap = 14;        // 0 = unlimited
+  string metadata_uri = 15;
+  int64 created_at = 16;
+  int64 updated_at = 17;
+
+  // device_ids binds this token to the x/assethub physical devices whose
+  // metered output backs it (e.g. the PV inverters of a solar plant). Each
+  // id must reference an existing, ACTIVE device operated by `admin`, so
+  // the on-chain asset is provably anchored to real-world hardware whose
+  // production data is attested on the data-trust layer. Empty = unbound.
+  repeated string device_ids = 18;
+
+  // maturity_time is the unix second at/after which the token auto-
+  // transitions to MATURED (transfers blocked, redemption only) via the
+  // EndBlocker — the on-chain expiry of a fixed-tenor revenue right (e.g.
+  // "future 3-10 years of solar revenue"). 0 = perpetual / no auto-expiry.
+  int64 maturity_time = 19;
+}
+
+message AccountFlags {
+  uint64 token_id = 1;
+  string holder = 2;
+  bool frozen = 3;
+}
+
+message Balance {
+  uint64 token_id = 1;
+  string holder = 2;
+  uint64 amount = 3;
+}
+
+message Snapshot {
+  uint64 id = 1;
+  uint64 token_id = 2;
+  uint64 total_supply = 3;
+  int64 taken_at = 4;
+  uint32 holder_count = 5;
+}
+
+// SnapshotBalanceRow is the per-holder balance frozen at snapshot time
+// (genesis representation; in-state it is a (snapshot_id, holder) map).
+message SnapshotBalanceRow {
+  uint64 snapshot_id = 1;
+  string holder = 2;
+  uint64 amount = 3;
+}
+
+// Distribution is a pro-rata dividend funded in settlement_denom against
+// a snapshot. The full amount is escrowed into the token pool at create
+// time; holders claim their floor(amount * bal / total) share.
+message Distribution {
+  uint64 id = 1;
+  uint64 token_id = 2;
+  uint64 snapshot_id = 3;
+  string denom = 4;
+  uint64 total_amount = 5;
+  uint64 claimed_amount = 6;
+  int64 created_at = 7;
+}
+
+message DistributionClaimRow {
+  uint64 distribution_id = 1;
+  string holder = 2;
+  uint64 amount = 3;
+  int64 claimed_at = 4;
+}
+
+// Redemption is a T+N buy-back: units are escrowed (removed from the
+// holder, supply unchanged) at request, the settlement payout is paid
+// from the token pool at execution after execute_after, and cancel
+// returns the units.
+message Redemption {
+  uint64 id = 1;
+  uint64 token_id = 2;
+  string holder = 3;
+  uint64 units = 4;
+  string denom = 5;
+  uint64 payout = 6;
+  RedemptionStatus status = 7;
+  int64 requested_at = 8;
+  int64 execute_after = 9;
+  int64 resolved_at = 10;
+}
+
+message Params {
+  uint32 max_tokens = 1;
+  uint32 max_pending_redemptions_per_holder = 2;
+  bool require_sanctions_clear = 3;
+
+  // max_holders_per_snapshot bounds how many holder rows a single
+  // MsgTakeSnapshot may write, keeping snapshot gas/memory bounded as the
+  // holder set grows. A token whose holder count exceeds this cannot be
+  // snapshotted until the cap is raised via governance.
+  uint32 max_holders_per_snapshot = 4;
+}

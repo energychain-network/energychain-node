@@ -1,0 +1,94 @@
+syntax = "proto3";
+package energychain.bridge.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "energychain/x/bridge/types";
+
+enum ChainStatus {
+  CHAIN_STATUS_UNSPECIFIED = 0;
+  CHAIN_STATUS_ACTIVE      = 1;
+  CHAIN_STATUS_PAUSED      = 2;
+}
+
+enum AssetStatus {
+  ASSET_STATUS_UNSPECIFIED = 0;
+  ASSET_STATUS_ACTIVE      = 1;
+  ASSET_STATUS_PAUSED      = 2;
+}
+
+enum InboundStatus {
+  INBOUND_STATUS_UNSPECIFIED = 0;
+  INBOUND_STATUS_PENDING     = 1; // collecting attestations
+  INBOUND_STATUS_ATTESTED    = 2; // quorum reached, awaiting release
+  INBOUND_STATUS_RELEASED    = 3; // escrow paid out (terminal)
+}
+
+// ExternalChain is a registered counterparty chain with its multi-sig oracle
+// attestor set. Inbound transfers from this chain require `threshold` distinct
+// attestations from members of `attestors`.
+message ExternalChain {
+  uint64 id = 1;
+  string name = 2;
+  string chain_ref = 3;            // free-form, e.g. "ethereum:1"
+  repeated string attestors = 4;   // bech32 attestor addresses
+  uint32 threshold = 5;            // distinct attestations required for quorum
+  ChainStatus status = 6;
+  int64 created_at = 7;
+}
+
+// Asset is a bridgeable settlement denom: the native x/stableusd representation
+// of an off-chain collateral asset (e.g. USDC/USDT). Inbound release MINTS this
+// denom 1:1 against attested reserves; outbound lock BURNS it.
+message Asset {
+  uint64 id = 1;
+  string denom = 2;       // local x/stableusd settlement denom
+  AssetStatus status = 3;
+  int64 created_at = 4;
+}
+
+// Outbound records a lock (this chain -> external chain). The amount is BURNED
+// from the sender on this chain; an off-chain relayer releases the underlying
+// collateral (USDC/USDT) to dest_addr on the destination chain.
+message Outbound {
+  uint64 nonce = 1;
+  string sender = 2;
+  uint64 asset_id = 3;
+  uint64 amount = 4;
+  uint64 dest_chain_id = 5;
+  string dest_addr = 6;   // free-form recipient on the destination chain
+  int64 created_at = 7;
+}
+
+// Inbound records a deposit (external chain -> this chain) driven by attestor
+// quorum. On release the amount is MINTED 1:1 to the recipient as the native
+// stablecoin. The first attestation binds the canonical payload (recipient,
+// asset, amount); later attestations must match it exactly.
+message Inbound {
+  uint64 id = 1;
+  uint64 src_chain_id = 2;
+  uint64 src_nonce = 3;            // the source-chain burn nonce (replay key)
+  string recipient = 4;            // local bech32 recipient
+  uint64 asset_id = 5;
+  uint64 amount = 6;
+  repeated string attestations = 7; // attestor addresses that have signed
+  InboundStatus status = 8;
+  int64 created_at = 9;
+  int64 released_at = 10;
+}
+
+message Params {
+  uint32 max_chains = 1;
+  uint32 max_assets = 2;
+  uint32 max_attestors_per_chain = 3;
+  uint64 max_lock_amount = 4;  // 0 = unbounded per-lock cap (outbound burn)
+
+  bool paused = 5;             // global kill switch
+
+  // Mint rate limits bound the damage from a compromised attestor quorum in
+  // TIME, complementing the per-denom reserve gate (which bounds it in TOTAL).
+  // All are evaluated on the inbound release (mint) leg.
+  uint64 max_mint_per_tx = 6;       // 0 = unbounded per-release cap
+  uint32 mint_window_seconds = 7;   // rolling window length; 0 disables the window cap
+  uint64 max_mint_per_window = 8;   // max minted per src chain within the window; 0 = unbounded
+}

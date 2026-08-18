@@ -1,0 +1,24 @@
+syntax = "proto3";
+package energychain.rwatoken.v1;
+
+import "gogoproto/gogo.proto";
+import "energychain/rwatoken/v1/types.proto";
+
+option go_package = "energychain/x/rwatoken/types";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated Token tokens = 2 [(gogoproto.nullable) = false];
+  repeated Balance balances = 3 [(gogoproto.nullable) = false];
+  repeated AccountFlags flags = 4 [(gogoproto.nullable) = false];
+  repeated Snapshot snapshots = 5 [(gogoproto.nullable) = false];
+  repeated SnapshotBalanceRow snapshot_balances = 6 [(gogoproto.nullable) = false];
+  repeated Distribution distributions = 7 [(gogoproto.nullable) = false];
+  repeated DistributionClaimRow distribution_claims = 8 [(gogoproto.nullable) = false];
+  repeated Redemption redemptions = 9 [(gogoproto.nullable) = false];
+  uint64 token_id_seq = 10;
+  uint64 snapshot_id_seq = 11;
+  uint64 distribution_id_seq = 12;
+  uint64 redemption_id_seq = 13;
+  repeated string issuers = 14; // whitelisted issuer accounts (bech32)
+}
